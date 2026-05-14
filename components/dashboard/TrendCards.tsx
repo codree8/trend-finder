@@ -1,10 +1,16 @@
 import { ArrowUpRight, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trend } from "@/lib/data/mock-trends";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import type { DashboardTrend, TrendStatus } from "@/lib/trends/types";
 
-function statusVariant(status: Trend["status"]) {
+function statusVariant(status: TrendStatus) {
   if (status === "Hidden Gem") return "accent";
   if (status === "Rising") return "secondary";
   if (status === "Volatile") return "danger";
@@ -12,16 +18,19 @@ function statusVariant(status: Trend["status"]) {
   return "default";
 }
 
-export function TrendCards({ trends }: { trends: Trend[] }) {
+export function TrendCards({ trends }: { trends: DashboardTrend[] }) {
   const visible = trends.slice(0, 3);
 
   return (
     <div className="space-y-4">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Top Emerging Trends</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">
+            Top Emerging Trends
+          </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground/75">
-            Emerging trends are topics with fast recent growth, strong source diversity and visible discussion momentum.
+            Emerging trends are topics with fast recent growth, strong source
+            diversity and visible discussion momentum.
           </p>
         </div>
         <Button variant="outline" className="hidden md:inline-flex">
@@ -29,33 +38,54 @@ export function TrendCards({ trends }: { trends: Trend[] }) {
         </Button>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        {visible.map((trend) => (
-          <Card key={trend.id} className="relative overflow-hidden">
-            <div className="absolute right-0 top-0 h-28 w-28 rounded-bl-full bg-primary/10 blur-2xl" />
-            <CardHeader>
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <Badge variant={statusVariant(trend.status)}>{trend.status}</Badge>
-                <div className="flex items-center gap-1 text-xs font-semibold text-secondary">
-                  <Sparkles className="h-3.5 w-3.5" /> {trend.hiddenGemScore} HG
+      {visible.length > 0 ? (
+        <div className="grid gap-4 lg:grid-cols-3">
+          {visible.map((trend) => (
+            <Card key={trend.id} className="relative overflow-hidden">
+              <div className="absolute right-0 top-0 h-28 w-28 rounded-bl-full bg-primary/10 blur-2xl" />
+              <CardHeader>
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <Badge variant={statusVariant(trend.status)}>
+                    {trend.status}
+                  </Badge>
+                  <div className="flex items-center gap-1 text-xs font-semibold text-secondary">
+                    <Sparkles className="h-3.5 w-3.5" /> {trend.hiddenGemScore}{" "}
+                    HG
+                  </div>
                 </div>
-              </div>
-              <CardTitle className="text-lg leading-6">{trend.topic}</CardTitle>
-              <CardDescription>{trend.summary}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <Score label="Trend" value={trend.trendScore} />
-                <Score label="Content" value={trend.contentScore} />
-                <Score label="Gap" value={trend.creatorGap} />
-              </div>
-              <p className="mt-4 rounded-xl border border-border/10 bg-muted/50 p-3 text-xs leading-5 text-muted-foreground/78">
-                <span className="font-semibold text-foreground">Why now:</span> {trend.whyNow}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                <CardTitle className="text-lg leading-6">
+                  {trend.topic}
+                </CardTitle>
+                <CardDescription>{trend.summary}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <Score label="Trend" value={trend.trendScore} />
+                  <Score label="Content" value={trend.contentScore} />
+                  <Score label="Gap" value={trend.creatorGap} />
+                </div>
+                <p className="mt-4 rounded-xl border border-border/10 bg-muted/50 p-3 text-xs leading-5 text-muted-foreground/78">
+                  <span className="font-semibold text-foreground">
+                    Why now:
+                  </span>{" "}
+                  {trend.whyNow}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="p-6 text-sm leading-6 text-muted-foreground/75">
+            No trend snapshots found for this filter yet. Run{" "}
+            <span className="font-semibold text-foreground">
+              Scan Trends Now
+            </span>{" "}
+            and the dashboard will switch from empty state to real database
+            data.
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
