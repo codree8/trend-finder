@@ -1,16 +1,28 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { runTrendScan } from "@/lib/scan/run-scan";
 
-export async function GET(request: NextRequest) {
-  const secret = request.headers.get("authorization")?.replace("Bearer ", "");
+export async function GET(request: Request) {
+  const secret = process.env.CRON_SECRET;
+  const authHeader = request.headers.get("authorization");
 
-  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ ok: false, error: "Unauthorized cron request" }, { status: 401 });
+  if (secret && authHeader !== `Bearer ${secret}`) {
+    return NextResponse.json(
+      { ok: false, message: "Unauthorized cron request." },
+      { status: 401 },
+    );
   }
 
-  // Phase 2: call the same scan service used by the manual scan endpoint.
-  return NextResponse.json({
-    ok: true,
-    mode: "daily",
-    message: "Daily mock scan endpoint is ready.",
-  });
+  try {
+    const result = await runTrendScan({ mode: "daily", windowDays: 1 });
+    return NextResponse.json(result);
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: "Daily trend scan failed.",
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    );
+  }
 }

@@ -1,8 +1,8 @@
-# Trend Finder Starter
+# Trend Finder
 
-Premium AI trend intelligence dashboard starter.
+Premium AI trend intelligence dashboard.
 
-This version is intentionally built with mock data first. The goal is to lock the dashboard UX, scoring language, filters, report exports and visual identity before adding live API connectors.
+This version now includes the first real data layer: GitHub, Hacker News and RSS connectors, a manual scan API, a daily cron scan API and a PostgreSQL/Drizzle schema for storing raw signals and scan runs.
 
 ## Stack
 
@@ -11,14 +11,13 @@ This version is intentionally built with mock data first. The goal is to lock th
 - Tailwind CSS
 - shadcn-style local UI components
 - Recharts
-- Drizzle ORM schema scaffold
-- Vercel Cron scaffold
+- Drizzle ORM
+- Neon/PostgreSQL
+- Vercel Cron
 
 ## Design Direction
 
 Trend Finder uses a dark espresso/burgundy base, red as the signal color and gold as the momentum color.
-
-Core palette:
 
 ```txt
 Primary: #a60d0e
@@ -52,7 +51,15 @@ Copy `.env.example` to `.env.local`.
 cp .env.example .env.local
 ```
 
-For the first visual phase, env values are not required because the app uses mock data.
+For a UI-only run, env values are not required. For persistence and live scans, configure:
+
+```env
+DATABASE_URL=
+GITHUB_TOKEN=
+CRON_SECRET=
+```
+
+`GITHUB_TOKEN` is optional but strongly recommended because unauthenticated GitHub API limits are much lower.
 
 ## Current Pages
 
@@ -65,21 +72,61 @@ For the first visual phase, env values are not required because the app uses moc
 ## API Routes
 
 ```txt
-POST /api/scan                  Manual mock scan
-GET  /api/cron/daily-scan       Daily scan endpoint scaffold
+POST /api/scan                  Manual live scan: GitHub + Hacker News + RSS
+GET  /api/cron/daily-scan       Daily live scan endpoint, protected by CRON_SECRET if set
 GET  /api/export/json           JSON export
 GET  /api/export/csv            CSV export
 GET  /api/export/html           HTML report export
 ```
 
+Manual scan body example:
+
+```json
+{
+  "windowDays": 7,
+  "keywords": ["AI agent", "local LLM", "AI coding"]
+}
+```
+
+## Database
+
+Generate and run migrations once `DATABASE_URL` is configured:
+
+```bash
+npm run db:generate
+npm run db:migrate
+```
+
+A hand-written initial SQL migration is also included in `drizzle/migrations/0001_initial_trend_finder.sql` so the schema is visible immediately.
+
+## Current Data Flow
+
+```txt
+manual/daily scan
+  -> source connectors
+  -> normalized SourceSignal objects
+  -> raw_signals table when DATABASE_URL exists
+  -> scan_runs table summary
+```
+
+The dashboard still renders mock trend cards for now. That is intentional. The next phase is to aggregate `raw_signals` into topic clusters and trend snapshots, then switch the dashboard from mock data to database-backed trend scores.
+
+## Implemented Connectors
+
+```txt
+GitHub       repository search for recent AI-related repos
+Hacker News  Algolia search by recent AI keywords
+RSS          configured AI/product/research feeds
+```
+
 ## Next Development Phases
 
-1. Replace mock data with PostgreSQL snapshots.
-2. Wire Drizzle + Neon.
-3. Implement GitHub, Hacker News and RSS connectors first.
-4. Add Reddit and YouTube carefully because of API rules and quota limits.
-5. Add topic clustering and historical scoring.
-6. Turn Creator Mode into real generated content ideas.
+1. Add topic clustering from raw signals.
+2. Calculate 24h, 7d and 30d snapshots.
+3. Replace mock dashboard data with database snapshots.
+4. Add Reddit OAuth connector.
+5. Add YouTube connector carefully because of quota cost.
+6. Add Creator Mode generation based on real trends.
 
 ## Important Architecture Rule
 

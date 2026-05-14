@@ -1,12 +1,24 @@
 import { NextResponse } from "next/server";
-import { trends } from "@/lib/data/mock-trends";
+import { runTrendScan } from "@/lib/scan/run-scan";
 
-export async function POST() {
-  // Phase 2: replace mock response with source connector orchestration and DB writes.
-  return NextResponse.json({
-    ok: true,
-    mode: "manual",
-    message: "Mock scan completed. Source connectors are scaffolded for the next phase.",
-    trendsFound: trends.length,
-  });
+export async function POST(request: Request) {
+  try {
+    const body = await request.json().catch(() => ({}));
+    const result = await runTrendScan({
+      mode: "manual",
+      windowDays: typeof body.windowDays === "number" ? body.windowDays : 7,
+      keywords: Array.isArray(body.keywords) ? body.keywords : undefined,
+    });
+
+    return NextResponse.json(result);
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: "Trend scan failed.",
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    );
+  }
 }

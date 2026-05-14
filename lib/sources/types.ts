@@ -9,7 +9,13 @@ export type SourceSignal = {
   rawPayload?: unknown;
 };
 
+export type ScanContext = {
+  keywords: string[];
+  since: Date;
+  limitPerSource?: number;
+};
+
 export type SourceConnector = {
   name: string;
-  scan: () => Promise<SourceSignal[]>;
+  scan: (context: ScanContext) => Promise<SourceSignal[]>;
 };
