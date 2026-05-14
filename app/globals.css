@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 12 18% 11%;
+  --foreground: 20 100% 98%;
+
+  --card: 12 25% 14%;
+  --card-foreground: 20 100% 98%;
+
+  --primary: 360 86% 35%;
+  --primary-foreground: 20 100% 98%;
+
+  --secondary: 42 70% 54%;
+  --secondary-foreground: 14 28% 11%;
+
+  --accent: 43 88% 87%;
+  --accent-foreground: 14 28% 11%;
+
+  --muted: 14 20% 18%;
+  --muted-foreground: 17 39% 92%;
+
+  --border: 14 35% 82%;
+  --input: 14 20% 20%;
+  --ring: 360 86% 35%;
+}
+
+* {
+  border-color: hsl(var(--border) / 0.14);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(166, 13, 14, 0.18), transparent 28%),
+    radial-gradient(circle at 78% 18%, rgba(221, 169, 54, 0.10), transparent 28%),
+    linear-gradient(135deg, #241616 0%, #160d0d 55%, #2c1a1a 100%);
+  color: hsl(var(--foreground));
+}
+
+.radar-grid {
+  background-image:
+    linear-gradient(rgba(251, 236, 194, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(251, 236, 194, 0.045) 1px, transparent 1px);
+  background-size: 42px 42px;
+}
+
+.signal-glow {
+  box-shadow:
+    0 0 0 1px rgba(251, 236, 194, 0.09),
+    0 0 24px rgba(166, 13, 14, 0.18),
+    0 0 60px rgba(221, 169, 54, 0.06);
+}
+
+.text-balance {
+  text-wrap: balance;
+}
