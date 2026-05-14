@@ -6,7 +6,7 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const result = await runTrendScan({
       mode: "manual",
-      windowDays: typeof body.windowDays === "number" ? body.windowDays : 7,
+      windowDays: typeof body.windowDays === "number" ? body.windowDays : 30,
       keywords: Array.isArray(body.keywords) ? body.keywords : undefined,
     });
 

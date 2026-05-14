@@ -18,7 +18,7 @@ export function ScanButton() {
       const response = await fetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ windowDays: 7 }),
+        body: JSON.stringify({ windowDays: 30 }),
       });
       const data = await response.json();
 
@@ -27,7 +27,9 @@ export function ScanButton() {
       }
 
       setState("success");
-      setMessage(`${data.totalSignals ?? 0} live signals scanned`);
+      setMessage(
+        `${data.totalSignals ?? 0} signals → ${data.topicCount ?? 0} topic clusters`,
+      );
     } catch (error) {
       setState("error");
       setMessage(error instanceof Error ? error.message : "Scan failed");
