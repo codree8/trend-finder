@@ -1,4 +1,6 @@
+import { ArrowUpRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -8,7 +10,13 @@ import {
 } from "@/components/ui/card";
 import type { DashboardTrend } from "@/lib/trends/types";
 
-export function TrendTable({ trends }: { trends: DashboardTrend[] }) {
+export function TrendTable({
+  trends,
+  onSelectTrend,
+}: {
+  trends: DashboardTrend[];
+  onSelectTrend?: (trend: DashboardTrend) => void;
+}) {
   return (
     <Card>
       <CardHeader>
@@ -31,6 +39,7 @@ export function TrendTable({ trends }: { trends: DashboardTrend[] }) {
                 <th className="pb-3 font-medium">Velocity</th>
                 <th className="pb-3 font-medium">Saturation</th>
                 <th className="pb-3 font-medium">Sources</th>
+                <th className="pb-3 font-medium">Intel</th>
               </tr>
             </thead>
             <tbody>
@@ -41,13 +50,19 @@ export function TrendTable({ trends }: { trends: DashboardTrend[] }) {
                     className="border-b border-border/10 last:border-0"
                   >
                     <td className="py-4">
-                      <p className="font-medium text-foreground">
-                        {trend.topic}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground/65">
-                        {trend.category} · {trend.mentionCount} mentions ·{" "}
-                        {trend.totalEngagement} engagement
-                      </p>
+                      <button
+                        type="button"
+                        onClick={() => onSelectTrend?.(trend)}
+                        className="text-left transition hover:text-secondary"
+                      >
+                        <p className="font-medium text-foreground">
+                          {trend.topic}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground/65">
+                          {trend.category} · {trend.mentionCount} mentions ·{" "}
+                          {trend.totalEngagement} engagement
+                        </p>
+                      </button>
                     </td>
                     <td className="py-4">
                       <Badge variant="muted">{trend.status}</Badge>
@@ -85,12 +100,21 @@ export function TrendTable({ trends }: { trends: DashboardTrend[] }) {
                         )}
                       </div>
                     </td>
+                    <td className="py-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onSelectTrend?.(trend)}
+                      >
+                        Open <ArrowUpRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     className="py-8 text-center text-sm text-muted-foreground/70"
                   >
                     No real trend rows yet. Scan data first, then this table

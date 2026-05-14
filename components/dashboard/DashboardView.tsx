@@ -10,6 +10,7 @@ import { SourceBreakdown } from "@/components/dashboard/SourceBreakdown";
 import { TrendCards } from "@/components/dashboard/TrendCards";
 import { TrendTable } from "@/components/dashboard/TrendTable";
 import { CreatorModePanel } from "@/components/dashboard/CreatorModePanel";
+import { TrendDetailDrawer } from "@/components/dashboard/TrendDetailDrawer";
 import { TREND_SCAN_COMPLETED_EVENT } from "@/components/dashboard/ScanButton";
 import type {
   DashboardMode,
@@ -123,6 +124,9 @@ export function DashboardView() {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTrendSlug, setSelectedTrendSlug] = useState<string | null>(
+    null,
+  );
 
   const loadDashboardData = useCallback(
     async (windowValue: DashboardWindow) => {
@@ -186,6 +190,17 @@ export function DashboardView() {
       data.creatorMode.trend
     );
   }, [data.creatorMode.trend, filteredTrends]);
+
+  const selectedTrend = useMemo(() => {
+    if (!selectedTrendSlug) return null;
+
+    return (
+      data.trends.find((trend) => trend.slug === selectedTrendSlug) ??
+      data.hiddenGems.find((trend) => trend.slug === selectedTrendSlug) ??
+      data.signalTable.find((trend) => trend.slug === selectedTrendSlug) ??
+      null
+    );
+  }, [data.hiddenGems, data.signalTable, data.trends, selectedTrendSlug]);
 
   return (
     <AppShell>
@@ -261,17 +276,30 @@ export function DashboardView() {
         </section>
 
         <section id="hidden-gems">
-          <TrendCards trends={filteredTrends} />
+          <TrendCards
+            trends={filteredTrends}
+            onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}
+          />
         </section>
 
         <section
           id="signals"
           className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]"
         >
-          <TrendTable trends={filteredTrends} />
+          <TrendTable
+            trends={filteredTrends}
+            onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}
+          />
           <CreatorModePanel trend={creatorTrend} />
         </section>
       </div>
+      <TrendDetailDrawer
+        slug={selectedTrendSlug}
+        selectedWindow={trendWindow}
+        initialTrend={selectedTrend}
+        onClose={() => setSelectedTrendSlug(null)}
+        onSelectSlug={setSelectedTrendSlug}
+      />
     </AppShell>
   );
 }

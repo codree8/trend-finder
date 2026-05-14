@@ -18,7 +18,13 @@ function statusVariant(status: TrendStatus) {
   return "default";
 }
 
-export function TrendCards({ trends }: { trends: DashboardTrend[] }) {
+export function TrendCards({
+  trends,
+  onSelectTrend,
+}: {
+  trends: DashboardTrend[];
+  onSelectTrend?: (trend: DashboardTrend) => void;
+}) {
   const visible = trends.slice(0, 3);
 
   return (
@@ -70,6 +76,14 @@ export function TrendCards({ trends }: { trends: DashboardTrend[] }) {
                   </span>{" "}
                   {trend.whyNow}
                 </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-4 w-full"
+                  onClick={() => onSelectTrend?.(trend)}
+                >
+                  Open intelligence <ArrowUpRight className="ml-2 h-4 w-4" />
+                </Button>
               </CardContent>
             </Card>
           ))}

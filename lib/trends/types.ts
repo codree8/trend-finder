@@ -102,3 +102,71 @@ export type DashboardTrendsErrorResponse = {
   message: string;
   error?: string;
 };
+
+export type TrendDetailSignal = DashboardTopSignal & {
+  externalId: string | null;
+  publishedAt: string | null;
+  createdAt: string | null;
+  weight: number;
+};
+
+export type TrendDetailSnapshot = {
+  window: DashboardWindow;
+  trendScore: number;
+  hiddenGemScore: number;
+  contentScore: number;
+  velocity: number;
+  saturation: number;
+  sourceDiversity: number;
+  mentionCount: number;
+  sourceCount: number;
+  totalEngagement: number;
+  createdAt: string;
+};
+
+export type RelatedTrend = {
+  topicId: number;
+  slug: string;
+  topic: string;
+  category: string;
+  trendScore: number;
+  hiddenGemScore: number;
+  contentScore: number;
+};
+
+export type TrendDetailMovement = {
+  currentWindow: DashboardWindow;
+  currentTrendScore: number;
+  dayTrendScore: number | null;
+  weekTrendScore: number | null;
+  monthTrendScore: number | null;
+  dayVsWeek: number | null;
+  weekVsMonth: number | null;
+};
+
+export type TrendDetailIntelligence = {
+  overview: string;
+  whyTrending: string;
+  hiddenGemReasoning: string;
+  contentOpportunity: string;
+  saturationRead: string;
+  suggestedAngles: string[];
+  signals: TrendDetailSignal[];
+  relatedTopics: RelatedTrend[];
+  movement: TrendDetailMovement;
+  snapshots: TrendDetailSnapshot[];
+};
+
+export type TrendDetailResponse = {
+  ok: true;
+  window: DashboardWindow;
+  generatedAt: string;
+  trend: DashboardTrend;
+  intelligence: TrendDetailIntelligence;
+};
+
+export type TrendDetailErrorResponse = {
+  ok: false;
+  message: string;
+  error?: string;
+};
