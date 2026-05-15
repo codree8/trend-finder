@@ -10,6 +10,7 @@ import { SourceBreakdown } from "@/components/dashboard/SourceBreakdown";
 import { TrendCards } from "@/components/dashboard/TrendCards";
 import { TrendTable } from "@/components/dashboard/TrendTable";
 import { CreatorModePanel } from "@/components/dashboard/CreatorModePanel";
+import { ScanHealthPanel } from "@/components/dashboard/ScanHealthPanel";
 import { TrendDetailDrawer } from "@/components/dashboard/TrendDetailDrawer";
 import { TREND_SCAN_COMPLETED_EVENT } from "@/components/dashboard/ScanButton";
 import type {
@@ -233,9 +234,9 @@ export function DashboardView() {
               </span>
               {data.latestScan ? (
                 <span className="rounded-full border border-border/10 bg-card/60 px-3 py-1.5">
-                  {data.latestScan.totalSignals} signals ·{" "}
-                  {data.latestScan.topicClusters} clusters ·{" "}
-                  {data.latestScan.snapshotsCreated} snapshots
+                  {data.latestScan.fetchedSignals} fetched ·{" "}
+                  {data.latestScan.insertedSignals} inserted ·{" "}
+                  {data.latestScan.skippedDuplicates} duplicates skipped
                 </span>
               ) : null}
             </div>
@@ -263,6 +264,11 @@ export function DashboardView() {
         ) : null}
 
         <KpiCards kpis={data.kpis} />
+
+        <ScanHealthPanel
+          latestScan={data.latestScan}
+          sourceBreakdown={data.sourceBreakdown}
+        />
 
         <section
           id="charts"

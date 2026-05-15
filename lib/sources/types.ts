@@ -7,6 +7,10 @@ export type SourceSignal = {
   publishedAt?: string;
   engagement?: number;
   rawPayload?: unknown;
+  normalizedUrl?: string;
+  contentHash?: string;
+  signalFingerprint?: string;
+  qualityScore?: number;
 };
 
 export type ScanContext = {

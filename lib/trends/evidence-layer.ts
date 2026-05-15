@@ -7,6 +7,7 @@ import type {
   TrendEvidenceLevel,
   TrendEvidenceMetric,
   TrendEvidenceType,
+  TrendSignalQualityTag,
 } from "@/lib/trends/types";
 
 type EvidenceInput = {
@@ -161,32 +162,50 @@ function tagSignals(args: {
     (args.momentumDelta !== null && args.momentumDelta >= 6);
 
   return args.signals.map((signal) => {
-    const tags = new Set<TrendEvidenceType>();
+    const evidenceTags = new Set<TrendEvidenceType>();
+    const qualityTags = new Set<TrendSignalQualityTag>();
     const ageHours = ageInHours(signal);
+    const sourceScore = sourceQuality(signal.source);
 
-    if (ageHours <= 72 || sourceQuality(signal.source) >= 82) {
-      tags.add("early_signal");
+    if (ageHours <= 72 || sourceScore >= 82) {
+      evidenceTags.add("early_signal");
+    }
+
+    if (ageHours <= 48) {
+      qualityTags.add("fresh");
+    } else {
+      qualityTags.add("repeated_known");
+    }
+
+    if (sourceScore >= 82) {
+      qualityTags.add("strong_source");
+    }
+
+    if (sourceScore <= 62) {
+      qualityTags.add("weak_source");
     }
 
     if (sourceCount >= 2) {
-      tags.add("cross_source_confirmation");
+      evidenceTags.add("cross_source_confirmation");
+      qualityTags.add("cross_source_confirmation");
     }
 
     if (hasContentGap) {
-      tags.add("content_gap");
+      evidenceTags.add("content_gap");
     }
 
     if (hasSaturationWarning) {
-      tags.add("saturation_warning");
+      evidenceTags.add("saturation_warning");
     }
 
     if (hasMomentum) {
-      tags.add("momentum_shift");
+      evidenceTags.add("momentum_shift");
     }
 
     return {
       ...signal,
-      evidenceTags: Array.from(tags),
+      evidenceTags: Array.from(evidenceTags),
+      qualityTags: Array.from(qualityTags),
     };
   });
 }
@@ -209,20 +228,20 @@ export function buildTrendEvidenceLayer({
       ? clampScore(week.trendScore) - clampScore(month.trendScore)
       : null;
   const creatorGap = clampScore(100 - trend.saturation);
-  const sortedSignals = scoreSignals(signals);
-  const recentSignals = sortedSignals
-    .filter((signal) => ageInHours(signal) <= 96)
-    .slice(0, 5);
-  const evidenceSignals = recentSignals.length
-    ? recentSignals
-    : sortedSignals.slice(0, 5);
-  const diversitySignals = signalsForSourceDiversity(signals);
   const taggedSignals = tagSignals({
     trend,
     signals,
     sourceCount: trend.sourceCount,
     momentumDelta: dayVsWeek,
   });
+  const sortedSignals = scoreSignals(taggedSignals);
+  const recentSignals = sortedSignals
+    .filter((signal) => ageInHours(signal) <= 96)
+    .slice(0, 5);
+  const evidenceSignals = recentSignals.length
+    ? recentSignals
+    : sortedSignals.slice(0, 5);
+  const diversitySignals = signalsForSourceDiversity(taggedSignals);
   const signalsByTag = (tag: TrendEvidenceType) =>
     taggedSignals.filter((signal) => signal.evidenceTags?.includes(tag));
 

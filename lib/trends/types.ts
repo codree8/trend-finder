@@ -70,14 +70,28 @@ export type TrendRadarPoint = {
   value: number;
 };
 
+export type ScanSourceCoverage = {
+  scanned: number;
+  successful: number;
+  withSignals: number;
+  failed: number;
+  label: string;
+};
+
 export type LatestScanStatus = {
   status: string;
   summary: string | null;
   createdAt: string | null;
   totalSignals: number;
+  fetchedSignals: number;
+  insertedSignals: number;
+  skippedDuplicates: number;
+  duplicateRate: number;
   topicClusters: number;
   snapshotsCreated: number;
   failedSources: number;
+  sourceCoverage: ScanSourceCoverage;
+  warnings: string[];
 };
 
 export type DashboardTrendsResponse = {
@@ -117,12 +131,21 @@ export type TrendEvidenceMetric = {
   value: string;
 };
 
+export type TrendSignalQualityTag =
+  | "fresh"
+  | "repeated_known"
+  | "strong_source"
+  | "weak_source"
+  | "cross_source_confirmation";
+
 export type TrendDetailSignal = DashboardTopSignal & {
   externalId: string | null;
   publishedAt: string | null;
   createdAt: string | null;
   weight: number;
+  qualityScore?: number;
   evidenceTags?: TrendEvidenceType[];
+  qualityTags?: TrendSignalQualityTag[];
 };
 
 export type TrendEvidenceItem = {

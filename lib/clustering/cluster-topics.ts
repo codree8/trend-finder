@@ -1,4 +1,5 @@
 import type { SourceSignal } from "@/lib/sources/types";
+import { getSignalQualityMeta } from "@/lib/signals/signal-fingerprint";
 import {
   describeTopic,
   extractTopicKeywords,
@@ -22,6 +23,25 @@ export type TopicCluster = {
   averageEngagement: number;
   topKeywords: string[];
 };
+
+function getSignalTime(signal: SourceSignal) {
+  const candidate = signal.publishedAt;
+  if (!candidate) return 0;
+
+  const date = new Date(candidate);
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+function compareSignalsByQuality(a: SourceSignal, b: SourceSignal) {
+  const qualityDifference =
+    getSignalQualityMeta(b).qualityScore - getSignalQualityMeta(a).qualityScore;
+  if (qualityDifference !== 0) return qualityDifference;
+
+  const engagementDifference = (b.engagement ?? 0) - (a.engagement ?? 0);
+  if (engagementDifference !== 0) return engagementDifference;
+
+  return getSignalTime(b) - getSignalTime(a);
+}
 
 function getClusterKey(signal: SourceSignal) {
   const known = inferKnownTopic(signal);
@@ -104,9 +124,7 @@ export function clusterSourceSignals(signals: SourceSignal[]): TopicCluster[] {
         slug,
         category,
         description: describeTopic(category, sources),
-        signals: clusterSignals.sort(
-          (a, b) => (b.engagement ?? 0) - (a.engagement ?? 0),
-        ),
+        signals: clusterSignals.sort(compareSignalsByQuality),
         sources,
         mentionCount: clusterSignals.length,
         totalEngagement,

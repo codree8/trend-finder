@@ -10,11 +10,28 @@ type ScanApiResponse = {
   ok?: boolean;
   message?: string;
   totalSignals?: number;
+  fetchedSignals?: number;
+  insertedSignals?: number;
+  skippedDuplicates?: number;
   topicCount?: number;
+  topicClusters?: number;
+  snapshotsCreated?: number;
+  scanSummary?: {
+    message?: string;
+    fetchedSignals?: number;
+    insertedSignals?: number;
+    skippedDuplicates?: number;
+    topicClusters?: number;
+    snapshotsCreated?: number;
+  };
   persistence?: {
     storedSignals?: number;
     storedTopics?: number;
     storedSnapshots?: number;
+    insertedSignals?: number;
+    skippedDuplicates?: number;
+    topicClusters?: number;
+    snapshotsCreated?: number;
   };
 };
 
@@ -40,23 +57,50 @@ export function ScanButton() {
         throw new Error(data.message ?? "Scan failed");
       }
 
-      const storedSignals =
-        data.persistence?.storedSignals ?? data.totalSignals ?? 0;
-      const storedTopics =
-        data.persistence?.storedTopics ?? data.topicCount ?? 0;
-      const storedSnapshots = data.persistence?.storedSnapshots ?? 0;
+      const fetchedSignals =
+        data.scanSummary?.fetchedSignals ??
+        data.fetchedSignals ??
+        data.totalSignals ??
+        0;
+      const insertedSignals =
+        data.scanSummary?.insertedSignals ??
+        data.insertedSignals ??
+        data.persistence?.insertedSignals ??
+        data.persistence?.storedSignals ??
+        0;
+      const skippedDuplicates =
+        data.scanSummary?.skippedDuplicates ??
+        data.skippedDuplicates ??
+        data.persistence?.skippedDuplicates ??
+        0;
+      const topicClusters =
+        data.scanSummary?.topicClusters ??
+        data.topicClusters ??
+        data.persistence?.topicClusters ??
+        data.persistence?.storedTopics ??
+        data.topicCount ??
+        0;
+      const snapshotsCreated =
+        data.scanSummary?.snapshotsCreated ??
+        data.snapshotsCreated ??
+        data.persistence?.snapshotsCreated ??
+        data.persistence?.storedSnapshots ??
+        0;
+      const successMessage =
+        data.scanSummary?.message ??
+        `Scan completed: ${fetchedSignals} fetched, ${insertedSignals} inserted, ${skippedDuplicates} duplicates skipped, ${topicClusters} topic clusters, ${snapshotsCreated} snapshots created.`;
 
       setState("success");
-      setMessage(
-        `Scan completed: ${storedSignals} signals, ${storedTopics} topic clusters, ${storedSnapshots} snapshots created.`,
-      );
+      setMessage(successMessage);
 
       window.dispatchEvent(
         new CustomEvent(TREND_SCAN_COMPLETED_EVENT, {
           detail: {
-            storedSignals,
-            storedTopics,
-            storedSnapshots,
+            fetchedSignals,
+            insertedSignals,
+            skippedDuplicates,
+            topicClusters,
+            snapshotsCreated,
           },
         }),
       );

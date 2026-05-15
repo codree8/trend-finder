@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, ne } from "drizzle-orm";
+import { and, desc, eq, gte, ne, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { topicMentions, topics, trendSnapshots } from "@/lib/db/schema";
 import type {
@@ -69,6 +69,7 @@ type MentionRow = {
   publishedAt: Date | null;
   engagement: number | null;
   weight: number;
+  qualityScore: number | null;
   createdAt: Date;
 };
 
@@ -270,6 +271,7 @@ function buildDetailSignals(
       publishedAt: mention.publishedAt?.toISOString() ?? null,
       createdAt: mention.createdAt.toISOString(),
       weight: mention.weight,
+      qualityScore: mention.qualityScore ?? undefined,
     }));
   }
 
@@ -464,6 +466,7 @@ export async function getTrendDetail(
           publishedAt: topicMentions.publishedAt,
           engagement: topicMentions.engagement,
           weight: topicMentions.weight,
+          qualityScore: topicMentions.qualityScore,
           createdAt: topicMentions.createdAt,
         })
         .from(topicMentions)
@@ -473,7 +476,11 @@ export async function getTrendDetail(
             gte(topicMentions.createdAt, cutoff),
           ),
         )
-        .orderBy(desc(topicMentions.engagement), desc(topicMentions.createdAt))
+        .orderBy(
+          sql`coalesce(${topicMentions.qualityScore}, 0) desc`,
+          desc(topicMentions.engagement),
+          desc(topicMentions.createdAt),
+        )
         .limit(30),
       db
         .select({

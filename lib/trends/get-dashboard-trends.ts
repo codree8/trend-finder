@@ -14,6 +14,7 @@ import type {
   DashboardTrendsResponse,
   DashboardWindow,
   LatestScanStatus,
+  ScanSourceCoverage,
   SourceBreakdownItem,
   TrendRadarPoint,
   TrendStatus,
@@ -66,6 +67,7 @@ type TopicMentionRow = {
   title: string;
   url: string;
   engagement: number | null;
+  qualityScore: number | null;
   publishedAt: Date | null;
   createdAt: Date;
 };
@@ -150,6 +152,41 @@ function asRecord(value: unknown): Record<string, unknown> {
 function numberFromPayload(payload: unknown, key: string) {
   const value = asRecord(payload)[key];
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function stringArrayFromPayload(payload: unknown, key: string) {
+  const value = asRecord(payload)[key];
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function sourceCoverageFromPayload(payload: unknown): ScanSourceCoverage {
+  const coverage = asRecord(asRecord(payload).sourceCoverage);
+  const scanned =
+    typeof coverage.scanned === "number"
+      ? coverage.scanned
+      : stringArrayFromPayload(payload, "scannedSources").length;
+  const successful =
+    typeof coverage.successful === "number"
+      ? coverage.successful
+      : Math.max(0, scanned - numberFromPayload(payload, "failedSources"));
+  const withSignals =
+    typeof coverage.withSignals === "number"
+      ? coverage.withSignals
+      : Object.values(asRecord(asRecord(payload).sourceCounts)).filter(
+          (value) => typeof value === "number" && value > 0,
+        ).length;
+  const failed =
+    typeof coverage.failed === "number"
+      ? coverage.failed
+      : numberFromPayload(payload, "failedSources");
+  const label =
+    typeof coverage.label === "string"
+      ? coverage.label
+      : `${withSignals}/${scanned} sources with signals`;
+
+  return { scanned, successful, withSignals, failed, label };
 }
 
 function parseTopSignals(value: unknown): DashboardTopSignal[] {
@@ -409,16 +446,35 @@ function buildLatestScan(
 ): LatestScanStatus | null {
   if (!row) return null;
 
+  const fetchedSignals =
+    numberFromPayload(row.rawPayload, "fetchedSignals") ||
+    numberFromPayload(row.rawPayload, "totalSignals") ||
+    numberFromPayload(row.rawPayload, "storedSignals");
+  const insertedSignals =
+    numberFromPayload(row.rawPayload, "insertedSignals") ||
+    numberFromPayload(row.rawPayload, "storedSignals");
+  const topicClusters =
+    numberFromPayload(row.rawPayload, "topicClusters") ||
+    numberFromPayload(row.rawPayload, "storedTopics") ||
+    numberFromPayload(row.rawPayload, "topicCount");
+  const snapshotsCreated =
+    numberFromPayload(row.rawPayload, "snapshotsCreated") ||
+    numberFromPayload(row.rawPayload, "storedSnapshots");
+
   return {
     status: row.status,
     summary: row.summary,
     createdAt: row.createdAt.toISOString(),
-    totalSignals: numberFromPayload(row.rawPayload, "storedSignals"),
-    topicClusters:
-      numberFromPayload(row.rawPayload, "storedTopics") ||
-      numberFromPayload(row.rawPayload, "topicCount"),
-    snapshotsCreated: numberFromPayload(row.rawPayload, "storedSnapshots"),
+    totalSignals: insertedSignals,
+    fetchedSignals,
+    insertedSignals,
+    skippedDuplicates: numberFromPayload(row.rawPayload, "skippedDuplicates"),
+    duplicateRate: numberFromPayload(row.rawPayload, "duplicateRate"),
+    topicClusters,
+    snapshotsCreated,
     failedSources: numberFromPayload(row.rawPayload, "failedSources"),
+    sourceCoverage: sourceCoverageFromPayload(row.rawPayload),
+    warnings: stringArrayFromPayload(row.rawPayload, "warnings"),
   };
 }
 
@@ -509,6 +565,7 @@ export async function getDashboardTrends(
           title: topicMentions.title,
           url: topicMentions.url,
           engagement: topicMentions.engagement,
+          qualityScore: topicMentions.qualityScore,
           publishedAt: topicMentions.publishedAt,
           createdAt: topicMentions.createdAt,
         })
@@ -519,7 +576,11 @@ export async function getDashboardTrends(
             gte(topicMentions.createdAt, cutoff),
           ),
         )
-        .orderBy(desc(topicMentions.engagement), desc(topicMentions.createdAt))
+        .orderBy(
+          sql`coalesce(${topicMentions.qualityScore}, 0) desc`,
+          desc(topicMentions.engagement),
+          desc(topicMentions.createdAt),
+        )
         .limit(1200)
     : [];
 

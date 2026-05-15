@@ -25,6 +25,10 @@ export const rawSignals = pgTable(
     externalId: varchar("external_id", { length: 255 }).notNull(),
     title: text("title").notNull(),
     url: text("url").notNull(),
+    normalizedUrl: text("normalized_url"),
+    contentHash: varchar("content_hash", { length: 64 }),
+    signalFingerprint: varchar("signal_fingerprint", { length: 96 }),
+    qualityScore: integer("quality_score").default(0),
     author: varchar("author", { length: 160 }),
     publishedAt: timestamp("published_at"),
     engagement: integer("engagement").default(0),
@@ -35,6 +39,16 @@ export const rawSignals = pgTable(
     sourceExternalIdIdx: uniqueIndex("raw_signals_source_external_id_idx").on(
       table.source,
       table.externalId,
+    ),
+    signalFingerprintIdx: uniqueIndex("raw_signals_signal_fingerprint_idx").on(
+      table.signalFingerprint,
+    ),
+    normalizedUrlIdx: index("raw_signals_normalized_url_idx").on(
+      table.normalizedUrl,
+    ),
+    contentHashIdx: index("raw_signals_content_hash_idx").on(table.contentHash),
+    qualityScoreIdx: index("raw_signals_quality_score_idx").on(
+      table.qualityScore,
     ),
     createdAtIdx: index("raw_signals_created_at_idx").on(table.createdAt),
   }),
@@ -60,6 +74,10 @@ export const topicMentions = pgTable(
     externalId: varchar("external_id", { length: 255 }).notNull(),
     title: text("title").notNull(),
     url: text("url").notNull(),
+    normalizedUrl: text("normalized_url"),
+    contentHash: varchar("content_hash", { length: 64 }),
+    signalFingerprint: varchar("signal_fingerprint", { length: 96 }),
+    qualityScore: integer("quality_score").default(0),
     publishedAt: timestamp("published_at"),
     engagement: integer("engagement").default(0),
     weight: integer("weight").default(1).notNull(),
@@ -69,8 +87,14 @@ export const topicMentions = pgTable(
     topicMentionUniqueIdx: uniqueIndex(
       "topic_mentions_topic_source_external_idx",
     ).on(table.topicId, table.source, table.externalId),
+    topicMentionFingerprintIdx: uniqueIndex(
+      "topic_mentions_topic_fingerprint_idx",
+    ).on(table.topicId, table.signalFingerprint),
     topicMentionSlugIdx: index("topic_mentions_topic_slug_idx").on(
       table.topicSlug,
+    ),
+    topicMentionQualityIdx: index("topic_mentions_quality_score_idx").on(
+      table.qualityScore,
     ),
     topicMentionCreatedAtIdx: index("topic_mentions_created_at_idx").on(
       table.createdAt,

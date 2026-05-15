@@ -38,6 +38,7 @@ import type {
   TrendEvidenceItem,
   TrendEvidenceLevel,
   TrendEvidenceType,
+  TrendSignalQualityTag,
 } from "@/lib/trends/types";
 
 type Props = {
@@ -60,6 +61,14 @@ const evidenceLabels: Record<TrendEvidenceType, string> = {
   content_gap: "Content gap",
   saturation_warning: "Saturation",
   momentum_shift: "Momentum",
+};
+
+const qualityLabels: Record<TrendSignalQualityTag, string> = {
+  fresh: "Fresh",
+  repeated_known: "Known",
+  strong_source: "Strong source",
+  weak_source: "Weak source",
+  cross_source_confirmation: "Cross-source",
 };
 
 function evidenceTone(level: TrendEvidenceLevel) {
@@ -100,6 +109,17 @@ function evidenceTone(level: TrendEvidenceLevel) {
 
 function evidenceLabel(tag: TrendEvidenceType) {
   return evidenceLabels[tag] ?? tag;
+}
+
+function qualityLabel(tag: TrendSignalQualityTag) {
+  return qualityLabels[tag] ?? tag;
+}
+
+function qualityVariant(tag: TrendSignalQualityTag) {
+  if (tag === "fresh" || tag === "strong_source") return "secondary" as const;
+  if (tag === "weak_source") return "danger" as const;
+  if (tag === "cross_source_confirmation") return "accent" as const;
+  return "muted" as const;
 }
 
 function formatDate(value: string | null) {
@@ -160,6 +180,11 @@ function SignalLink({ signal }: { signal: TrendDetailSignal }) {
       <div className="mb-2 flex items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
           <Badge variant="muted">{signal.source}</Badge>
+          {signal.qualityTags?.slice(0, 3).map((tag) => (
+            <Badge key={tag} variant={qualityVariant(tag)} className="px-2">
+              {qualityLabel(tag)}
+            </Badge>
+          ))}
           {signal.evidenceTags?.slice(0, 2).map((tag) => (
             <Badge key={tag} variant="secondary" className="px-2">
               {evidenceLabel(tag)}
@@ -691,8 +716,21 @@ function EvidenceCard({ item }: { item: TrendEvidenceItem }) {
               rel="noreferrer"
               className="group flex items-start justify-between gap-3 rounded-2xl border border-border/10 bg-muted/25 p-3 transition hover:border-secondary/25 hover:bg-muted/40"
             >
-              <span className="text-sm leading-5 text-foreground/88">
+              <span className="min-w-0 text-sm leading-5 text-foreground/88">
                 {signal.title}
+                {signal.qualityTags?.length ? (
+                  <span className="mt-2 flex flex-wrap gap-1.5">
+                    {signal.qualityTags.slice(0, 3).map((tag) => (
+                      <Badge
+                        key={`${item.id}-${signal.url}-${tag}`}
+                        variant={qualityVariant(tag)}
+                        className="px-2 text-[10px]"
+                      >
+                        {qualityLabel(tag)}
+                      </Badge>
+                    ))}
+                  </span>
+                ) : null}
               </span>
               <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/50 transition group-hover:text-secondary" />
             </a>
