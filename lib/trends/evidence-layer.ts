@@ -173,6 +173,9 @@ function tagSignals(args: {
 
     if (ageHours <= 48) {
       qualityTags.add("fresh");
+    } else if (ageHours >= 168) {
+      qualityTags.add("old_signal");
+      qualityTags.add("stale_evidence");
     } else {
       qualityTags.add("repeated_known");
     }
@@ -245,11 +248,15 @@ export function buildTrendEvidenceLayer({
   const signalsByTag = (tag: TrendEvidenceType) =>
     taggedSignals.filter((signal) => signal.evidenceTags?.includes(tag));
 
+  const freshnessPenalty = trend.lifecycle.freshnessScore < 45 ? 0.72 : 1;
+
   const earlySignalScore = clampScore(
-    trend.hiddenGemScore * 0.42 +
-      trend.velocity * 0.34 +
-      creatorGap * 0.16 +
-      Math.min(100, recentSignals.length * 18) * 0.08,
+    (trend.hiddenGemScore * 0.38 +
+      trend.velocity * 0.3 +
+      creatorGap * 0.14 +
+      trend.lifecycle.freshnessScore * 0.12 +
+      Math.min(100, recentSignals.length * 18) * 0.06) *
+      freshnessPenalty,
   );
 
   const crossSourceScore = clampScore(
@@ -299,6 +306,7 @@ export function buildTrendEvidenceLayer({
           metric("Velocity", trend.velocity),
           metric("Saturation", trend.saturation),
           metric("Fresh signals", recentSignals.length),
+          metric("Lifecycle", trend.lifecycle.status),
         ],
         supportingSignals: signalsByTag("early_signal").length
           ? signalsByTag("early_signal")
@@ -422,10 +430,8 @@ export function buildTrendEvidenceLayer({
                 ? `+${weekVsMonth}`
                 : weekVsMonth,
           ),
-          metric(
-            "Window",
-            trend.lastSeenAt ? "fresh snapshot" : "stored snapshot",
-          ),
+          metric("Lifecycle", trend.lifecycle.status),
+          metric("Freshness", trend.lifecycle.freshnessScore),
         ],
         supportingSignals: signalsByTag("momentum_shift").length
           ? signalsByTag("momentum_shift").slice(0, 5)

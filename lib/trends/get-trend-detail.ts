@@ -12,6 +12,10 @@ import type {
   TrendStatus,
 } from "@/lib/trends/types";
 import { normalizeDashboardWindow } from "@/lib/trends/get-dashboard-trends";
+import {
+  computeTrendLifecycle,
+  lifecycleScoreMultiplier,
+} from "@/lib/trends/lifecycle";
 import { buildTrendEvidenceLayer } from "@/lib/trends/evidence-layer";
 
 const categoryLabels: Record<string, string> = {
@@ -211,6 +215,7 @@ function buildDashboardTrend(
   topic: TopicRow,
   snapshot: SnapshotRow,
   mentions: MentionRow[],
+  snapshots: SnapshotRow[] = [snapshot],
 ): DashboardTrend {
   const mentionSources = mentions.map((mention) =>
     formatSource(mention.source),
@@ -230,6 +235,35 @@ function buildDashboardTrend(
         engagement: mention.engagement ?? 0,
       }))
     : fallbackSignals.slice(0, 5);
+  const lifecycle = computeTrendLifecycle({
+    snapshot: {
+      window: normalizeDashboardWindow(snapshot.window),
+      trendScore: clampScore(snapshot.trendScore),
+      velocity: clampScore(snapshot.velocityScore),
+      saturation: clampScore(snapshot.saturationScore),
+      mentionCount: snapshot.mentionCount,
+      sourceCount: snapshot.sourceCount,
+      createdAt: snapshot.createdAt,
+    },
+    snapshots: snapshots.map((item) => ({
+      window: normalizeDashboardWindow(item.window),
+      trendScore: clampScore(item.trendScore),
+      velocity: clampScore(item.velocityScore),
+      saturation: clampScore(item.saturationScore),
+      mentionCount: item.mentionCount,
+      sourceCount: item.sourceCount,
+      createdAt: item.createdAt,
+    })),
+    signals: mentions.map((mention) => ({
+      publishedAt: mention.publishedAt?.toISOString() ?? null,
+      createdAt: mention.createdAt.toISOString(),
+      source: mention.source,
+      qualityScore: mention.qualityScore ?? undefined,
+    })),
+  });
+  const freshnessAdjustedTrendScore = clampScore(
+    snapshot.trendScore * lifecycleScoreMultiplier(lifecycle),
+  );
 
   return {
     id: topic.slug,
@@ -239,7 +273,7 @@ function buildDashboardTrend(
     category: formatCategory(topic.category),
     status: getTrendStatus(snapshot),
     summary: buildTrendSummary(topic, snapshot),
-    trendScore: clampScore(snapshot.trendScore),
+    trendScore: freshnessAdjustedTrendScore,
     hiddenGemScore: clampScore(snapshot.hiddenGemScore),
     contentScore: clampScore(snapshot.contentScore),
     velocity: clampScore(snapshot.velocityScore),
@@ -254,6 +288,7 @@ function buildDashboardTrend(
     contentHook: buildContentHook(topic, snapshot),
     topSignals,
     lastSeenAt: snapshot.createdAt.toISOString(),
+    lifecycle,
   };
 }
 
@@ -542,7 +577,12 @@ export async function getTrendDetail(
   }
 
   const fallbackSignals = parseTopSignals(currentSnapshot.topSignals);
-  const trend = buildDashboardTrend(topic, currentSnapshot, mentionRows);
+  const trend = buildDashboardTrend(
+    topic,
+    currentSnapshot,
+    mentionRows,
+    snapshotHistoryRows.length ? snapshotHistoryRows : [currentSnapshot],
+  );
   const intelligence = buildIntelligenceCopy(topic, currentSnapshot);
   const detailSignals = buildDetailSignals(mentionRows, fallbackSignals);
   const snapshotHistory = buildSnapshotHistory(snapshotHistoryRows);
@@ -565,6 +605,7 @@ export async function getTrendDetail(
       signals: evidenceLayer.signals,
       relatedTopics: buildRelatedTopics(relatedRows),
       movement: buildMovement(window, snapshotHistoryRows),
+      lifecycle: trend.lifecycle,
       snapshots: snapshotHistory,
     },
   };

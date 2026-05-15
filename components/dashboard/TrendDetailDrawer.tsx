@@ -69,6 +69,8 @@ const qualityLabels: Record<TrendSignalQualityTag, string> = {
   strong_source: "Strong source",
   weak_source: "Weak source",
   cross_source_confirmation: "Cross-source",
+  old_signal: "Old",
+  stale_evidence: "Stale",
 };
 
 function evidenceTone(level: TrendEvidenceLevel) {
@@ -117,7 +119,8 @@ function qualityLabel(tag: TrendSignalQualityTag) {
 
 function qualityVariant(tag: TrendSignalQualityTag) {
   if (tag === "fresh" || tag === "strong_source") return "secondary" as const;
-  if (tag === "weak_source") return "danger" as const;
+  if (tag === "weak_source" || tag === "stale_evidence")
+    return "danger" as const;
   if (tag === "cross_source_confirmation") return "accent" as const;
   return "muted" as const;
 }
@@ -411,6 +414,54 @@ export function TrendDetailDrawer({
                   value={detail.trend.velocity}
                   icon={Radar}
                 />
+              </section>
+
+              <section className="rounded-3xl border border-border/10 bg-card/72 p-5 shadow-card">
+                <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-secondary">
+                  <Compass className="h-4 w-4" />
+                  Trend lifecycle & freshness
+                </div>
+                <div className="grid gap-3 md:grid-cols-4">
+                  <MovementCard
+                    label="Lifecycle"
+                    value={detail.intelligence.lifecycle.status}
+                    helper="current phase"
+                  />
+                  <MovementCard
+                    label="Freshness"
+                    value={String(detail.intelligence.lifecycle.freshnessScore)}
+                    helper="fresh signal score"
+                  />
+                  <MovementCard
+                    label="Momentum"
+                    value={detail.intelligence.lifecycle.momentumDirection}
+                    helper="direction"
+                    className={
+                      detail.intelligence.lifecycle.momentumDirection === "up"
+                        ? "text-secondary"
+                        : detail.intelligence.lifecycle.momentumDirection ===
+                            "down"
+                          ? "text-primary"
+                          : "text-muted-foreground/80"
+                    }
+                  />
+                  <MovementCard
+                    label="Stale risk"
+                    value={detail.intelligence.lifecycle.stalenessRisk}
+                    helper="priority risk"
+                    className={
+                      detail.intelligence.lifecycle.stalenessRisk === "high"
+                        ? "text-primary"
+                        : detail.intelligence.lifecycle.stalenessRisk ===
+                            "medium"
+                          ? "text-accent"
+                          : "text-secondary"
+                    }
+                  />
+                </div>
+                <p className="mt-4 rounded-2xl border border-border/10 bg-muted/35 p-4 text-sm leading-6 text-muted-foreground/78">
+                  {detail.intelligence.lifecycle.summary}
+                </p>
               </section>
 
               <EvidenceLayerSection evidence={detail.intelligence.evidence} />

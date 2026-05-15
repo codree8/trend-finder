@@ -217,7 +217,8 @@ export function DashboardView() {
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
               Trend Finder now reads real snapshots from Postgres: raw signals
               become topic clusters, clusters become scored trend snapshots, and
-              the dashboard renders the current signal window.
+              lifecycle logic separates fresh acceleration from stale stored
+              noise.
             </p>
             <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground/70">
               <span className="rounded-full border border-border/10 bg-card/60 px-3 py-1.5">

@@ -7,6 +7,10 @@ import {
   topics,
   trendSnapshots,
 } from "@/lib/db/schema";
+import {
+  computeTrendLifecycle,
+  lifecycleScoreMultiplier,
+} from "@/lib/trends/lifecycle";
 import type {
   DashboardKpi,
   DashboardTopSignal,
@@ -288,6 +292,8 @@ function buildDashboardTrend(
   row: SnapshotJoinRow,
   sourcesByTopic: Map<number, Set<string>>,
   topSignalsByTopic: Map<number, DashboardTopSignal[]>,
+  mentionsByTopic: Map<number, TopicMentionRow[]>,
+  dashboardWindow: DashboardWindow,
 ): DashboardTrend {
   const fallbackTopSignals = parseTopSignals(row.topSignals);
   const mentionSources = Array.from(sourcesByTopic.get(row.topicId) ?? []);
@@ -298,6 +304,27 @@ function buildDashboardTrend(
   const topSignals = topSignalsByTopic.get(row.topicId)?.length
     ? (topSignalsByTopic.get(row.topicId) ?? [])
     : fallbackTopSignals;
+  const topicMentions = mentionsByTopic.get(row.topicId) ?? [];
+  const lifecycle = computeTrendLifecycle({
+    snapshot: {
+      window: dashboardWindow,
+      trendScore: clampScore(row.trendScore),
+      velocity: clampScore(row.velocityScore),
+      saturation: clampScore(row.saturationScore),
+      mentionCount: row.mentionCount,
+      sourceCount: row.sourceCount,
+      createdAt: row.createdAt,
+    },
+    signals: topicMentions.map((mention) => ({
+      publishedAt: mention.publishedAt?.toISOString() ?? null,
+      createdAt: mention.createdAt.toISOString(),
+      source: mention.source,
+      qualityScore: mention.qualityScore ?? undefined,
+    })),
+  });
+  const freshnessAdjustedTrendScore = clampScore(
+    row.trendScore * lifecycleScoreMultiplier(lifecycle),
+  );
 
   return {
     id: row.slug,
@@ -307,7 +334,7 @@ function buildDashboardTrend(
     category: formatCategory(row.category),
     status: getTrendStatus(row),
     summary: buildTrendSummary(row),
-    trendScore: clampScore(row.trendScore),
+    trendScore: freshnessAdjustedTrendScore,
     hiddenGemScore: clampScore(row.hiddenGemScore),
     contentScore: clampScore(row.contentScore),
     velocity: clampScore(row.velocityScore),
@@ -322,6 +349,7 @@ function buildDashboardTrend(
     contentHook: buildContentHook(row),
     topSignals,
     lastSeenAt: row.createdAt.toISOString(),
+    lifecycle,
   };
 }
 
@@ -585,8 +613,22 @@ export async function getDashboardTrends(
     : [];
 
   const { sourcesByTopic, topSignalsByTopic } = buildMentionMaps(mentionRows);
+  const mentionsByTopic = new Map<number, TopicMentionRow[]>();
+  for (const mention of mentionRows) {
+    const current = mentionsByTopic.get(mention.topicId) ?? [];
+    current.push(mention);
+    mentionsByTopic.set(mention.topicId, current);
+  }
   const trends = latestRows
-    .map((row) => buildDashboardTrend(row, sourcesByTopic, topSignalsByTopic))
+    .map((row) =>
+      buildDashboardTrend(
+        row,
+        sourcesByTopic,
+        topSignalsByTopic,
+        mentionsByTopic,
+        window,
+      ),
+    )
     .sort((a, b) => b.trendScore - a.trendScore);
 
   const sourceBreakdown = sourceRows.map((row) => ({
@@ -598,7 +640,12 @@ export async function getDashboardTrends(
     .filter(
       (trend) => trend.status === "Hidden Gem" || trend.hiddenGemScore >= 72,
     )
-    .sort((a, b) => b.hiddenGemScore - a.hiddenGemScore);
+    .sort(
+      (a, b) =>
+        b.hiddenGemScore +
+        b.lifecycle.freshnessScore * 0.25 -
+        (a.hiddenGemScore + a.lifecycle.freshnessScore * 0.25),
+    );
 
   return {
     ok: true,

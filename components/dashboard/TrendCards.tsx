@@ -8,7 +8,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { DashboardTrend, TrendStatus } from "@/lib/trends/types";
+import type {
+  DashboardTrend,
+  TrendLifecycleStatus,
+  TrendStatus,
+} from "@/lib/trends/types";
+
+function lifecycleVariant(status: TrendLifecycleStatus) {
+  if (status === "Accelerating") return "secondary" as const;
+  if (status === "Emerging") return "accent" as const;
+  if (status === "Peaking") return "default" as const;
+  if (status === "Cooling") return "danger" as const;
+  return "muted" as const;
+}
 
 function statusVariant(status: TrendStatus) {
   if (status === "Hidden Gem") return "accent";
@@ -51,9 +63,14 @@ export function TrendCards({
               <div className="absolute right-0 top-0 h-28 w-28 rounded-bl-full bg-primary/10 blur-2xl" />
               <CardHeader>
                 <div className="mb-3 flex items-center justify-between gap-3">
-                  <Badge variant={statusVariant(trend.status)}>
-                    {trend.status}
-                  </Badge>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant={statusVariant(trend.status)}>
+                      {trend.status}
+                    </Badge>
+                    <Badge variant={lifecycleVariant(trend.lifecycle.status)}>
+                      {trend.lifecycle.status}
+                    </Badge>
+                  </div>
                   <div className="flex items-center gap-1 text-xs font-semibold text-secondary">
                     <Sparkles className="h-3.5 w-3.5" /> {trend.hiddenGemScore}{" "}
                     HG
@@ -67,7 +84,7 @@ export function TrendCards({
               <CardContent>
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <Score label="Trend" value={trend.trendScore} />
-                  <Score label="Content" value={trend.contentScore} />
+                  <Score label="Fresh" value={trend.lifecycle.freshnessScore} />
                   <Score label="Gap" value={trend.creatorGap} />
                 </div>
                 <p className="mt-4 rounded-xl border border-border/10 bg-muted/50 p-3 text-xs leading-5 text-muted-foreground/78">
@@ -75,6 +92,9 @@ export function TrendCards({
                     Why now:
                   </span>{" "}
                   {trend.whyNow}
+                  <span className="mt-2 block text-muted-foreground/70">
+                    {trend.lifecycle.summary}
+                  </span>
                 </p>
                 <Button
                   variant="outline"

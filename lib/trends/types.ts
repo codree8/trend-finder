@@ -14,6 +14,25 @@ export type TrendStatus =
   | "Mainstream"
   | "Volatile";
 
+export type TrendLifecycleStatus =
+  | "Emerging"
+  | "Accelerating"
+  | "Peaking"
+  | "Cooling"
+  | "Stale"
+  | "Dormant";
+
+export type TrendMomentumDirection = "up" | "flat" | "down";
+
+export type TrendLifecycle = {
+  status: TrendLifecycleStatus;
+  freshnessScore: number;
+  momentumDirection: TrendMomentumDirection;
+  stalenessRisk: "low" | "medium" | "high";
+  latestSignalAgeHours: number | null;
+  summary: string;
+};
+
 export type DashboardKpi = {
   label: string;
   value: string;
@@ -51,6 +70,7 @@ export type DashboardTrend = {
   contentHook: string;
   topSignals: DashboardTopSignal[];
   lastSeenAt: string;
+  lifecycle: TrendLifecycle;
 };
 
 export type SourceBreakdownItem = {
@@ -136,7 +156,9 @@ export type TrendSignalQualityTag =
   | "repeated_known"
   | "strong_source"
   | "weak_source"
-  | "cross_source_confirmation";
+  | "cross_source_confirmation"
+  | "old_signal"
+  | "stale_evidence";
 
 export type TrendDetailSignal = DashboardTopSignal & {
   externalId: string | null;
@@ -208,6 +230,7 @@ export type TrendDetailIntelligence = {
   signals: TrendDetailSignal[];
   relatedTopics: RelatedTrend[];
   movement: TrendDetailMovement;
+  lifecycle: TrendLifecycle;
   snapshots: TrendDetailSnapshot[];
 };
 
