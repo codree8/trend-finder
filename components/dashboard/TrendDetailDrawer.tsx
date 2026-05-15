@@ -33,6 +33,7 @@ import {
 } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { WatchlistButton } from "@/components/watchlist/WatchlistButton";
 import type {
   CreatorContentRisk,
   CreatorOpportunity,
@@ -59,6 +60,8 @@ type Props = {
   slug: string | null;
   selectedWindow: DashboardWindow;
   initialTrend?: DashboardTrend | null;
+  savedTrendKeys?: ReadonlySet<string>;
+  onSavedChange?: (trendKey: string, isSaved: boolean) => void;
   onClose: () => void;
   onSelectSlug: (slug: string) => void;
 };
@@ -347,6 +350,8 @@ export function TrendDetailDrawer({
   slug,
   selectedWindow,
   initialTrend,
+  savedTrendKeys,
+  onSavedChange,
   onClose,
   onSelectSlug,
 }: Props) {
@@ -449,7 +454,7 @@ export function TrendDetailDrawer({
               <h2 className="mt-3 text-balance text-2xl font-semibold tracking-[-0.03em] text-foreground md:text-3xl">
                 {trend?.topic ?? fallbackTrendTitle(initialTrend)}
               </h2>
-              <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground/70">
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground/70">
                 {trend ? (
                   <Badge variant="secondary">{trend.category}</Badge>
                 ) : null}
@@ -458,6 +463,17 @@ export function TrendDetailDrawer({
                   Window:{" "}
                   <strong className="text-secondary">{selectedWindow}</strong>
                 </span>
+                {trend ? (
+                  <WatchlistButton
+                    trend={trend}
+                    isSaved={Boolean(
+                      savedTrendKeys?.has(trend.canonicalKey.toLowerCase()),
+                    )}
+                    selectedWindow={selectedWindow}
+                    onSavedChange={onSavedChange}
+                    size="sm"
+                  />
+                ) : null}
               </div>
             </div>
             <Button size="icon" variant="ghost" onClick={onClose}>

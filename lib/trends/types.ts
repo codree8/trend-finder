@@ -231,6 +231,48 @@ export type DashboardTrendsErrorResponse = {
   error?: string;
 };
 
+export type SavedTrend = {
+  id: number;
+  trendKey: string;
+  trendSlug: string;
+  topic: string;
+  savedAt: string;
+  lastSeenScore: number;
+  lastSeenCreatorOpportunityScore: number;
+  lastSeenQualityScore: number;
+  lastSeenLifecycleStatus: TrendLifecycleStatus | string | null;
+  note: string | null;
+  tags: string[];
+};
+
+export type SavedTrendWithCurrent = SavedTrend & {
+  currentTrend: DashboardTrend | null;
+  currentScore: number;
+  currentCreatorOpportunityScore: number;
+  currentQualityScore: number;
+  currentLifecycleStatus: TrendLifecycleStatus | string | null;
+  lastSignalAgeHours: number | null;
+};
+
+export type WatchlistResponse = {
+  ok: true;
+  window: DashboardWindow;
+  generatedAt: string;
+  items: SavedTrendWithCurrent[];
+};
+
+export type WatchlistMutationResponse = {
+  ok: true;
+  item?: SavedTrendWithCurrent;
+  trendKey?: string;
+};
+
+export type WatchlistErrorResponse = {
+  ok: false;
+  message: string;
+  error?: string;
+};
+
 export type TrendEvidenceType =
   | "early_signal"
   | "cross_source_confirmation"

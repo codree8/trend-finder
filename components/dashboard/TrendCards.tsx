@@ -1,6 +1,7 @@
 import { ArrowUpRight, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { WatchlistButton } from "@/components/watchlist/WatchlistButton";
 import {
   Card,
   CardContent,
@@ -40,9 +41,15 @@ function statusVariant(status: TrendStatus) {
 
 export function TrendCards({
   trends,
+  savedTrendKeys,
+  selectedWindow = "7d",
+  onSavedChange,
   onSelectTrend,
 }: {
   trends: DashboardTrend[];
+  savedTrendKeys?: ReadonlySet<string>;
+  selectedWindow?: string;
+  onSavedChange?: (trendKey: string, isSaved: boolean) => void;
   onSelectTrend?: (trend: DashboardTrend) => void;
 }) {
   const visible = trends.slice(0, 3);
@@ -132,14 +139,25 @@ export function TrendCards({
                     </span>
                   ) : null}
                 </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-4 w-full"
-                  onClick={() => onSelectTrend?.(trend)}
-                >
-                  Open intelligence <ArrowUpRight className="ml-2 h-4 w-4" />
-                </Button>
+                <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto]">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => onSelectTrend?.(trend)}
+                  >
+                    Open intelligence <ArrowUpRight className="ml-2 h-4 w-4" />
+                  </Button>
+                  <WatchlistButton
+                    trend={trend}
+                    isSaved={Boolean(
+                      savedTrendKeys?.has(trend.canonicalKey.toLowerCase()),
+                    )}
+                    selectedWindow={selectedWindow}
+                    onSavedChange={onSavedChange}
+                    className="w-full"
+                  />
+                </div>
               </CardContent>
             </Card>
           ))}

@@ -164,3 +164,35 @@ export const reports = pgTable("reports", {
   html: text("html").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const savedTrends = pgTable(
+  "saved_trends",
+  {
+    id: serial("id").primaryKey(),
+    trendKey: varchar("trend_key", { length: 220 }).notNull(),
+    trendSlug: varchar("trend_slug", { length: 220 }).notNull(),
+    topic: varchar("topic", { length: 220 }).notNull(),
+    savedAt: timestamp("saved_at").defaultNow().notNull(),
+    lastSeenScore: integer("last_seen_score").default(0).notNull(),
+    lastSeenCreatorOpportunityScore: integer(
+      "last_seen_creator_opportunity_score",
+    )
+      .default(0)
+      .notNull(),
+    lastSeenQualityScore: integer("last_seen_quality_score")
+      .default(0)
+      .notNull(),
+    lastSeenLifecycleStatus: varchar("last_seen_lifecycle_status", {
+      length: 40,
+    }),
+    note: text("note"),
+    tags: jsonb("tags"),
+  },
+  (table) => ({
+    savedTrendKeyIdx: uniqueIndex("saved_trends_trend_key_idx").on(
+      table.trendKey,
+    ),
+    savedTrendSlugIdx: index("saved_trends_trend_slug_idx").on(table.trendSlug),
+    savedTrendSavedAtIdx: index("saved_trends_saved_at_idx").on(table.savedAt),
+  }),
+);

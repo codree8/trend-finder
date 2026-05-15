@@ -18,6 +18,7 @@ import type {
   DashboardTrend,
   DashboardTrendsResponse,
   DashboardWindow,
+  WatchlistResponse,
 } from "@/lib/trends/types";
 
 const emptyDashboardData = (
@@ -128,6 +129,7 @@ export function DashboardView() {
   const [selectedTrendSlug, setSelectedTrendSlug] = useState<string | null>(
     null,
   );
+  const [savedTrendKeys, setSavedTrendKeys] = useState<string[]>([]);
 
   const loadDashboardData = useCallback(
     async (windowValue: DashboardWindow) => {
@@ -159,9 +161,50 @@ export function DashboardView() {
     [],
   );
 
+  const loadSavedTrendKeys = useCallback(
+    async (windowValue: DashboardWindow) => {
+      try {
+        const response = await fetch(`/api/watchlist?window=${windowValue}`, {
+          cache: "no-store",
+        });
+        const payload = await response.json();
+
+        if (!response.ok || !payload.ok) return;
+
+        setSavedTrendKeys(
+          (payload as WatchlistResponse).items.map((item) => item.trendKey),
+        );
+      } catch {
+        setSavedTrendKeys([]);
+      }
+    },
+    [],
+  );
+
+  const handleSavedTrendChange = useCallback(
+    (trendKey: string, isSaved: boolean) => {
+      setSavedTrendKeys((current) => {
+        const next = new Set(current);
+
+        if (isSaved) {
+          next.add(trendKey);
+        } else {
+          next.delete(trendKey);
+        }
+
+        return Array.from(next);
+      });
+    },
+    [],
+  );
+
   useEffect(() => {
     void loadDashboardData(trendWindow);
   }, [loadDashboardData, trendWindow]);
+
+  useEffect(() => {
+    void loadSavedTrendKeys(trendWindow);
+  }, [loadSavedTrendKeys, trendWindow]);
 
   useEffect(() => {
     function handleScanCompleted() {
@@ -235,6 +278,11 @@ export function DashboardView() {
       null
     );
   }, [data.hiddenGems, data.signalTable, data.trends, selectedTrendSlug]);
+
+  const savedTrendKeySet = useMemo(
+    () => new Set(savedTrendKeys),
+    [savedTrendKeys],
+  );
 
   return (
     <AppShell>
@@ -321,6 +369,9 @@ export function DashboardView() {
         <section id="hidden-gems" className="scroll-mt-6">
           <TrendCards
             trends={filteredHiddenGems}
+            savedTrendKeys={savedTrendKeySet}
+            selectedWindow={trendWindow}
+            onSavedChange={handleSavedTrendChange}
             onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}
           />
         </section>
@@ -344,6 +395,8 @@ export function DashboardView() {
         slug={selectedTrendSlug}
         selectedWindow={trendWindow}
         initialTrend={selectedTrend}
+        savedTrendKeys={savedTrendKeySet}
+        onSavedChange={handleSavedTrendChange}
         onClose={() => setSelectedTrendSlug(null)}
         onSelectSlug={setSelectedTrendSlug}
       />

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, type MouseEvent } from "react";
 import {
   BarChart3,
+  BookmarkCheck,
   FileText,
   Gauge,
   Lightbulb,
@@ -39,6 +40,7 @@ const dashboardSections = [
 ] as const;
 
 const routeItems = [
+  { href: "/watchlist", label: "Watchlist", icon: BookmarkCheck },
   { href: "/reports", label: "Reports", icon: FileText },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
