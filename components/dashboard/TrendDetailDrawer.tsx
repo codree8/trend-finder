@@ -71,6 +71,7 @@ const qualityLabels: Record<TrendSignalQualityTag, string> = {
   cross_source_confirmation: "Cross-source",
   old_signal: "Old",
   stale_evidence: "Stale",
+  alias_variation: "Alias",
 };
 
 function evidenceTone(level: TrendEvidenceLevel) {
@@ -121,7 +122,8 @@ function qualityVariant(tag: TrendSignalQualityTag) {
   if (tag === "fresh" || tag === "strong_source") return "secondary" as const;
   if (tag === "weak_source" || tag === "stale_evidence")
     return "danger" as const;
-  if (tag === "cross_source_confirmation") return "accent" as const;
+  if (tag === "cross_source_confirmation" || tag === "alias_variation")
+    return "accent" as const;
   return "muted" as const;
 }
 
@@ -203,6 +205,12 @@ function SignalLink({ signal }: { signal: TrendDetailSignal }) {
         <span>{signal.engagement} engagement</span>
         <span>·</span>
         <span>{formatDate(signal.publishedAt ?? signal.createdAt)}</span>
+        {signal.matchedAlias ? (
+          <>
+            <span>·</span>
+            <span>alias: {signal.matchedAlias}</span>
+          </>
+        ) : null}
       </div>
     </a>
   );
@@ -464,6 +472,16 @@ export function TrendDetailDrawer({
                 </p>
               </section>
 
+              <TopicIdentitySection
+                canonicalKey={detail.intelligence.topicIdentity.canonicalKey}
+                aliases={detail.intelligence.topicIdentity.aliases}
+                relatedLabels={detail.intelligence.topicIdentity.relatedLabels}
+                mergedTopicCount={
+                  detail.intelligence.topicIdentity.mergedTopicCount
+                }
+                signalCount={detail.intelligence.signals.length}
+              />
+
               <EvidenceLayerSection evidence={detail.intelligence.evidence} />
 
               <section className="rounded-3xl border border-border/10 bg-card/72 p-5 shadow-card">
@@ -653,6 +671,98 @@ export function TrendDetailDrawer({
         </div>
       </aside>
     </div>
+  );
+}
+
+function TopicIdentitySection({
+  canonicalKey,
+  aliases,
+  relatedLabels,
+  mergedTopicCount,
+  signalCount,
+}: {
+  canonicalKey: string;
+  aliases: string[];
+  relatedLabels: string[];
+  mergedTopicCount: number;
+  signalCount: number;
+}) {
+  return (
+    <section className="rounded-3xl border border-border/10 bg-card/72 p-5 shadow-card">
+      <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+            <Layers3 className="h-4 w-4" />
+            Topic identity
+          </div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground/75">
+            Canonical topic key keeps nearby labels merged instead of letting
+            the dashboard count the same idea three times with different
+            haircuts.
+          </p>
+        </div>
+        <Badge variant="muted">{canonicalKey}</Badge>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <MovementCard
+          label="Canonical key"
+          value={canonicalKey}
+          helper="stable slug"
+          className="text-secondary"
+        />
+        <MovementCard
+          label="Alias merge"
+          value={String(mergedTopicCount)}
+          helper="known variations"
+        />
+        <MovementCard
+          label="Merged signals"
+          value={String(signalCount)}
+          helper="current window"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div className="rounded-2xl border border-border/10 bg-muted/30 p-4">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/55">
+            Known aliases
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {aliases.length > 0 ? (
+              aliases.slice(0, 12).map((alias) => (
+                <Badge key={alias} variant="accent">
+                  {alias}
+                </Badge>
+              ))
+            ) : (
+              <span className="text-sm text-muted-foreground/70">
+                No alias variations recorded yet.
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border/10 bg-muted/30 p-4">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/55">
+            Related labels
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {relatedLabels.length > 0 ? (
+              relatedLabels.slice(0, 10).map((label) => (
+                <Badge key={label} variant="muted">
+                  {label}
+                </Badge>
+              ))
+            ) : (
+              <span className="text-sm text-muted-foreground/70">
+                No related labels recorded yet.
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 

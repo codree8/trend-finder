@@ -3,17 +3,23 @@ import { getSignalQualityMeta } from "@/lib/signals/signal-fingerprint";
 import {
   describeTopic,
   extractTopicKeywords,
-  fallbackTopicName,
   getSignalSearchText,
   inferCategory,
-  inferKnownTopic,
-  slugifyTopic,
   type TopicCategory,
 } from "@/lib/clustering/normalize-topic";
+import {
+  getCanonicalTopicIdentity,
+  mergeAliases,
+  type CanonicalTopicIdentity,
+} from "@/lib/clustering/topic-identity";
 
 export type TopicCluster = {
   name: string;
   slug: string;
+  canonicalKey: string;
+  aliases: string[];
+  relatedLabels: string[];
+  mergedTopicCount: number;
   category: TopicCategory;
   description: string;
   signals: SourceSignal[];
@@ -22,6 +28,20 @@ export type TopicCluster = {
   totalEngagement: number;
   averageEngagement: number;
   topKeywords: string[];
+};
+
+type IdentifiedSignal = SourceSignal & {
+  canonicalTopicKey: string;
+  canonicalTopicLabel: string;
+  matchedTopicAlias: string;
+};
+
+type ClusterBucket = {
+  identity: CanonicalTopicIdentity;
+  signals: IdentifiedSignal[];
+  aliases: string[];
+  relatedLabels: string[];
+  matchedAliases: string[];
 };
 
 function getSignalTime(signal: SourceSignal) {
@@ -43,27 +63,31 @@ function compareSignalsByQuality(a: SourceSignal, b: SourceSignal) {
   return getSignalTime(b) - getSignalTime(a);
 }
 
-function getClusterKey(signal: SourceSignal) {
-  const known = inferKnownTopic(signal);
-  if (known) return slugifyTopic(known.label);
+function identifySignal(signal: SourceSignal): IdentifiedSignal {
+  const identity = getCanonicalTopicIdentity(signal);
 
-  const keywords = extractTopicKeywords(signal, 3);
-  if (keywords.length === 0) return "general-ai-signal";
-
-  return slugifyTopic(keywords.join(" "));
+  return {
+    ...signal,
+    canonicalTopicKey: identity.canonicalKey,
+    canonicalTopicLabel: identity.label,
+    matchedTopicAlias: identity.matchedAlias,
+  };
 }
 
-function getClusterName(signals: SourceSignal[]) {
-  const known = signals.map(inferKnownTopic).find(Boolean);
-  if (known) return known.label;
+function getClusterName(bucket: ClusterBucket) {
+  const labelCounts = new Map<string, number>();
 
-  const shortestUsefulTitle = signals
-    .map((signal) => signal.title.trim())
-    .filter((title) => title.length > 0 && title.length < 90)
-    .sort((a, b) => a.length - b.length)[0];
+  for (const signal of bucket.signals) {
+    labelCounts.set(
+      signal.canonicalTopicLabel,
+      (labelCounts.get(signal.canonicalTopicLabel) ?? 0) + 1,
+    );
+  }
 
-  if (shortestUsefulTitle) return shortestUsefulTitle;
-  return fallbackTopicName(signals[0]);
+  return (
+    [...labelCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ??
+    bucket.identity.label
+  );
 }
 
 function uniqueKeywords(signals: SourceSignal[]) {
@@ -81,57 +105,99 @@ function uniqueKeywords(signals: SourceSignal[]) {
     .map(([keyword]) => keyword);
 }
 
-function pickCategory(signals: SourceSignal[]): TopicCategory {
+function pickCategory(bucket: ClusterBucket): TopicCategory {
   const counts = new Map<TopicCategory, number>();
 
-  for (const signal of signals) {
-    const known = inferKnownTopic(signal);
+  for (const signal of bucket.signals) {
     const category =
-      known?.category ?? inferCategory(getSignalSearchText(signal));
+      getCanonicalTopicIdentity(signal).category ??
+      inferCategory(getSignalSearchText(signal));
     counts.set(category, (counts.get(category) ?? 0) + 1);
   }
 
   return (
-    [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "general-ai"
+    [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ??
+    bucket.identity.category ??
+    "general-ai"
   );
 }
 
-export function clusterSourceSignals(signals: SourceSignal[]): TopicCluster[] {
-  const grouped = new Map<string, SourceSignal[]>();
+function sourceList(signals: SourceSignal[]) {
+  return [...new Set(signals.map((signal) => signal.source))];
+}
 
-  for (const signal of signals) {
-    const key = getClusterKey(signal);
-    const current = grouped.get(key) ?? [];
-    current.push(signal);
-    grouped.set(key, current);
+function createBucket(identity: CanonicalTopicIdentity): ClusterBucket {
+  return {
+    identity,
+    signals: [],
+    aliases: [...identity.aliases],
+    relatedLabels: [...identity.relatedLabels],
+    matchedAliases: [identity.matchedAlias],
+  };
+}
+
+function mergeBucketIdentity(
+  bucket: ClusterBucket,
+  identity: CanonicalTopicIdentity,
+) {
+  bucket.aliases.push(...identity.aliases);
+  bucket.relatedLabels.push(...identity.relatedLabels);
+  bucket.matchedAliases.push(identity.matchedAlias);
+
+  if (identity.confidence > bucket.identity.confidence) {
+    bucket.identity = identity;
+  }
+}
+
+export function clusterSourceSignals(signals: SourceSignal[]): TopicCluster[] {
+  const grouped = new Map<string, ClusterBucket>();
+
+  for (const rawSignal of signals) {
+    const identity = getCanonicalTopicIdentity(rawSignal);
+    const signal = identifySignal(rawSignal);
+    const key = identity.canonicalKey;
+    const bucket = grouped.get(key) ?? createBucket(identity);
+
+    bucket.signals.push(signal);
+    mergeBucketIdentity(bucket, identity);
+    grouped.set(key, bucket);
   }
 
   return [...grouped.values()]
-    .map((clusterSignals) => {
-      const name = getClusterName(clusterSignals);
-      const slug = slugifyTopic(name);
-      const category = pickCategory(clusterSignals);
-      const sources = [
-        ...new Set(clusterSignals.map((signal) => signal.source)),
-      ];
-      const totalEngagement = clusterSignals.reduce(
+    .map((bucket) => {
+      const name = getClusterName(bucket);
+      const slug = bucket.identity.slug;
+      const category = pickCategory(bucket);
+      const sources = sourceList(bucket.signals);
+      const totalEngagement = bucket.signals.reduce(
         (sum, signal) => sum + (signal.engagement ?? 0),
         0,
       );
+      const aliases = mergeAliases(
+        [name, ...bucket.aliases, ...bucket.matchedAliases].filter(
+          (alias) => alias.toLowerCase() !== name.toLowerCase(),
+        ),
+        18,
+      );
+      const relatedLabels = mergeAliases(bucket.relatedLabels, 10);
 
       return {
         name,
         slug,
+        canonicalKey: bucket.identity.canonicalKey,
+        aliases,
+        relatedLabels,
+        mergedTopicCount: Math.max(1, aliases.length),
         category,
         description: describeTopic(category, sources),
-        signals: clusterSignals.sort(compareSignalsByQuality),
+        signals: bucket.signals.sort(compareSignalsByQuality),
         sources,
-        mentionCount: clusterSignals.length,
+        mentionCount: bucket.signals.length,
         totalEngagement,
         averageEngagement: Math.round(
-          totalEngagement / Math.max(1, clusterSignals.length),
+          totalEngagement / Math.max(1, bucket.signals.length),
         ),
-        topKeywords: uniqueKeywords(clusterSignals),
+        topKeywords: uniqueKeywords(bucket.signals),
       } satisfies TopicCluster;
     })
     .sort((a, b) => {

@@ -188,6 +188,13 @@ function tagSignals(args: {
       qualityTags.add("weak_source");
     }
 
+    if (
+      signal.matchedAlias &&
+      signal.matchedAlias.toLowerCase() !== args.trend.topic.toLowerCase()
+    ) {
+      qualityTags.add("alias_variation");
+    }
+
     if (sourceCount >= 2) {
       evidenceTags.add("cross_source_confirmation");
       qualityTags.add("cross_source_confirmation");
@@ -245,6 +252,9 @@ export function buildTrendEvidenceLayer({
     ? recentSignals
     : sortedSignals.slice(0, 5);
   const diversitySignals = signalsForSourceDiversity(taggedSignals);
+  const aliasVariationCount = taggedSignals.filter((signal) =>
+    signal.qualityTags?.includes("alias_variation"),
+  ).length;
   const signalsByTag = (tag: TrendEvidenceType) =>
     taggedSignals.filter((signal) => signal.evidenceTags?.includes(tag));
 
@@ -331,7 +341,7 @@ export function buildTrendEvidenceLayer({
           metric("Sources", trend.sourceCount),
           metric("Source diversity", trend.sourceDiversity),
           metric("Mentions", trend.mentionCount),
-          metric("Signals shown", signals.length),
+          metric("Alias variants", aliasVariationCount),
         ],
         supportingSignals: signalsByTag("cross_source_confirmation").length
           ? diversitySignals

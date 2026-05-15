@@ -63,6 +63,12 @@ export function TrendTable({
                           {trend.category} · {trend.mentionCount} mentions ·{" "}
                           {trend.totalEngagement} engagement
                         </p>
+                        {trend.aliases.length > 0 ? (
+                          <p className="mt-1 text-xs text-muted-foreground/55">
+                            Canonical: {trend.canonicalKey} ·{" "}
+                            {trend.aliases.length} aliases
+                          </p>
+                        ) : null}
                       </button>
                     </td>
                     <td className="py-4">

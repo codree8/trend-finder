@@ -341,6 +341,9 @@ async function persistTopicsAndSnapshots(
       .values({
         name: cluster.name,
         slug: cluster.slug,
+        canonicalKey: cluster.canonicalKey,
+        aliases: cluster.aliases,
+        relatedLabels: cluster.relatedLabels,
         category: cluster.category,
         description: cluster.description,
       })
@@ -348,6 +351,9 @@ async function persistTopicsAndSnapshots(
         target: topics.slug,
         set: {
           name: cluster.name,
+          canonicalKey: cluster.canonicalKey,
+          aliases: cluster.aliases,
+          relatedLabels: cluster.relatedLabels,
           category: cluster.category,
           description: cluster.description,
           updatedAt: new Date(),
@@ -368,6 +374,9 @@ async function persistTopicsAndSnapshots(
             return {
               topicId: topic.id,
               topicSlug: topic.slug,
+              canonicalTopicKey:
+                signal.canonicalTopicKey ?? cluster.canonicalKey,
+              matchedAlias: signal.matchedTopicAlias ?? cluster.name,
               source: signal.source,
               externalId: signal.externalId,
               title: signal.title,
@@ -659,6 +668,10 @@ export async function runTrendScan(options: RunScanOptions) {
       slug: topic.slug,
       category: topic.category,
       description: topic.description,
+      canonicalKey: topic.canonicalKey,
+      aliases: topic.aliases,
+      relatedLabels: topic.relatedLabels,
+      mergedTopicCount: topic.mergedTopicCount,
       sources: topic.sources,
       mentionCount: topic.mentionCount,
       totalEngagement: topic.totalEngagement,

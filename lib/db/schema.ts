@@ -54,15 +54,24 @@ export const rawSignals = pgTable(
   }),
 );
 
-export const topics = pgTable("topics", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 180 }).notNull(),
-  slug: varchar("slug", { length: 220 }).notNull().unique(),
-  category: varchar("category", { length: 80 }).notNull(),
-  description: text("description"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const topics = pgTable(
+  "topics",
+  {
+    id: serial("id").primaryKey(),
+    name: varchar("name", { length: 180 }).notNull(),
+    slug: varchar("slug", { length: 220 }).notNull().unique(),
+    canonicalKey: varchar("canonical_key", { length: 220 }),
+    aliases: jsonb("aliases"),
+    relatedLabels: jsonb("related_labels"),
+    category: varchar("category", { length: 80 }).notNull(),
+    description: text("description"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    canonicalKeyIdx: index("topics_canonical_key_idx").on(table.canonicalKey),
+  }),
+);
 
 export const topicMentions = pgTable(
   "topic_mentions",
@@ -70,6 +79,8 @@ export const topicMentions = pgTable(
     id: serial("id").primaryKey(),
     topicId: integer("topic_id").notNull(),
     topicSlug: varchar("topic_slug", { length: 220 }).notNull(),
+    canonicalTopicKey: varchar("canonical_topic_key", { length: 220 }),
+    matchedAlias: varchar("matched_alias", { length: 220 }),
     source: varchar("source", { length: 80 }).notNull(),
     externalId: varchar("external_id", { length: 255 }).notNull(),
     title: text("title").notNull(),
@@ -92,6 +103,12 @@ export const topicMentions = pgTable(
     ).on(table.topicId, table.signalFingerprint),
     topicMentionSlugIdx: index("topic_mentions_topic_slug_idx").on(
       table.topicSlug,
+    ),
+    topicMentionCanonicalKeyIdx: index(
+      "topic_mentions_canonical_topic_key_idx",
+    ).on(table.canonicalTopicKey),
+    topicMentionMatchedAliasIdx: index("topic_mentions_matched_alias_idx").on(
+      table.matchedAlias,
     ),
     topicMentionQualityIdx: index("topic_mentions_quality_score_idx").on(
       table.qualityScore,

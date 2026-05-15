@@ -11,6 +11,10 @@ import {
   computeTrendLifecycle,
   lifecycleScoreMultiplier,
 } from "@/lib/trends/lifecycle";
+import {
+  canonicalKeyFromTopicText,
+  mergeAliases,
+} from "@/lib/clustering/topic-identity";
 import type {
   DashboardKpi,
   DashboardTopSignal,
@@ -50,6 +54,9 @@ type SnapshotJoinRow = {
   topicId: number;
   slug: string;
   name: string;
+  canonicalKey: string | null;
+  aliases: unknown;
+  relatedLabels: unknown;
   category: string;
   description: string | null;
   trendScore: number;
@@ -72,6 +79,8 @@ type TopicMentionRow = {
   url: string;
   engagement: number | null;
   qualityScore: number | null;
+  canonicalTopicKey: string | null;
+  matchedAlias: string | null;
   publishedAt: Date | null;
   createdAt: Date;
 };
@@ -165,6 +174,20 @@ function stringArrayFromPayload(payload: unknown, key: string) {
     : [];
 }
 
+function stringArrayFromJson(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function canonicalKeyForRow(
+  row: Pick<SnapshotJoinRow, "canonicalKey" | "name" | "slug">,
+) {
+  return (
+    row.canonicalKey ?? canonicalKeyFromTopicText(`${row.name} ${row.slug}`)
+  );
+}
+
 function sourceCoverageFromPayload(payload: unknown): ScanSourceCoverage {
   const coverage = asRecord(asRecord(payload).sourceCoverage);
   const scanned =
@@ -249,12 +272,13 @@ function buildTrendSummary(row: SnapshotJoinRow) {
 }
 
 function latestSnapshotPerTopic(rows: SnapshotJoinRow[]) {
-  const seen = new Set<number>();
+  const seen = new Set<string>();
   const latest: SnapshotJoinRow[] = [];
 
   for (const row of rows) {
-    if (seen.has(row.topicId)) continue;
-    seen.add(row.topicId);
+    const canonicalKey = canonicalKeyForRow(row);
+    if (seen.has(canonicalKey)) continue;
+    seen.add(canonicalKey);
     latest.push(row);
   }
 
@@ -327,10 +351,24 @@ function buildDashboardTrend(
   );
 
   return {
-    id: row.slug,
+    id: canonicalKeyForRow(row),
     topicId: row.topicId,
     slug: row.slug,
     topic: row.name,
+    canonicalKey: canonicalKeyForRow(row),
+    aliases: mergeAliases(
+      stringArrayFromJson(row.aliases).filter(
+        (alias) => alias.toLowerCase() !== row.name.toLowerCase(),
+      ),
+      16,
+    ),
+    relatedLabels: mergeAliases(stringArrayFromJson(row.relatedLabels), 10),
+    mergedTopicCount: Math.max(
+      1,
+      stringArrayFromJson(row.aliases).filter(
+        (alias) => alias.toLowerCase() !== row.name.toLowerCase(),
+      ).length,
+    ),
     category: formatCategory(row.category),
     status: getTrendStatus(row),
     summary: buildTrendSummary(row),
@@ -528,6 +566,9 @@ export async function getDashboardTrends(
           topicId: topics.id,
           slug: topics.slug,
           name: topics.name,
+          canonicalKey: topics.canonicalKey,
+          aliases: topics.aliases,
+          relatedLabels: topics.relatedLabels,
           category: topics.category,
           description: topics.description,
           trendScore: trendSnapshots.trendScore,
@@ -594,6 +635,8 @@ export async function getDashboardTrends(
           url: topicMentions.url,
           engagement: topicMentions.engagement,
           qualityScore: topicMentions.qualityScore,
+          canonicalTopicKey: topicMentions.canonicalTopicKey,
+          matchedAlias: topicMentions.matchedAlias,
           publishedAt: topicMentions.publishedAt,
           createdAt: topicMentions.createdAt,
         })

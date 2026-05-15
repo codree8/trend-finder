@@ -52,6 +52,10 @@ export type DashboardTrend = {
   topicId: number;
   slug: string;
   topic: string;
+  canonicalKey: string;
+  aliases: string[];
+  relatedLabels: string[];
+  mergedTopicCount: number;
   category: string;
   status: TrendStatus;
   summary: string;
@@ -158,7 +162,8 @@ export type TrendSignalQualityTag =
   | "weak_source"
   | "cross_source_confirmation"
   | "old_signal"
-  | "stale_evidence";
+  | "stale_evidence"
+  | "alias_variation";
 
 export type TrendDetailSignal = DashboardTopSignal & {
   externalId: string | null;
@@ -166,6 +171,8 @@ export type TrendDetailSignal = DashboardTopSignal & {
   createdAt: string | null;
   weight: number;
   qualityScore?: number;
+  canonicalTopicKey?: string | null;
+  matchedAlias?: string | null;
   evidenceTags?: TrendEvidenceType[];
   qualityTags?: TrendSignalQualityTag[];
 };
@@ -203,6 +210,10 @@ export type RelatedTrend = {
   topicId: number;
   slug: string;
   topic: string;
+  canonicalKey: string;
+  aliases: string[];
+  relatedLabels: string[];
+  mergedTopicCount: number;
   category: string;
   trendScore: number;
   hiddenGemScore: number;
@@ -231,6 +242,12 @@ export type TrendDetailIntelligence = {
   relatedTopics: RelatedTrend[];
   movement: TrendDetailMovement;
   lifecycle: TrendLifecycle;
+  topicIdentity: {
+    canonicalKey: string;
+    aliases: string[];
+    relatedLabels: string[];
+    mergedTopicCount: number;
+  };
   snapshots: TrendDetailSnapshot[];
 };
 

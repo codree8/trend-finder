@@ -11,6 +11,9 @@ export type SourceSignal = {
   contentHash?: string;
   signalFingerprint?: string;
   qualityScore?: number;
+  canonicalTopicKey?: string;
+  canonicalTopicLabel?: string;
+  matchedTopicAlias?: string;
 };
 
 export type ScanContext = {
