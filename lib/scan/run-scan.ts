@@ -12,6 +12,7 @@ import { activeConnectors } from "@/lib/scan/connectors";
 import { clusterSourceSignals } from "@/lib/clustering/cluster-topics";
 import {
   addTrendSnapshots,
+  scoringCalibrationVersion,
   type ClusterWithSnapshots,
 } from "@/lib/scoring/trend-snapshots";
 import type { SourceSignal } from "@/lib/sources/types";
@@ -284,6 +285,7 @@ export async function runTrendScan(options: RunScanOptions) {
 
   const metadata = {
     mode: options.mode,
+    scoringCalibrationVersion,
     windowDays,
     keywords,
     sourceCounts: Object.fromEntries(
