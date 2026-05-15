@@ -103,11 +103,41 @@ export type DashboardTrendsErrorResponse = {
   error?: string;
 };
 
+export type TrendEvidenceType =
+  | "early_signal"
+  | "cross_source_confirmation"
+  | "content_gap"
+  | "saturation_warning"
+  | "momentum_shift";
+
+export type TrendEvidenceLevel = "strong" | "medium" | "weak" | "warning";
+
+export type TrendEvidenceMetric = {
+  label: string;
+  value: string;
+};
+
 export type TrendDetailSignal = DashboardTopSignal & {
   externalId: string | null;
   publishedAt: string | null;
   createdAt: string | null;
   weight: number;
+  evidenceTags?: TrendEvidenceType[];
+};
+
+export type TrendEvidenceItem = {
+  id: TrendEvidenceType;
+  type: TrendEvidenceType;
+  title: string;
+  label: string;
+  level: TrendEvidenceLevel;
+  score: number;
+  summary: string;
+  whyItMatters: string;
+  recommendedAction: string;
+  metrics: TrendEvidenceMetric[];
+  sources: string[];
+  supportingSignals: TrendDetailSignal[];
 };
 
 export type TrendDetailSnapshot = {
@@ -151,6 +181,7 @@ export type TrendDetailIntelligence = {
   contentOpportunity: string;
   saturationRead: string;
   suggestedAngles: string[];
+  evidence: TrendEvidenceItem[];
   signals: TrendDetailSignal[];
   relatedTopics: RelatedTrend[];
   movement: TrendDetailMovement;

@@ -12,6 +12,7 @@ import type {
   TrendStatus,
 } from "@/lib/trends/types";
 import { normalizeDashboardWindow } from "@/lib/trends/get-dashboard-trends";
+import { buildTrendEvidenceLayer } from "@/lib/trends/evidence-layer";
 
 const categoryLabels: Record<string, string> = {
   agents: "Agents",
@@ -536,6 +537,14 @@ export async function getTrendDetail(
   const fallbackSignals = parseTopSignals(currentSnapshot.topSignals);
   const trend = buildDashboardTrend(topic, currentSnapshot, mentionRows);
   const intelligence = buildIntelligenceCopy(topic, currentSnapshot);
+  const detailSignals = buildDetailSignals(mentionRows, fallbackSignals);
+  const snapshotHistory = buildSnapshotHistory(snapshotHistoryRows);
+  const evidenceLayer = buildTrendEvidenceLayer({
+    trend,
+    window,
+    signals: detailSignals,
+    snapshots: snapshotHistory,
+  });
 
   return {
     ok: true,
@@ -545,10 +554,11 @@ export async function getTrendDetail(
     intelligence: {
       ...intelligence,
       suggestedAngles: buildSuggestedAngles(topic, currentSnapshot),
-      signals: buildDetailSignals(mentionRows, fallbackSignals),
+      evidence: evidenceLayer.evidence,
+      signals: evidenceLayer.signals,
       relatedTopics: buildRelatedTopics(relatedRows),
       movement: buildMovement(window, snapshotHistoryRows),
-      snapshots: buildSnapshotHistory(snapshotHistoryRows),
+      snapshots: snapshotHistory,
     },
   };
 }

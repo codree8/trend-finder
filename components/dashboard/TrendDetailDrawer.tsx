@@ -2,9 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
   ArrowUpRight,
   BarChart3,
+  CheckCircle2,
+  Compass,
   ExternalLink,
+  Layers3,
   Lightbulb,
   Link2,
   Loader2,
@@ -12,6 +16,7 @@ import {
   Sparkles,
   TrendingUp,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import {
   Line,
@@ -30,6 +35,9 @@ import type {
   TrendDetailResponse,
   TrendDetailSignal,
   TrendDetailSnapshot,
+  TrendEvidenceItem,
+  TrendEvidenceLevel,
+  TrendEvidenceType,
 } from "@/lib/trends/types";
 
 type Props = {
@@ -45,6 +53,54 @@ type DetailState =
   | { status: "loading"; data: null; error: null }
   | { status: "success"; data: TrendDetailResponse; error: null }
   | { status: "error"; data: null; error: string };
+
+const evidenceLabels: Record<TrendEvidenceType, string> = {
+  early_signal: "Early",
+  cross_source_confirmation: "Confirmed",
+  content_gap: "Content gap",
+  saturation_warning: "Saturation",
+  momentum_shift: "Momentum",
+};
+
+function evidenceTone(level: TrendEvidenceLevel) {
+  if (level === "warning") {
+    return {
+      badge: "danger" as const,
+      border: "border-primary/35",
+      text: "text-red-100",
+      icon: AlertTriangle,
+    };
+  }
+
+  if (level === "strong") {
+    return {
+      badge: "secondary" as const,
+      border: "border-secondary/30",
+      text: "text-secondary",
+      icon: CheckCircle2,
+    };
+  }
+
+  if (level === "medium") {
+    return {
+      badge: "accent" as const,
+      border: "border-accent/20",
+      text: "text-accent",
+      icon: Compass,
+    };
+  }
+
+  return {
+    badge: "muted" as const,
+    border: "border-border/10",
+    text: "text-muted-foreground",
+    icon: Radar,
+  };
+}
+
+function evidenceLabel(tag: TrendEvidenceType) {
+  return evidenceLabels[tag] ?? tag;
+}
 
 function formatDate(value: string | null) {
   if (!value) return "Stored signal";
@@ -102,8 +158,15 @@ function SignalLink({ signal }: { signal: TrendDetailSignal }) {
       className="group block rounded-2xl border border-border/10 bg-muted/35 p-4 transition hover:border-secondary/35 hover:bg-muted/55"
     >
       <div className="mb-2 flex items-center justify-between gap-3">
-        <Badge variant="muted">{signal.source}</Badge>
-        <ExternalLink className="h-4 w-4 text-muted-foreground/55 transition group-hover:text-secondary" />
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="muted">{signal.source}</Badge>
+          {signal.evidenceTags?.slice(0, 2).map((tag) => (
+            <Badge key={tag} variant="secondary" className="px-2">
+              {evidenceLabel(tag)}
+            </Badge>
+          ))}
+        </div>
+        <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground/55 transition group-hover:text-secondary" />
       </div>
       <p className="text-sm font-medium leading-6 text-foreground">
         {signal.title}
@@ -325,6 +388,8 @@ export function TrendDetailDrawer({
                 />
               </section>
 
+              <EvidenceLayerSection evidence={detail.intelligence.evidence} />
+
               <section className="rounded-3xl border border-border/10 bg-card/72 p-5 shadow-card">
                 <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-secondary">
                   <BarChart3 className="h-4 w-4" />
@@ -515,6 +580,129 @@ export function TrendDetailDrawer({
   );
 }
 
+function EvidenceLayerSection({ evidence }: { evidence: TrendEvidenceItem[] }) {
+  return (
+    <section className="rounded-3xl border border-secondary/15 bg-card/72 p-5 shadow-card">
+      <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+            <Layers3 className="h-4 w-4" />
+            Evidence layer
+          </div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground/75">
+            The drawer now reads the trend like an intelligence brief: what
+            proves the trend is early, confirmed, under-covered or already
+            crowded.
+          </p>
+        </div>
+        <Badge variant="muted">{evidence.length} evidence checks</Badge>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        {evidence.map((item) => (
+          <EvidenceCard key={item.id} item={item} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function EvidenceCard({ item }: { item: TrendEvidenceItem }) {
+  const tone = evidenceTone(item.level);
+  const Icon = tone.icon;
+
+  return (
+    <article
+      className={`rounded-3xl border ${tone.border} bg-[#160d0d]/42 p-4 transition hover:border-secondary/35`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="rounded-2xl border border-border/10 bg-muted/35 p-2">
+            <Icon className={`h-4 w-4 ${tone.text}`} />
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-sm font-semibold text-foreground">
+                {item.title}
+              </h3>
+              <Badge variant={tone.badge}>{item.label}</Badge>
+            </div>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground/82">
+              {item.summary}
+            </p>
+          </div>
+        </div>
+        <div className="shrink-0 text-right">
+          <p className={`text-2xl font-semibold ${tone.text}`}>{item.score}</p>
+          <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/55">
+            score
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">
+        {item.metrics.map((metric) => (
+          <div
+            key={`${item.id}-${metric.label}`}
+            className="rounded-2xl border border-border/10 bg-muted/30 px-3 py-2"
+          >
+            <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground/55">
+              {metric.label}
+            </p>
+            <p className="mt-1 truncate text-sm font-semibold text-foreground">
+              {metric.value}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-border/10 bg-muted/25 p-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-secondary/90">
+          Why this matters
+        </p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground/78">
+          {item.whyItMatters}
+        </p>
+        <p className="mt-3 text-sm leading-6 text-accent/88">
+          <strong>Action:</strong> {item.recommendedAction}
+        </p>
+      </div>
+
+      {item.sources.length > 0 ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {item.sources.map((source) => (
+            <Badge key={`${item.id}-${source}`} variant="muted">
+              {source}
+            </Badge>
+          ))}
+        </div>
+      ) : null}
+
+      {item.supportingSignals.length > 0 ? (
+        <div className="mt-4 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/55">
+            Supporting signals
+          </p>
+          {item.supportingSignals.slice(0, 3).map((signal) => (
+            <a
+              key={`${item.id}-${signal.source}-${signal.url}`}
+              href={signal.url}
+              target="_blank"
+              rel="noreferrer"
+              className="group flex items-start justify-between gap-3 rounded-2xl border border-border/10 bg-muted/25 p-3 transition hover:border-secondary/25 hover:bg-muted/40"
+            >
+              <span className="text-sm leading-5 text-foreground/88">
+                {signal.title}
+              </span>
+              <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/50 transition group-hover:text-secondary" />
+            </a>
+          ))}
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
 function ScoreCard({
   label,
   value,
@@ -522,7 +710,7 @@ function ScoreCard({
 }: {
   label: string;
   value: number;
-  icon: typeof TrendingUp;
+  icon: LucideIcon;
 }) {
   return (
     <div className="rounded-2xl border border-border/10 bg-card/72 p-4 shadow-card">
