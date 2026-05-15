@@ -220,6 +220,35 @@ export type RelatedTrend = {
   contentScore: number;
 };
 
+export type TrendScoringTransparencyImpact =
+  | "positive"
+  | "neutral"
+  | "negative";
+
+export type TrendScoringTransparencyConfidence = "High" | "Medium" | "Low";
+
+export type TrendScoringTransparencyBreakdownItem = {
+  id: string;
+  label: string;
+  value: number;
+  impact: TrendScoringTransparencyImpact;
+  description: string;
+};
+
+export type TrendScoringTransparency = {
+  confidence: TrendScoringTransparencyConfidence;
+  confidenceScore: number;
+  explanation: string;
+  rawTrendScore: number;
+  adjustedTrendScore: number;
+  freshnessAdjustment: number;
+  positiveDrivers: string[];
+  negativeDrivers: string[];
+  warnings: string[];
+  breakdown: TrendScoringTransparencyBreakdownItem[];
+  rankingNotes: string[];
+};
+
 export type TrendDetailMovement = {
   currentWindow: DashboardWindow;
   currentTrendScore: number;
@@ -248,6 +277,7 @@ export type TrendDetailIntelligence = {
     relatedLabels: string[];
     mergedTopicCount: number;
   };
+  scoringTransparency: TrendScoringTransparency;
   snapshots: TrendDetailSnapshot[];
 };
 

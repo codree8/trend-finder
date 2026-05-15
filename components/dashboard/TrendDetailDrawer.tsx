@@ -38,6 +38,10 @@ import type {
   TrendEvidenceItem,
   TrendEvidenceLevel,
   TrendEvidenceType,
+  TrendScoringTransparency,
+  TrendScoringTransparencyBreakdownItem,
+  TrendScoringTransparencyConfidence,
+  TrendScoringTransparencyImpact,
   TrendSignalQualityTag,
 } from "@/lib/trends/types";
 
@@ -125,6 +129,36 @@ function qualityVariant(tag: TrendSignalQualityTag) {
   if (tag === "cross_source_confirmation" || tag === "alias_variation")
     return "accent" as const;
   return "muted" as const;
+}
+
+function confidenceVariant(confidence: TrendScoringTransparencyConfidence) {
+  if (confidence === "High") return "secondary" as const;
+  if (confidence === "Medium") return "accent" as const;
+  return "danger" as const;
+}
+
+function confidenceTone(confidence: TrendScoringTransparencyConfidence) {
+  if (confidence === "High") return "text-secondary";
+  if (confidence === "Medium") return "text-accent";
+  return "text-primary";
+}
+
+function impactVariant(impact: TrendScoringTransparencyImpact) {
+  if (impact === "positive") return "secondary" as const;
+  if (impact === "negative") return "danger" as const;
+  return "muted" as const;
+}
+
+function impactLabel(impact: TrendScoringTransparencyImpact) {
+  if (impact === "positive") return "+ driver";
+  if (impact === "negative") return "- pressure";
+  return "neutral";
+}
+
+function impactBarClass(impact: TrendScoringTransparencyImpact) {
+  if (impact === "positive") return "bg-secondary";
+  if (impact === "negative") return "bg-primary";
+  return "bg-muted-foreground/45";
 }
 
 function formatDate(value: string | null) {
@@ -484,6 +518,10 @@ export function TrendDetailDrawer({
 
               <EvidenceLayerSection evidence={detail.intelligence.evidence} />
 
+              <ScoringTransparencySection
+                transparency={detail.intelligence.scoringTransparency}
+              />
+
               <section className="rounded-3xl border border-border/10 bg-card/72 p-5 shadow-card">
                 <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-secondary">
                   <BarChart3 className="h-4 w-4" />
@@ -763,6 +801,203 @@ function TopicIdentitySection({
         </div>
       </div>
     </section>
+  );
+}
+
+function ScoringTransparencySection({
+  transparency,
+}: {
+  transparency: TrendScoringTransparency;
+}) {
+  const positive = transparency.positiveDrivers.slice(0, 6);
+  const negative = transparency.negativeDrivers.slice(0, 6);
+
+  return (
+    <section className="rounded-3xl border border-accent/18 bg-card/72 p-5 shadow-card">
+      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+            <BarChart3 className="h-4 w-4" />
+            Scoring transparency
+          </div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground/75">
+            Why this trend is ranked this way. This is the debug panel for the
+            scoring brain, not a motivational poster with numbers glued on top.
+          </p>
+        </div>
+        <Badge variant={confidenceVariant(transparency.confidence)}>
+          {transparency.confidence} confidence
+        </Badge>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-4">
+        <MovementCard
+          label="Confidence"
+          value={String(transparency.confidenceScore)}
+          helper={transparency.confidence}
+          className={confidenceTone(transparency.confidence)}
+        />
+        <MovementCard
+          label="Raw score"
+          value={String(transparency.rawTrendScore)}
+          helper="snapshot score"
+        />
+        <MovementCard
+          label="Adjusted"
+          value={String(transparency.adjustedTrendScore)}
+          helper="visible score"
+          className={scoreTone(transparency.adjustedTrendScore)}
+        />
+        <MovementCard
+          label="Freshness adj."
+          value={
+            transparency.freshnessAdjustment > 0
+              ? `+${transparency.freshnessAdjustment}`
+              : String(transparency.freshnessAdjustment)
+          }
+          helper="lifecycle effect"
+          className={
+            transparency.freshnessAdjustment > 0
+              ? "text-secondary"
+              : transparency.freshnessAdjustment < 0
+                ? "text-primary"
+                : "text-muted-foreground/80"
+          }
+        />
+      </div>
+
+      <p className="mt-4 rounded-2xl border border-border/10 bg-muted/30 p-4 text-sm leading-6 text-muted-foreground/82">
+        {transparency.explanation}
+      </p>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <DriverList title="Positive drivers" items={positive} tone="positive" />
+        <DriverList
+          title="Negative pressure"
+          items={negative}
+          tone="negative"
+        />
+      </div>
+
+      {transparency.warnings.length > 0 ? (
+        <div className="mt-4 rounded-2xl border border-primary/25 bg-primary/10 p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-red-100">
+            <AlertTriangle className="h-4 w-4" />
+            Ranking warnings
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {transparency.warnings.map((warning) => (
+              <Badge key={warning} variant="danger">
+                {warning}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="mt-4 rounded-2xl border border-secondary/20 bg-secondary/10 p-4 text-sm leading-6 text-accent/90">
+          No major ranking warnings detected in this window.
+        </div>
+      )}
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+        {transparency.breakdown.map((item) => (
+          <ScoringBreakdownCard key={item.id} item={item} />
+        ))}
+      </div>
+
+      {transparency.rankingNotes.length > 0 ? (
+        <div className="mt-4 rounded-2xl border border-border/10 bg-muted/25 p-4">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/55">
+            Ranking notes
+          </p>
+          <div className="space-y-2">
+            {transparency.rankingNotes.map((note) => (
+              <p
+                key={note}
+                className="text-sm leading-6 text-muted-foreground/78"
+              >
+                {note}
+              </p>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function DriverList({
+  title,
+  items,
+  tone,
+}: {
+  title: string;
+  items: string[];
+  tone: "positive" | "negative";
+}) {
+  const Icon = tone === "positive" ? CheckCircle2 : AlertTriangle;
+  const textClass = tone === "positive" ? "text-secondary" : "text-primary";
+  const emptyText =
+    tone === "positive"
+      ? "No strong positive driver dominates yet."
+      : "No major negative pressure detected.";
+
+  return (
+    <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+      <div
+        className={`mb-3 flex items-center gap-2 text-sm font-semibold ${textClass}`}
+      >
+        <Icon className="h-4 w-4" />
+        {title}
+      </div>
+      {items.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {items.map((item) => (
+            <Badge
+              key={item}
+              variant={tone === "positive" ? "secondary" : "danger"}
+            >
+              {item}
+            </Badge>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm leading-6 text-muted-foreground/70">
+          {emptyText}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ScoringBreakdownCard({
+  item,
+}: {
+  item: TrendScoringTransparencyBreakdownItem;
+}) {
+  return (
+    <article className="rounded-2xl border border-border/10 bg-[#160d0d]/38 p-4">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">{item.label}</p>
+          <Badge variant={impactVariant(item.impact)} className="mt-2">
+            {impactLabel(item.impact)}
+          </Badge>
+        </div>
+        <p className={`text-2xl font-semibold ${scoreTone(item.value)}`}>
+          {item.value}
+        </p>
+      </div>
+      <div className="mb-3 h-2 overflow-hidden rounded-full bg-muted/45">
+        <div
+          className={`h-full rounded-full ${impactBarClass(item.impact)}`}
+          style={{ width: `${Math.max(4, Math.min(100, item.value))}%` }}
+        />
+      </div>
+      <p className="text-sm leading-6 text-muted-foreground/75">
+        {item.description}
+      </p>
+    </article>
   );
 }
 

@@ -17,6 +17,7 @@ import {
   lifecycleScoreMultiplier,
 } from "@/lib/trends/lifecycle";
 import { buildTrendEvidenceLayer } from "@/lib/trends/evidence-layer";
+import { buildScoringTransparency } from "@/lib/trends/scoring-transparency";
 import {
   canonicalKeyFromTopicText,
   mergeAliases,
@@ -652,6 +653,12 @@ export async function getTrendDetail(
     signals: detailSignals,
     snapshots: snapshotHistory,
   });
+  const scoringTransparency = buildScoringTransparency({
+    trend,
+    signals: evidenceLayer.signals,
+    snapshots: snapshotHistory,
+    rawTrendScore: currentSnapshot.trendScore,
+  });
 
   return {
     ok: true,
@@ -672,6 +679,7 @@ export async function getTrendDetail(
         relatedLabels: trend.relatedLabels,
         mergedTopicCount: trend.mergedTopicCount,
       },
+      scoringTransparency,
       snapshots: snapshotHistory,
     },
   };
