@@ -22,6 +22,7 @@ const dashboardSections = [
     label: "Dashboard",
     icon: Gauge,
   },
+  { id: "charts", href: "/dashboard#charts", label: "Charts", icon: BarChart3 },
   {
     id: "hidden-gems",
     href: "/dashboard#hidden-gems",
@@ -35,7 +36,6 @@ const dashboardSections = [
     icon: Lightbulb,
   },
   { id: "signals", href: "/dashboard#signals", label: "Signals", icon: Radar },
-  { id: "charts", href: "/dashboard#charts", label: "Charts", icon: BarChart3 },
 ] as const;
 
 const routeItems = [
@@ -74,21 +74,43 @@ export function Sidebar() {
     const updateActiveSection = () => {
       animationFrame = 0;
 
-      const rootTop = scrollRoot.getBoundingClientRect().top;
-      const activationLine = 140;
-      let nextActive: DashboardSectionId = "dashboard-overview";
+      const rootRect = scrollRoot.getBoundingClientRect();
+      const activationLine = rootRect.top + 160;
 
-      sectionIds.forEach((id) => {
-        const section = document.getElementById(id);
-        if (!section) return;
+      const visibleSections = sectionIds
+        .map((id) => {
+          const section = document.getElementById(id);
+          if (!section) return null;
 
-        const distanceFromScrollTop =
-          section.getBoundingClientRect().top - rootTop;
+          const rect = section.getBoundingClientRect();
 
-        if (distanceFromScrollTop <= activationLine) {
-          nextActive = id;
-        }
-      });
+          return {
+            id,
+            top: rect.top,
+            bottom: rect.bottom,
+          };
+        })
+        .filter(
+          (
+            section,
+          ): section is {
+            id: DashboardSectionId;
+            top: number;
+            bottom: number;
+          } => section !== null,
+        );
+
+      const activeFromLine = visibleSections
+        .filter((section) => section.top <= activationLine)
+        .at(-1);
+
+      const activeFromViewport = visibleSections.find(
+        (section) =>
+          section.top < rootRect.bottom && section.bottom > rootRect.top,
+      );
+
+      const nextActive =
+        activeFromLine?.id ?? activeFromViewport?.id ?? "dashboard-overview";
 
       setActiveDashboardSection((current) =>
         current === nextActive ? current : nextActive,

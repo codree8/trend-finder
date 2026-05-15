@@ -11,6 +11,7 @@ import {
   computeTrendLifecycle,
   lifecycleScoreMultiplier,
 } from "@/lib/trends/lifecycle";
+import { buildCreatorOpportunity } from "@/lib/trends/creator-opportunity";
 import {
   canonicalKeyFromTopicText,
   mergeAliases,
@@ -250,20 +251,6 @@ function buildWhyNow(row: SnapshotJoinRow, sources: string[]) {
   return `${row.mentionCount} fresh mentions across ${sourceText}, with ${row.totalEngagement} total engagement and ${row.velocityScore}/100 velocity.`;
 }
 
-function buildContentHook(row: SnapshotJoinRow) {
-  const category = formatCategory(row.category).toLowerCase();
-
-  if (row.hiddenGemScore >= 75) {
-    return `${row.name} looks early: high hidden-gem score, low saturation and enough signal to justify a deeper breakdown.`;
-  }
-
-  if (row.contentScore >= 82) {
-    return `${row.name} has a strong content angle for ${category} audiences before the topic gets over-explained.`;
-  }
-
-  return `${row.name}: the signal is forming, but the useful angle is still open.`;
-}
-
 function buildTrendSummary(row: SnapshotJoinRow) {
   if (row.description) return row.description;
 
@@ -349,6 +336,41 @@ function buildDashboardTrend(
   const freshnessAdjustedTrendScore = clampScore(
     row.trendScore * lifecycleScoreMultiplier(lifecycle),
   );
+  const aliases = mergeAliases(
+    stringArrayFromJson(row.aliases).filter(
+      (alias) => alias.toLowerCase() !== row.name.toLowerCase(),
+    ),
+    16,
+  );
+  const relatedLabels = mergeAliases(
+    stringArrayFromJson(row.relatedLabels),
+    10,
+  );
+  const category = formatCategory(row.category);
+  const hiddenGemScore = clampScore(row.hiddenGemScore);
+  const contentScore = clampScore(row.contentScore);
+  const velocity = clampScore(row.velocityScore);
+  const saturation = clampScore(row.saturationScore);
+  const creatorGap = clampScore(100 - row.saturationScore);
+  const sourceDiversity = clampScore(row.sourceDiversityScore);
+  const creatorOpportunity = buildCreatorOpportunity({
+    topic: row.name,
+    category,
+    trendScore: freshnessAdjustedTrendScore,
+    hiddenGemScore,
+    contentScore,
+    velocity,
+    saturation,
+    creatorGap,
+    sourceDiversity,
+    mentionCount: row.mentionCount,
+    sourceCount: row.sourceCount,
+    totalEngagement: row.totalEngagement,
+    sources,
+    lifecycle,
+    aliases,
+    relatedLabels,
+  });
 
   return {
     id: canonicalKeyForRow(row),
@@ -356,38 +378,29 @@ function buildDashboardTrend(
     slug: row.slug,
     topic: row.name,
     canonicalKey: canonicalKeyForRow(row),
-    aliases: mergeAliases(
-      stringArrayFromJson(row.aliases).filter(
-        (alias) => alias.toLowerCase() !== row.name.toLowerCase(),
-      ),
-      16,
-    ),
-    relatedLabels: mergeAliases(stringArrayFromJson(row.relatedLabels), 10),
-    mergedTopicCount: Math.max(
-      1,
-      stringArrayFromJson(row.aliases).filter(
-        (alias) => alias.toLowerCase() !== row.name.toLowerCase(),
-      ).length,
-    ),
-    category: formatCategory(row.category),
+    aliases,
+    relatedLabels,
+    mergedTopicCount: Math.max(1, aliases.length),
+    category,
     status: getTrendStatus(row),
     summary: buildTrendSummary(row),
     trendScore: freshnessAdjustedTrendScore,
-    hiddenGemScore: clampScore(row.hiddenGemScore),
-    contentScore: clampScore(row.contentScore),
-    velocity: clampScore(row.velocityScore),
-    saturation: clampScore(row.saturationScore),
-    creatorGap: clampScore(100 - row.saturationScore),
-    sourceDiversity: clampScore(row.sourceDiversityScore),
+    hiddenGemScore,
+    contentScore,
+    velocity,
+    saturation,
+    creatorGap,
+    sourceDiversity,
     mentionCount: row.mentionCount,
     sourceCount: row.sourceCount,
     totalEngagement: row.totalEngagement,
     sources,
     whyNow: buildWhyNow(row, sources),
-    contentHook: buildContentHook(row),
+    contentHook: creatorOpportunity.bestAngle,
     topSignals,
     lastSeenAt: row.createdAt.toISOString(),
     lifecycle,
+    creatorOpportunity,
   };
 }
 
@@ -679,16 +692,43 @@ export async function getDashboardTrends(
     signals: Number(row.signals) || 0,
   }));
   const latestScan = buildLatestScan(latestScanRows[0]);
-  const hiddenGems = trends
-    .filter(
-      (trend) => trend.status === "Hidden Gem" || trend.hiddenGemScore >= 72,
-    )
-    .sort(
-      (a, b) =>
-        b.hiddenGemScore +
-        b.lifecycle.freshnessScore * 0.25 -
-        (a.hiddenGemScore + a.lifecycle.freshnessScore * 0.25),
-    );
+  const hiddenGemRankScore = (trend: DashboardTrend) =>
+    trend.hiddenGemScore * 0.42 +
+    trend.creatorOpportunity.score * 0.34 +
+    trend.lifecycle.freshnessScore * 0.16 +
+    Math.max(0, 100 - trend.saturation) * 0.08 -
+    Math.max(0, trend.saturation - 70) * 0.35;
+
+  const strictHiddenGems = trends.filter(
+    (trend) =>
+      trend.status === "Hidden Gem" ||
+      trend.hiddenGemScore >= 72 ||
+      (trend.creatorOpportunity.score >= 72 && trend.saturation <= 62),
+  );
+
+  const earlyOpeningFallback = trends.filter(
+    (trend) =>
+      trend.lifecycle.status !== "Stale" &&
+      trend.lifecycle.status !== "Dormant" &&
+      trend.saturation <= 78 &&
+      (trend.hiddenGemScore >= 45 || trend.creatorOpportunity.score >= 55),
+  );
+
+  const hiddenGems = (
+    strictHiddenGems.length > 0
+      ? strictHiddenGems
+      : earlyOpeningFallback.length > 0
+        ? earlyOpeningFallback
+        : trends
+  )
+    .slice()
+    .sort((a, b) => hiddenGemRankScore(b) - hiddenGemRankScore(a))
+    .slice(0, 8);
+
+  const creatorOpportunities = trends
+    .slice()
+    .sort((a, b) => b.creatorOpportunity.score - a.creatorOpportunity.score)
+    .slice(0, 8);
 
   return {
     ok: true,
@@ -703,8 +743,8 @@ export async function getDashboardTrends(
     timeline: buildTimeline(timelineRows),
     radar: buildRadar(trends),
     creatorMode: {
-      trend:
-        trends.find((trend) => trend.contentScore >= 78) ?? trends[0] ?? null,
+      trend: creatorOpportunities[0] ?? null,
+      opportunities: creatorOpportunities,
     },
   };
 }

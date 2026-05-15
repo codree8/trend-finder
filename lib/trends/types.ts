@@ -33,6 +33,59 @@ export type TrendLifecycle = {
   summary: string;
 };
 
+export type CreatorOpportunityLevel = "High" | "Medium" | "Low";
+
+export type CreatorRecommendedTiming =
+  | "Act now"
+  | "Watch"
+  | "Too early"
+  | "Too late";
+
+export type CreatorRecommendedFormat =
+  | "Practical explainer"
+  | "Short analysis"
+  | "Deep dive"
+  | "Comparison"
+  | "Tutorial"
+  | "Founder insight"
+  | "LinkedIn post"
+  | "Carousel";
+
+export type CreatorAudienceFit =
+  | "builders"
+  | "founders"
+  | "marketers"
+  | "researchers"
+  | "creators"
+  | "product teams";
+
+export type CreatorContentRisk = "low" | "medium" | "high";
+
+export type CreatorOpportunity = {
+  score: number;
+  level: CreatorOpportunityLevel;
+  recommendedTiming: CreatorRecommendedTiming;
+  recommendedFormat: CreatorRecommendedFormat;
+  bestAngle: string;
+  audienceFit: CreatorAudienceFit[];
+  contentRisk: CreatorContentRisk;
+  explanation: string;
+  metrics: {
+    freshness: number;
+    hiddenGem: number;
+    creatorGap: number;
+    lowSaturation: number;
+    sourceCredibility: number;
+    lifecycleFit: number;
+    crossSourceConfirmation: number;
+    topicClarity: number;
+    contentAnglePotential: number;
+    stalenessPenalty: number;
+  };
+  drivers: string[];
+  warnings: string[];
+};
+
 export type DashboardKpi = {
   label: string;
   value: string;
@@ -75,6 +128,7 @@ export type DashboardTrend = {
   topSignals: DashboardTopSignal[];
   lastSeenAt: string;
   lifecycle: TrendLifecycle;
+  creatorOpportunity: CreatorOpportunity;
 };
 
 export type SourceBreakdownItem = {
@@ -132,6 +186,7 @@ export type DashboardTrendsResponse = {
   radar: TrendRadarPoint[];
   creatorMode: {
     trend: DashboardTrend | null;
+    opportunities: DashboardTrend[];
   };
 };
 
@@ -278,6 +333,7 @@ export type TrendDetailIntelligence = {
     mergedTopicCount: number;
   };
   scoringTransparency: TrendScoringTransparency;
+  creatorOpportunity: CreatorOpportunity;
   snapshots: TrendDetailSnapshot[];
 };
 

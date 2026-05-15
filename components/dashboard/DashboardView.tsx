@@ -59,7 +59,7 @@ const emptyDashboardData = (
   sourceBreakdown: [],
   timeline: [],
   radar: [],
-  creatorMode: { trend: null },
+  creatorMode: { trend: null, opportunities: [] },
 });
 
 const modeCategoryMap: Record<Exclude<DashboardMode, "All">, string[]> = {
@@ -184,13 +184,38 @@ export function DashboardView() {
     );
   }, [category, data.trends, mode]);
 
+  const filteredHiddenGems = useMemo(() => {
+    return data.hiddenGems.filter(
+      (trend) =>
+        filterByMode(trend, mode) &&
+        (category === "All" || trend.category === category),
+    );
+  }, [category, data.hiddenGems, mode]);
+
+  const creatorOpportunities = useMemo(() => {
+    const ranked = data.creatorMode.opportunities.length
+      ? data.creatorMode.opportunities
+      : filteredTrends
+          .slice()
+          .sort(
+            (a, b) => b.creatorOpportunity.score - a.creatorOpportunity.score,
+          );
+
+    return ranked.filter(
+      (trend) =>
+        filterByMode(trend, mode) &&
+        (category === "All" || trend.category === category),
+    );
+  }, [category, data.creatorMode.opportunities, filteredTrends, mode]);
+
   const creatorTrend = useMemo(() => {
     return (
-      filteredTrends.find((trend) => trend.contentScore >= 78) ??
+      creatorOpportunities[0] ??
+      filteredTrends.find((trend) => trend.creatorOpportunity.score >= 65) ??
       filteredTrends[0] ??
       data.creatorMode.trend
     );
-  }, [data.creatorMode.trend, filteredTrends]);
+  }, [creatorOpportunities, data.creatorMode.trend, filteredTrends]);
 
   const selectedTrend = useMemo(() => {
     if (!selectedTrendSlug) return null;
@@ -287,13 +312,17 @@ export function DashboardView() {
 
         <section id="hidden-gems" className="scroll-mt-6">
           <TrendCards
-            trends={filteredTrends}
+            trends={filteredHiddenGems}
             onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}
           />
         </section>
 
         <section id="creator-mode" className="scroll-mt-6">
-          <CreatorModePanel trend={creatorTrend} />
+          <CreatorModePanel
+            trend={creatorTrend}
+            opportunities={creatorOpportunities}
+            onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}
+          />
         </section>
 
         <section id="signals" className="scroll-mt-6">

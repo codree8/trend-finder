@@ -44,11 +44,11 @@ export function TrendCards({
       <div className="flex items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">
-            Top Emerging Trends
+            Hidden Gems & Early Openings
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground/75">
-            Emerging trends are topics with fast recent growth, strong source
-            diversity and visible discussion momentum.
+            Hidden-gem ranking now favors early topics that also have a real
+            creator opportunity, not just low mainstream saturation.
           </p>
         </div>
         <Button variant="outline" className="hidden md:inline-flex">
@@ -77,8 +77,8 @@ export function TrendCards({
                     ) : null}
                   </div>
                   <div className="flex items-center gap-1 text-xs font-semibold text-secondary">
-                    <Sparkles className="h-3.5 w-3.5" /> {trend.hiddenGemScore}{" "}
-                    HG
+                    <Sparkles className="h-3.5 w-3.5" />
+                    {trend.creatorOpportunity.score} CO
                   </div>
                 </div>
                 <CardTitle className="text-lg leading-6">
@@ -93,9 +93,12 @@ export function TrendCards({
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-3 gap-2 text-center">
-                  <Score label="Trend" value={trend.trendScore} />
+                  <Score label="Gem" value={trend.hiddenGemScore} />
                   <Score label="Fresh" value={trend.lifecycle.freshnessScore} />
-                  <Score label="Gap" value={trend.creatorGap} />
+                  <Score
+                    label="Creator"
+                    value={trend.creatorOpportunity.score}
+                  />
                 </div>
                 <p className="mt-4 rounded-xl border border-border/10 bg-muted/50 p-3 text-xs leading-5 text-muted-foreground/78">
                   <span className="font-semibold text-foreground">
@@ -104,6 +107,10 @@ export function TrendCards({
                   {trend.whyNow}
                   <span className="mt-2 block text-muted-foreground/70">
                     {trend.lifecycle.summary}
+                  </span>
+                  <span className="mt-2 block font-semibold text-secondary">
+                    Creator angle: {trend.creatorOpportunity.recommendedTiming}{" "}
+                    · {trend.creatorOpportunity.recommendedFormat}
                   </span>
                 </p>
                 <Button
@@ -121,7 +128,7 @@ export function TrendCards({
       ) : (
         <Card>
           <CardContent className="p-6 text-sm leading-6 text-muted-foreground/75">
-            No trend snapshots found for this filter yet. Run{" "}
+            No hidden-gem candidates found for this filter yet. Run{" "}
             <span className="font-semibold text-foreground">
               Scan Trends Now
             </span>{" "}

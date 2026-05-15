@@ -6,15 +6,20 @@ import {
   ArrowUpRight,
   BarChart3,
   CheckCircle2,
+  Clock3,
   Compass,
   ExternalLink,
+  Gauge,
   Layers3,
   Lightbulb,
   Link2,
   Loader2,
   Radar,
+  ShieldAlert,
   Sparkles,
+  Target,
   TrendingUp,
+  Users,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -29,6 +34,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type {
+  CreatorContentRisk,
+  CreatorOpportunity,
+  CreatorOpportunityLevel,
+  CreatorRecommendedTiming,
   DashboardTrend,
   DashboardWindow,
   RelatedTrend,
@@ -189,6 +198,25 @@ function scoreTone(value: number) {
   if (value >= 78) return "text-secondary";
   if (value >= 60) return "text-foreground";
   return "text-muted-foreground/75";
+}
+
+function opportunityVariant(level: CreatorOpportunityLevel) {
+  if (level === "High") return "secondary" as const;
+  if (level === "Medium") return "accent" as const;
+  return "muted" as const;
+}
+
+function timingVariant(timing: CreatorRecommendedTiming) {
+  if (timing === "Act now") return "secondary" as const;
+  if (timing === "Watch") return "accent" as const;
+  if (timing === "Too late") return "danger" as const;
+  return "muted" as const;
+}
+
+function riskVariant(risk: CreatorContentRisk) {
+  if (risk === "low") return "secondary" as const;
+  if (risk === "medium") return "accent" as const;
+  return "danger" as const;
 }
 
 function buildChartData(snapshots: TrendDetailSnapshot[]) {
@@ -506,6 +534,10 @@ export function TrendDetailDrawer({
                 </p>
               </section>
 
+              <CreatorOpportunitySection
+                opportunity={detail.intelligence.creatorOpportunity}
+              />
+
               <TopicIdentitySection
                 canonicalKey={detail.intelligence.topicIdentity.canonicalKey}
                 aliases={detail.intelligence.topicIdentity.aliases}
@@ -709,6 +741,195 @@ export function TrendDetailDrawer({
         </div>
       </aside>
     </div>
+  );
+}
+
+function CreatorOpportunitySection({
+  opportunity,
+}: {
+  opportunity: CreatorOpportunity;
+}) {
+  const metricRows = [
+    {
+      label: "Freshness",
+      value: opportunity.metrics.freshness,
+      helper: "fresh signal",
+    },
+    {
+      label: "Creator gap",
+      value: opportunity.metrics.creatorGap,
+      helper: "room left",
+    },
+    {
+      label: "Credibility",
+      value: opportunity.metrics.sourceCredibility,
+      helper: "source quality",
+    },
+    {
+      label: "Topic clarity",
+      value: opportunity.metrics.topicClarity,
+      helper: "angle clarity",
+    },
+  ];
+
+  return (
+    <section className="rounded-3xl border border-secondary/18 bg-card/72 p-5 shadow-card">
+      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+            <Target className="h-4 w-4" />
+            Creator opportunity
+          </div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground/75">
+            Separate creator score for deciding whether this is worth turning
+            into a post, video, founder note, explainer or deep-dive.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant={opportunityVariant(opportunity.level)}>
+            {opportunity.level} opportunity
+          </Badge>
+          <Badge variant={timingVariant(opportunity.recommendedTiming)}>
+            {opportunity.recommendedTiming}
+          </Badge>
+          <Badge variant={riskVariant(opportunity.contentRisk)}>
+            {opportunity.contentRisk} risk
+          </Badge>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-5">
+        <MovementCard
+          label="Creator score"
+          value={String(opportunity.score)}
+          helper={opportunity.level}
+          className={scoreTone(opportunity.score)}
+        />
+        <MovementCard
+          label="Timing"
+          value={opportunity.recommendedTiming}
+          helper="publish window"
+        />
+        <MovementCard
+          label="Format"
+          value={opportunity.recommendedFormat}
+          helper="best package"
+        />
+        <MovementCard
+          label="Risk"
+          value={opportunity.contentRisk}
+          helper="content risk"
+          className={
+            opportunity.contentRisk === "low"
+              ? "text-secondary"
+              : opportunity.contentRisk === "medium"
+                ? "text-accent"
+                : "text-primary"
+          }
+        />
+        <MovementCard
+          label="Audience"
+          value={opportunity.audienceFit.slice(0, 2).join(", ")}
+          helper="primary fit"
+        />
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-secondary/15 bg-secondary/10 p-4">
+        <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-secondary">
+          <Lightbulb className="h-4 w-4" />
+          Best angle
+        </div>
+        <p className="text-sm leading-6 text-foreground/90">
+          {opportunity.bestAngle}
+        </p>
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_0.85fr]">
+        <div className="rounded-2xl border border-border/10 bg-muted/30 p-4">
+          <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/55">
+            <Gauge className="h-4 w-4" />
+            Score ingredients
+          </div>
+          <div className="grid gap-2 md:grid-cols-2">
+            {metricRows.map((metric) => (
+              <div
+                key={metric.label}
+                className="rounded-xl border border-border/10 bg-[#160d0d]/35 p-3"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs text-muted-foreground/65">
+                    {metric.label}
+                  </span>
+                  <span className="text-sm font-semibold text-foreground">
+                    {metric.value}
+                  </span>
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground/50">
+                  {metric.helper}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border/10 bg-muted/30 p-4">
+          <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/55">
+            <Users className="h-4 w-4" />
+            Audience + risk
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {opportunity.audienceFit.map((audience) => (
+              <Badge key={audience} variant="muted">
+                {audience}
+              </Badge>
+            ))}
+          </div>
+          <p className="mt-4 text-sm leading-6 text-muted-foreground/75">
+            {opportunity.explanation}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-secondary/15 bg-[#160d0d]/35 p-4">
+          <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-secondary">
+            <Clock3 className="h-4 w-4" />
+            Positive drivers
+          </div>
+          {opportunity.drivers.length > 0 ? (
+            <ul className="space-y-2 text-sm leading-6 text-muted-foreground/78">
+              {opportunity.drivers.map((driver) => (
+                <li key={driver}>{driver}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm leading-6 text-muted-foreground/70">
+              No dominant positive driver yet. Watch for stronger freshness,
+              clearer source confirmation or a better content gap.
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-primary/15 bg-primary/10 p-4">
+          <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+            <ShieldAlert className="h-4 w-4" />
+            Negative pressure
+          </div>
+          {opportunity.warnings.length > 0 ? (
+            <ul className="space-y-2 text-sm leading-6 text-red-100/82">
+              {opportunity.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm leading-6 text-red-100/75">
+              No major risk marker. Still, do not publish a generic AI take -
+              the dashboard hates filler and so does the internet.
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 

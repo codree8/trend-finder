@@ -28,7 +28,7 @@ export function TrendTable({
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[920px] text-left text-sm">
+          <table className="w-full min-w-[1040px] text-left text-sm">
             <thead className="text-xs uppercase tracking-wider text-muted-foreground/60">
               <tr className="border-b border-border/10">
                 <th className="pb-3 font-medium">Topic</th>
@@ -37,6 +37,7 @@ export function TrendTable({
                 <th className="pb-3 font-medium">Trend</th>
                 <th className="pb-3 font-medium">Hidden Gem</th>
                 <th className="pb-3 font-medium">Content</th>
+                <th className="pb-3 font-medium">Creator</th>
                 <th className="pb-3 font-medium">Velocity</th>
                 <th className="pb-3 font-medium">Saturation</th>
                 <th className="pb-3 font-medium">Sources</th>
@@ -103,6 +104,16 @@ export function TrendTable({
                     <td className="py-4 font-semibold text-foreground">
                       {trend.contentScore}
                     </td>
+                    <td className="py-4">
+                      <div className="space-y-1">
+                        <p className="font-semibold text-secondary">
+                          {trend.creatorOpportunity.score}
+                        </p>
+                        <Badge variant="muted">
+                          {trend.creatorOpportunity.recommendedTiming}
+                        </Badge>
+                      </div>
+                    </td>
                     <td className="py-4 text-muted-foreground/80">
                       {trend.velocity}
                     </td>
@@ -141,7 +152,7 @@ export function TrendTable({
               ) : (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={11}
                     className="py-8 text-center text-sm text-muted-foreground/70"
                   >
                     No real trend rows yet. Scan data first, then this table

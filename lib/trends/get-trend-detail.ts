@@ -18,6 +18,7 @@ import {
 } from "@/lib/trends/lifecycle";
 import { buildTrendEvidenceLayer } from "@/lib/trends/evidence-layer";
 import { buildScoringTransparency } from "@/lib/trends/scoring-transparency";
+import { buildCreatorOpportunity } from "@/lib/trends/creator-opportunity";
 import {
   canonicalKeyFromTopicText,
   mergeAliases,
@@ -238,18 +239,6 @@ function buildWhyNow(snapshot: SnapshotRow, sources: string[]) {
   return `${snapshot.mentionCount} mentions across ${sourceText}, ${snapshot.totalEngagement} total engagement, ${snapshot.velocityScore}/100 velocity and ${snapshot.sourceDiversityScore}/100 source diversity.`;
 }
 
-function buildContentHook(topic: TopicRow, snapshot: SnapshotRow) {
-  if (snapshot.hiddenGemScore >= 75) {
-    return `${topic.name} looks early: strong hidden-gem score, manageable saturation and enough signal to justify a deeper breakdown.`;
-  }
-
-  if (snapshot.contentScore >= 82) {
-    return `${topic.name} has a strong creator angle before the topic becomes generic AI commentary.`;
-  }
-
-  return `${topic.name}: the signal is visible, but the winning angle still needs sharper positioning.`;
-}
-
 function buildDashboardTrend(
   topic: TopicRow,
   snapshot: SnapshotRow,
@@ -303,6 +292,33 @@ function buildDashboardTrend(
   const freshnessAdjustedTrendScore = clampScore(
     snapshot.trendScore * lifecycleScoreMultiplier(lifecycle),
   );
+  const aliases = topicAliases(topic);
+  const relatedLabels = topicRelatedLabels(topic);
+  const category = formatCategory(topic.category);
+  const hiddenGemScore = clampScore(snapshot.hiddenGemScore);
+  const contentScore = clampScore(snapshot.contentScore);
+  const velocity = clampScore(snapshot.velocityScore);
+  const saturation = clampScore(snapshot.saturationScore);
+  const creatorGap = clampScore(100 - snapshot.saturationScore);
+  const sourceDiversity = clampScore(snapshot.sourceDiversityScore);
+  const creatorOpportunity = buildCreatorOpportunity({
+    topic: topic.name,
+    category,
+    trendScore: freshnessAdjustedTrendScore,
+    hiddenGemScore,
+    contentScore,
+    velocity,
+    saturation,
+    creatorGap,
+    sourceDiversity,
+    mentionCount: snapshot.mentionCount,
+    sourceCount: snapshot.sourceCount,
+    totalEngagement: snapshot.totalEngagement,
+    sources,
+    lifecycle,
+    aliases,
+    relatedLabels,
+  });
 
   return {
     id: canonicalKeyForTopic(topic),
@@ -310,28 +326,29 @@ function buildDashboardTrend(
     slug: topic.slug,
     topic: topic.name,
     canonicalKey: canonicalKeyForTopic(topic),
-    aliases: topicAliases(topic),
-    relatedLabels: topicRelatedLabels(topic),
-    mergedTopicCount: Math.max(1, topicAliases(topic).length),
-    category: formatCategory(topic.category),
+    aliases,
+    relatedLabels,
+    mergedTopicCount: Math.max(1, aliases.length),
+    category,
     status: getTrendStatus(snapshot),
     summary: buildTrendSummary(topic, snapshot),
     trendScore: freshnessAdjustedTrendScore,
-    hiddenGemScore: clampScore(snapshot.hiddenGemScore),
-    contentScore: clampScore(snapshot.contentScore),
-    velocity: clampScore(snapshot.velocityScore),
-    saturation: clampScore(snapshot.saturationScore),
-    creatorGap: clampScore(100 - snapshot.saturationScore),
-    sourceDiversity: clampScore(snapshot.sourceDiversityScore),
+    hiddenGemScore,
+    contentScore,
+    velocity,
+    saturation,
+    creatorGap,
+    sourceDiversity,
     mentionCount: snapshot.mentionCount,
     sourceCount: snapshot.sourceCount,
     totalEngagement: snapshot.totalEngagement,
     sources,
     whyNow: buildWhyNow(snapshot, sources),
-    contentHook: buildContentHook(topic, snapshot),
+    contentHook: creatorOpportunity.bestAngle,
     topSignals,
     lastSeenAt: snapshot.createdAt.toISOString(),
     lifecycle,
+    creatorOpportunity,
   };
 }
 
@@ -680,6 +697,7 @@ export async function getTrendDetail(
         mergedTopicCount: trend.mergedTopicCount,
       },
       scoringTransparency,
+      creatorOpportunity: trend.creatorOpportunity,
       snapshots: snapshotHistory,
     },
   };
