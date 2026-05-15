@@ -206,7 +206,10 @@ export function DashboardView() {
   return (
     <AppShell>
       <div className="space-y-6">
-        <section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+        <section
+          id="dashboard-overview"
+          className="scroll-mt-6 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between"
+        >
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.32em] text-secondary">
               AI Trend Intelligence
@@ -273,7 +276,7 @@ export function DashboardView() {
 
         <section
           id="charts"
-          className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]"
+          className="scroll-mt-6 grid gap-5 xl:grid-cols-[1.15fr_0.85fr]"
         >
           <TrendRadar data={data.radar} />
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-1">
@@ -282,22 +285,22 @@ export function DashboardView() {
           </div>
         </section>
 
-        <section id="hidden-gems">
+        <section id="hidden-gems" className="scroll-mt-6">
           <TrendCards
             trends={filteredTrends}
             onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}
           />
         </section>
 
-        <section
-          id="signals"
-          className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]"
-        >
+        <section id="creator-mode" className="scroll-mt-6">
+          <CreatorModePanel trend={creatorTrend} />
+        </section>
+
+        <section id="signals" className="scroll-mt-6">
           <TrendTable
             trends={filteredTrends}
             onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}
           />
-          <CreatorModePanel trend={creatorTrend} />
         </section>
       </div>
       <TrendDetailDrawer
