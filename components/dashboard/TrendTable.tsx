@@ -10,6 +10,20 @@ import {
 } from "@/components/ui/card";
 import type { DashboardTrend } from "@/lib/trends/types";
 
+function qualityVariant(
+  gateStatus: DashboardTrend["topicQuality"]["gateStatus"],
+) {
+  if (gateStatus === "pass") return "secondary" as const;
+  if (gateStatus === "watch") return "accent" as const;
+  return "danger" as const;
+}
+
+function noiseVariant(noiseRisk: DashboardTrend["topicQuality"]["noiseRisk"]) {
+  if (noiseRisk === "low") return "secondary" as const;
+  if (noiseRisk === "medium") return "accent" as const;
+  return "danger" as const;
+}
+
 export function TrendTable({
   trends,
   onSelectTrend,
@@ -28,7 +42,7 @@ export function TrendTable({
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1040px] text-left text-sm">
+          <table className="w-full min-w-[1160px] text-left text-sm">
             <thead className="text-xs uppercase tracking-wider text-muted-foreground/60">
               <tr className="border-b border-border/10">
                 <th className="pb-3 font-medium">Topic</th>
@@ -38,6 +52,7 @@ export function TrendTable({
                 <th className="pb-3 font-medium">Hidden Gem</th>
                 <th className="pb-3 font-medium">Content</th>
                 <th className="pb-3 font-medium">Creator</th>
+                <th className="pb-3 font-medium">Quality</th>
                 <th className="pb-3 font-medium">Velocity</th>
                 <th className="pb-3 font-medium">Saturation</th>
                 <th className="pb-3 font-medium">Sources</th>
@@ -49,7 +64,11 @@ export function TrendTable({
                 trends.map((trend) => (
                   <tr
                     key={trend.id}
-                    className="border-b border-border/10 last:border-0"
+                    className={
+                      trend.topicQuality.gateStatus === "suppress"
+                        ? "border-b border-primary/15 bg-primary/5 last:border-0"
+                        : "border-b border-border/10 last:border-0"
+                    }
                   >
                     <td className="py-4">
                       <button
@@ -68,6 +87,11 @@ export function TrendTable({
                           <p className="mt-1 text-xs text-muted-foreground/55">
                             Canonical: {trend.canonicalKey} ·{" "}
                             {trend.aliases.length} aliases
+                          </p>
+                        ) : null}
+                        {trend.topicQuality.warnings.length > 0 ? (
+                          <p className="mt-1 text-xs text-primary/80">
+                            Quality warning: {trend.topicQuality.warnings[0]}
                           </p>
                         ) : null}
                       </button>
@@ -114,6 +138,27 @@ export function TrendTable({
                         </Badge>
                       </div>
                     </td>
+                    <td className="py-4">
+                      <div className="space-y-1">
+                        <p className="font-semibold text-foreground">
+                          {trend.topicQuality.score}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          <Badge
+                            variant={qualityVariant(
+                              trend.topicQuality.gateStatus,
+                            )}
+                          >
+                            {trend.topicQuality.gateStatus}
+                          </Badge>
+                          <Badge
+                            variant={noiseVariant(trend.topicQuality.noiseRisk)}
+                          >
+                            {trend.topicQuality.noiseRisk} noise
+                          </Badge>
+                        </div>
+                      </div>
+                    </td>
                     <td className="py-4 text-muted-foreground/80">
                       {trend.velocity}
                     </td>
@@ -152,7 +197,7 @@ export function TrendTable({
               ) : (
                 <tr>
                   <td
-                    colSpan={11}
+                    colSpan={12}
                     className="py-8 text-center text-sm text-muted-foreground/70"
                   >
                     No real trend rows yet. Scan data first, then this table

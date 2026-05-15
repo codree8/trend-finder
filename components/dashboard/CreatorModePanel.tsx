@@ -43,6 +43,14 @@ function timingVariant(timing: CreatorRecommendedTiming) {
   return "muted" as const;
 }
 
+function qualityVariant(
+  gateStatus: DashboardTrend["topicQuality"]["gateStatus"],
+) {
+  if (gateStatus === "pass") return "secondary" as const;
+  if (gateStatus === "watch") return "accent" as const;
+  return "danger" as const;
+}
+
 function riskVariant(risk: CreatorContentRisk) {
   if (risk === "low") return "secondary" as const;
   if (risk === "medium") return "accent" as const;
@@ -113,7 +121,7 @@ export function CreatorModePanel({
             <CardTitle>Creator Mode</CardTitle>
             <CardDescription>
               Top creator opportunities ranked by freshness, hidden-gem signal,
-              content gap, saturation and source confirmation.
+              content gap, saturation, source confirmation and topic quality.
             </CardDescription>
           </div>
           <Badge variant={opportunityVariant(primaryOpportunity.level)}>
@@ -147,6 +155,11 @@ export function CreatorModePanel({
                   <Badge variant={riskVariant(primaryOpportunity.contentRisk)}>
                     {primaryOpportunity.contentRisk} risk
                   </Badge>
+                  <Badge
+                    variant={qualityVariant(primary.topicQuality.gateStatus)}
+                  >
+                    Quality {primary.topicQuality.score}
+                  </Badge>
                 </div>
               </div>
               <div className="rounded-2xl border border-secondary/20 bg-[#160d0d]/45 px-4 py-3 text-center">
@@ -165,7 +178,7 @@ export function CreatorModePanel({
 
             <div className="mt-5 grid grid-cols-3 gap-2 text-center text-xs">
               <Metric label="Gem" value={primary.hiddenGemScore} />
-              <Metric label="Gap" value={primary.creatorGap} />
+              <Metric label="Quality" value={primary.topicQuality.score} />
               <Metric label="Fresh" value={primary.lifecycle.freshnessScore} />
             </div>
           </div>
@@ -211,10 +224,8 @@ export function CreatorModePanel({
                     </span>
                     <span className="mt-1 block text-xs leading-5 text-muted-foreground/65">
                       {item.creatorOpportunity.recommendedTiming} ·{" "}
-                      {item.creatorOpportunity.recommendedFormat} ·{" "}
-                      {item.creatorOpportunity.audienceFit
-                        .slice(0, 2)
-                        .join(", ")}
+                      {item.creatorOpportunity.recommendedFormat} · Quality{" "}
+                      {item.topicQuality.score}
                     </span>
                   </span>
                   <span className="flex items-center gap-3 text-sm font-semibold text-secondary">
@@ -232,9 +243,13 @@ export function CreatorModePanel({
               Risk check
             </div>
             <p className="text-sm leading-6 text-red-100/82">
-              {primaryOpportunity.warnings.length > 0
-                ? primaryOpportunity.warnings.join(" ")
-                : "No major creator risk detected. The main job is to avoid a generic AI take and keep the angle evidence-led."}
+              {[
+                ...primaryOpportunity.warnings,
+                ...primary.topicQuality.warnings,
+              ]
+                .slice(0, 3)
+                .join(" ") ||
+                "No major creator or topic-quality risk detected. The main job is to avoid a generic AI take and keep the angle evidence-led."}
             </p>
             <Button
               variant="outline"

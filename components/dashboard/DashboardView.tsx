@@ -203,6 +203,8 @@ export function DashboardView() {
 
     return ranked.filter(
       (trend) =>
+        trend.topicQuality.gateStatus !== "suppress" &&
+        trend.topicQuality.isActionableTrend &&
         filterByMode(trend, mode) &&
         (category === "All" || trend.category === category),
     );
@@ -211,8 +213,14 @@ export function DashboardView() {
   const creatorTrend = useMemo(() => {
     return (
       creatorOpportunities[0] ??
-      filteredTrends.find((trend) => trend.creatorOpportunity.score >= 65) ??
-      filteredTrends[0] ??
+      filteredTrends.find(
+        (trend) =>
+          trend.topicQuality.gateStatus !== "suppress" &&
+          trend.creatorOpportunity.score >= 65,
+      ) ??
+      filteredTrends.find(
+        (trend) => trend.topicQuality.gateStatus !== "suppress",
+      ) ??
       data.creatorMode.trend
     );
   }, [creatorOpportunities, data.creatorMode.trend, filteredTrends]);

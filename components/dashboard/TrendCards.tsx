@@ -22,6 +22,14 @@ function lifecycleVariant(status: TrendLifecycleStatus) {
   return "muted" as const;
 }
 
+function qualityVariant(
+  gateStatus: DashboardTrend["topicQuality"]["gateStatus"],
+) {
+  if (gateStatus === "pass") return "secondary" as const;
+  if (gateStatus === "watch") return "accent" as const;
+  return "danger" as const;
+}
+
 function statusVariant(status: TrendStatus) {
   if (status === "Hidden Gem") return "accent";
   if (status === "Rising") return "secondary";
@@ -47,8 +55,8 @@ export function TrendCards({
             Hidden Gems & Early Openings
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground/75">
-            Hidden-gem ranking now favors early topics that also have a real
-            creator opportunity, not just low mainstream saturation.
+            Hidden-gem ranking now favors early topics that also pass the
+            quality gate, not just low mainstream saturation.
           </p>
         </div>
         <Button variant="outline" className="hidden md:inline-flex">
@@ -69,6 +77,11 @@ export function TrendCards({
                     </Badge>
                     <Badge variant={lifecycleVariant(trend.lifecycle.status)}>
                       {trend.lifecycle.status}
+                    </Badge>
+                    <Badge
+                      variant={qualityVariant(trend.topicQuality.gateStatus)}
+                    >
+                      Quality {trend.topicQuality.score}
                     </Badge>
                     {trend.mergedTopicCount > 1 ? (
                       <Badge variant="muted">
@@ -92,13 +105,14 @@ export function TrendCards({
                 ) : null}
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="grid grid-cols-4 gap-2 text-center">
                   <Score label="Gem" value={trend.hiddenGemScore} />
                   <Score label="Fresh" value={trend.lifecycle.freshnessScore} />
                   <Score
                     label="Creator"
                     value={trend.creatorOpportunity.score}
                   />
+                  <Score label="Quality" value={trend.topicQuality.score} />
                 </div>
                 <p className="mt-4 rounded-xl border border-border/10 bg-muted/50 p-3 text-xs leading-5 text-muted-foreground/78">
                   <span className="font-semibold text-foreground">
@@ -112,6 +126,11 @@ export function TrendCards({
                     Creator angle: {trend.creatorOpportunity.recommendedTiming}{" "}
                     · {trend.creatorOpportunity.recommendedFormat}
                   </span>
+                  {trend.topicQuality.warnings.length > 0 ? (
+                    <span className="mt-2 block text-primary/85">
+                      Quality note: {trend.topicQuality.warnings[0]}
+                    </span>
+                  ) : null}
                 </p>
                 <Button
                   variant="outline"

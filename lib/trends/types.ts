@@ -86,6 +86,40 @@ export type CreatorOpportunity = {
   warnings: string[];
 };
 
+export type TopicQualityNoiseRisk = "low" | "medium" | "high";
+
+export type TopicQualityClarity = "clear" | "needs_review" | "vague";
+
+export type TopicQualitySourceTrustLevel = "strong" | "mixed" | "weak";
+
+export type TopicQualityGateStatus = "pass" | "watch" | "suppress";
+
+export type TopicQuality = {
+  score: number;
+  gateStatus: TopicQualityGateStatus;
+  noiseRisk: TopicQualityNoiseRisk;
+  topicClarity: TopicQualityClarity;
+  isGenericTopic: boolean;
+  isActionableTrend: boolean;
+  sourceTrustLevel: TopicQualitySourceTrustLevel;
+  explanation: string;
+  metrics: {
+    titleSpecificity: number;
+    sourceTrust: number;
+    crossSourceConfirmation: number;
+    signalQuality: number;
+    actionability: number;
+    freshness: number;
+    genericPenalty: number;
+    contentPatternPenalty: number;
+    singleSourcePenalty: number;
+    saturationNoisePenalty: number;
+    stalenessPenalty: number;
+  };
+  positiveSignals: string[];
+  warnings: string[];
+};
+
 export type DashboardKpi = {
   label: string;
   value: string;
@@ -129,6 +163,7 @@ export type DashboardTrend = {
   lastSeenAt: string;
   lifecycle: TrendLifecycle;
   creatorOpportunity: CreatorOpportunity;
+  topicQuality: TopicQuality;
 };
 
 export type SourceBreakdownItem = {
@@ -334,6 +369,7 @@ export type TrendDetailIntelligence = {
   };
   scoringTransparency: TrendScoringTransparency;
   creatorOpportunity: CreatorOpportunity;
+  topicQuality: TopicQuality;
   snapshots: TrendDetailSnapshot[];
 };
 

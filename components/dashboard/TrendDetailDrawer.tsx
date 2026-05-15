@@ -41,6 +41,7 @@ import type {
   DashboardTrend,
   DashboardWindow,
   RelatedTrend,
+  TopicQuality,
   TrendDetailResponse,
   TrendDetailSignal,
   TrendDetailSnapshot,
@@ -217,6 +218,24 @@ function riskVariant(risk: CreatorContentRisk) {
   if (risk === "low") return "secondary" as const;
   if (risk === "medium") return "accent" as const;
   return "danger" as const;
+}
+
+function topicQualityGateVariant(gateStatus: TopicQuality["gateStatus"]) {
+  if (gateStatus === "pass") return "secondary" as const;
+  if (gateStatus === "watch") return "accent" as const;
+  return "danger" as const;
+}
+
+function topicNoiseVariant(noiseRisk: TopicQuality["noiseRisk"]) {
+  if (noiseRisk === "low") return "secondary" as const;
+  if (noiseRisk === "medium") return "accent" as const;
+  return "danger" as const;
+}
+
+function topicQualityTone(quality: TopicQuality) {
+  if (quality.gateStatus === "pass") return "text-secondary";
+  if (quality.gateStatus === "watch") return "text-accent";
+  return "text-primary";
 }
 
 function buildChartData(snapshots: TrendDetailSnapshot[]) {
@@ -534,6 +553,8 @@ export function TrendDetailDrawer({
                 </p>
               </section>
 
+              <TopicQualitySection quality={detail.intelligence.topicQuality} />
+
               <CreatorOpportunitySection
                 opportunity={detail.intelligence.creatorOpportunity}
               />
@@ -741,6 +762,143 @@ export function TrendDetailDrawer({
         </div>
       </aside>
     </div>
+  );
+}
+
+function TopicQualitySection({ quality }: { quality: TopicQuality }) {
+  const penaltyRows = [
+    { label: "Generic", value: quality.metrics.genericPenalty },
+    { label: "Content pattern", value: quality.metrics.contentPatternPenalty },
+    { label: "Single source", value: quality.metrics.singleSourcePenalty },
+    { label: "Saturation", value: quality.metrics.saturationNoisePenalty },
+    { label: "Staleness", value: quality.metrics.stalenessPenalty },
+  ];
+
+  return (
+    <section className="rounded-3xl border border-border/10 bg-card/72 p-5 shadow-card">
+      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+            <ShieldAlert className="h-4 w-4" />
+            Topic quality gate
+          </div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground/75">
+            Noise suppression checks whether this is a real trend candidate or a
+            broad/tutorial/repo-shaped signal that should not be promoted.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant={topicQualityGateVariant(quality.gateStatus)}>
+            {quality.gateStatus}
+          </Badge>
+          <Badge variant={topicNoiseVariant(quality.noiseRisk)}>
+            {quality.noiseRisk} noise
+          </Badge>
+          <Badge variant="muted">{quality.topicClarity}</Badge>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-5">
+        <MovementCard
+          label="Quality"
+          value={String(quality.score)}
+          helper="gate score"
+          className={topicQualityTone(quality)}
+        />
+        <MovementCard
+          label="Clarity"
+          value={String(quality.metrics.titleSpecificity)}
+          helper={quality.topicClarity}
+        />
+        <MovementCard
+          label="Source trust"
+          value={String(quality.metrics.sourceTrust)}
+          helper={quality.sourceTrustLevel}
+        />
+        <MovementCard
+          label="Confirmation"
+          value={String(quality.metrics.crossSourceConfirmation)}
+          helper="cross-source"
+        />
+        <MovementCard
+          label="Actionable"
+          value={quality.isActionableTrend ? "yes" : "no"}
+          helper={quality.isGenericTopic ? "generic label" : "usable label"}
+          className={
+            quality.isActionableTrend ? "text-secondary" : "text-primary"
+          }
+        />
+      </div>
+
+      <p className="mt-4 rounded-2xl border border-border/10 bg-muted/30 p-4 text-sm leading-6 text-muted-foreground/78">
+        {quality.explanation}
+      </p>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+        <div className="rounded-2xl border border-primary/15 bg-primary/10 p-4">
+          <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+            <AlertTriangle className="h-4 w-4" />
+            Noise pressure
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {penaltyRows.map((penalty) => (
+              <div
+                key={penalty.label}
+                className="rounded-xl border border-border/10 bg-[#160d0d]/35 p-3"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs text-muted-foreground/65">
+                    {penalty.label}
+                  </span>
+                  <span className="text-sm font-semibold text-red-100">
+                    {penalty.value}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-2xl border border-secondary/15 bg-secondary/10 p-4">
+            <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-secondary">
+              <CheckCircle2 className="h-4 w-4" />
+              Why it passed
+            </div>
+            {quality.positiveSignals.length > 0 ? (
+              <ul className="space-y-2 text-sm leading-6 text-muted-foreground/78">
+                {quality.positiveSignals.map((signal) => (
+                  <li key={signal}>{signal}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm leading-6 text-muted-foreground/72">
+                No strong positive quality driver yet. This should stay in watch
+                mode until the topic becomes clearer.
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-primary/15 bg-[#160d0d]/35 p-4">
+            <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+              <ShieldAlert className="h-4 w-4" />
+              Warnings
+            </div>
+            {quality.warnings.length > 0 ? (
+              <ul className="space-y-2 text-sm leading-6 text-red-100/82">
+                {quality.warnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm leading-6 text-muted-foreground/72">
+                No major noise warning. The topic is clean enough for ranking.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 

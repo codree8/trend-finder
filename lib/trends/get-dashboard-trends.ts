@@ -12,6 +12,7 @@ import {
   lifecycleScoreMultiplier,
 } from "@/lib/trends/lifecycle";
 import { buildCreatorOpportunity } from "@/lib/trends/creator-opportunity";
+import { buildTopicQuality } from "@/lib/trends/topic-quality";
 import {
   canonicalKeyFromTopicText,
   mergeAliases,
@@ -371,6 +372,37 @@ function buildDashboardTrend(
     aliases,
     relatedLabels,
   });
+  const topicQuality = buildTopicQuality({
+    topic: row.name,
+    category,
+    trendScore: freshnessAdjustedTrendScore,
+    hiddenGemScore,
+    contentScore,
+    velocity,
+    saturation,
+    sourceDiversity,
+    mentionCount: row.mentionCount,
+    sourceCount: row.sourceCount,
+    totalEngagement: row.totalEngagement,
+    sources,
+    lifecycle,
+    aliases,
+    relatedLabels,
+    creatorOpportunityScore: creatorOpportunity.score,
+    signals: [
+      ...topicMentions.map((mention) => ({
+        title: mention.title,
+        source: mention.source,
+        engagement: mention.engagement,
+        qualityScore: mention.qualityScore,
+      })),
+      ...fallbackTopSignals.map((signal) => ({
+        title: signal.title,
+        source: signal.source,
+        engagement: signal.engagement,
+      })),
+    ],
+  });
 
   return {
     id: canonicalKeyForRow(row),
@@ -401,6 +433,7 @@ function buildDashboardTrend(
     lastSeenAt: row.createdAt.toISOString(),
     lifecycle,
     creatorOpportunity,
+    topicQuality,
   };
 }
 
@@ -412,10 +445,15 @@ function buildKpis(
 ): DashboardKpi[] {
   const topTrendScore = Math.max(0, ...trends.map((trend) => trend.trendScore));
   const hiddenGemCount = trends.filter(
-    (trend) => trend.status === "Hidden Gem",
+    (trend) =>
+      trend.topicQuality.gateStatus !== "suppress" &&
+      (trend.status === "Hidden Gem" || trend.hiddenGemScore >= 72),
   ).length;
   const contentGapCount = trends.filter(
-    (trend) => trend.contentScore >= 78 && trend.saturation <= 58,
+    (trend) =>
+      trend.topicQuality.gateStatus !== "suppress" &&
+      trend.contentScore >= 78 &&
+      trend.saturation <= 58,
   ).length;
   const totalMentions = trends.reduce(
     (sum, trend) => sum + trend.mentionCount,
@@ -438,7 +476,7 @@ function buildKpis(
     {
       label: "Hidden Gems",
       value: String(hiddenGemCount),
-      helper: "High hidden-gem score with lower saturation.",
+      helper: "Quality-gated hidden gems with lower saturation.",
       delta: `${totalMentions} mentions`,
     },
     {
@@ -555,6 +593,26 @@ function buildLatestScan(
     sourceCoverage: sourceCoverageFromPayload(row.rawPayload),
     warnings: stringArrayFromPayload(row.rawPayload, "warnings"),
   };
+}
+
+function qualityAdjustedTrendRank(trend: DashboardTrend) {
+  const suppressPenalty = trend.topicQuality.gateStatus === "suppress" ? 28 : 0;
+  const watchPenalty = trend.topicQuality.gateStatus === "watch" ? 8 : 0;
+
+  return (
+    trend.trendScore * 0.78 +
+    trend.topicQuality.score * 0.16 +
+    trend.lifecycle.freshnessScore * 0.06 -
+    suppressPenalty -
+    watchPenalty
+  );
+}
+
+function promotableTrend(trend: DashboardTrend) {
+  return (
+    trend.topicQuality.gateStatus !== "suppress" &&
+    trend.topicQuality.isActionableTrend
+  );
 }
 
 export async function getDashboardTrends(
@@ -685,7 +743,7 @@ export async function getDashboardTrends(
         window,
       ),
     )
-    .sort((a, b) => b.trendScore - a.trendScore);
+    .sort((a, b) => qualityAdjustedTrendRank(b) - qualityAdjustedTrendRank(a));
 
   const sourceBreakdown = sourceRows.map((row) => ({
     source: formatSource(row.source),
@@ -699,15 +757,21 @@ export async function getDashboardTrends(
     Math.max(0, 100 - trend.saturation) * 0.08 -
     Math.max(0, trend.saturation - 70) * 0.35;
 
-  const strictHiddenGems = trends.filter(
+  const qualityCheckedTrends = trends.filter(promotableTrend);
+  const promotionPool =
+    qualityCheckedTrends.length > 0 ? qualityCheckedTrends : trends;
+
+  const strictHiddenGems = promotionPool.filter(
     (trend) =>
-      trend.status === "Hidden Gem" ||
-      trend.hiddenGemScore >= 72 ||
-      (trend.creatorOpportunity.score >= 72 && trend.saturation <= 62),
+      trend.topicQuality.noiseRisk !== "high" &&
+      (trend.status === "Hidden Gem" ||
+        trend.hiddenGemScore >= 72 ||
+        (trend.creatorOpportunity.score >= 72 && trend.saturation <= 62)),
   );
 
-  const earlyOpeningFallback = trends.filter(
+  const earlyOpeningFallback = promotionPool.filter(
     (trend) =>
+      trend.topicQuality.gateStatus !== "suppress" &&
       trend.lifecycle.status !== "Stale" &&
       trend.lifecycle.status !== "Dormant" &&
       trend.saturation <= 78 &&
@@ -719,15 +783,24 @@ export async function getDashboardTrends(
       ? strictHiddenGems
       : earlyOpeningFallback.length > 0
         ? earlyOpeningFallback
-        : trends
+        : promotionPool
   )
     .slice()
     .sort((a, b) => hiddenGemRankScore(b) - hiddenGemRankScore(a))
     .slice(0, 8);
 
-  const creatorOpportunities = trends
+  const creatorOpportunities = promotionPool
     .slice()
-    .sort((a, b) => b.creatorOpportunity.score - a.creatorOpportunity.score)
+    .filter((trend) => trend.topicQuality.gateStatus !== "suppress")
+    .sort(
+      (a, b) =>
+        b.creatorOpportunity.score * 0.84 +
+        b.topicQuality.score * 0.16 -
+        (b.topicQuality.noiseRisk === "high" ? 12 : 0) -
+        (a.creatorOpportunity.score * 0.84 +
+          a.topicQuality.score * 0.16 -
+          (a.topicQuality.noiseRisk === "high" ? 12 : 0)),
+    )
     .slice(0, 8);
 
   return {

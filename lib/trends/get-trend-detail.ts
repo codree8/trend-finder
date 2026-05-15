@@ -19,6 +19,7 @@ import {
 import { buildTrendEvidenceLayer } from "@/lib/trends/evidence-layer";
 import { buildScoringTransparency } from "@/lib/trends/scoring-transparency";
 import { buildCreatorOpportunity } from "@/lib/trends/creator-opportunity";
+import { buildTopicQuality } from "@/lib/trends/topic-quality";
 import {
   canonicalKeyFromTopicText,
   mergeAliases,
@@ -319,6 +320,37 @@ function buildDashboardTrend(
     aliases,
     relatedLabels,
   });
+  const topicQuality = buildTopicQuality({
+    topic: topic.name,
+    category,
+    trendScore: freshnessAdjustedTrendScore,
+    hiddenGemScore,
+    contentScore,
+    velocity,
+    saturation,
+    sourceDiversity,
+    mentionCount: snapshot.mentionCount,
+    sourceCount: snapshot.sourceCount,
+    totalEngagement: snapshot.totalEngagement,
+    sources,
+    lifecycle,
+    aliases,
+    relatedLabels,
+    creatorOpportunityScore: creatorOpportunity.score,
+    signals: [
+      ...mentions.map((mention) => ({
+        title: mention.title,
+        source: mention.source,
+        engagement: mention.engagement,
+        qualityScore: mention.qualityScore,
+      })),
+      ...fallbackSignals.map((signal) => ({
+        title: signal.title,
+        source: signal.source,
+        engagement: signal.engagement,
+      })),
+    ],
+  });
 
   return {
     id: canonicalKeyForTopic(topic),
@@ -349,6 +381,7 @@ function buildDashboardTrend(
     lastSeenAt: snapshot.createdAt.toISOString(),
     lifecycle,
     creatorOpportunity,
+    topicQuality,
   };
 }
 
@@ -698,6 +731,7 @@ export async function getTrendDetail(
       },
       scoringTransparency,
       creatorOpportunity: trend.creatorOpportunity,
+      topicQuality: trend.topicQuality,
       snapshots: snapshotHistory,
     },
   };
