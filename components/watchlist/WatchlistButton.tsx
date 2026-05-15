@@ -61,6 +61,10 @@ export function WatchlistButton({
               lastSeenCreatorOpportunityScore: trend.creatorOpportunity.score,
               lastSeenQualityScore: trend.topicQuality.score,
               lastSeenLifecycleStatus: trend.lifecycle.status,
+              lastSeenMentionCount: trend.mentionCount,
+              lastSeenSourceCount: trend.sourceCount,
+              lastSeenTotalEngagement: trend.totalEngagement,
+              lastSeenAt: trend.lastSeenAt,
               tags: [],
             }),
           });

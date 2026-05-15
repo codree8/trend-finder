@@ -185,6 +185,14 @@ export const savedTrends = pgTable(
     lastSeenLifecycleStatus: varchar("last_seen_lifecycle_status", {
       length: 40,
     }),
+    lastSeenMentionCount: integer("last_seen_mention_count")
+      .default(0)
+      .notNull(),
+    lastSeenSourceCount: integer("last_seen_source_count").default(0).notNull(),
+    lastSeenTotalEngagement: integer("last_seen_total_engagement")
+      .default(0)
+      .notNull(),
+    lastSeenAt: timestamp("last_seen_at"),
     note: text("note"),
     tags: jsonb("tags"),
   },

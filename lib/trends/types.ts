@@ -241,8 +241,40 @@ export type SavedTrend = {
   lastSeenCreatorOpportunityScore: number;
   lastSeenQualityScore: number;
   lastSeenLifecycleStatus: TrendLifecycleStatus | string | null;
+  lastSeenMentionCount: number;
+  lastSeenSourceCount: number;
+  lastSeenTotalEngagement: number;
+  lastSeenAt: string | null;
   note: string | null;
   tags: string[];
+};
+
+export type WatchlistStatus =
+  | "rising"
+  | "stable"
+  | "cooling"
+  | "attention"
+  | "stale";
+
+export type WatchlistDelta = {
+  scoreDelta: number;
+  creatorOpportunityDelta: number;
+  qualityDelta: number;
+  mentionDelta: number;
+  sourceDelta: number;
+  engagementDelta: number;
+  newSignalsCount: number;
+  hasEvidenceBaseline: boolean;
+  lifecycleChanged: boolean;
+  previousLifecycleStatus: TrendLifecycleStatus | string | null;
+  currentLifecycleStatus: TrendLifecycleStatus | string | null;
+  lastSeenChangedAt: string | null;
+  watchStatus: WatchlistStatus;
+  watchStatusLabel: string;
+  summary: string;
+  recommendedAction: string;
+  drivers: string[];
+  warnings: string[];
 };
 
 export type SavedTrendWithCurrent = SavedTrend & {
@@ -252,6 +284,7 @@ export type SavedTrendWithCurrent = SavedTrend & {
   currentQualityScore: number;
   currentLifecycleStatus: TrendLifecycleStatus | string | null;
   lastSignalAgeHours: number | null;
+  delta: WatchlistDelta;
 };
 
 export type WatchlistResponse = {

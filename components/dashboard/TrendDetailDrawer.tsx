@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   ArrowUpRight,
   BarChart3,
+  BookmarkCheck,
   CheckCircle2,
   Clock3,
   Compass,
@@ -42,6 +43,7 @@ import type {
   DashboardTrend,
   DashboardWindow,
   RelatedTrend,
+  SavedTrendWithCurrent,
   TopicQuality,
   TrendDetailResponse,
   TrendDetailSignal,
@@ -54,6 +56,7 @@ import type {
   TrendScoringTransparencyConfidence,
   TrendScoringTransparencyImpact,
   TrendSignalQualityTag,
+  WatchlistStatus,
 } from "@/lib/trends/types";
 
 type Props = {
@@ -61,6 +64,7 @@ type Props = {
   selectedWindow: DashboardWindow;
   initialTrend?: DashboardTrend | null;
   savedTrendKeys?: ReadonlySet<string>;
+  savedTrends?: SavedTrendWithCurrent[];
   onSavedChange?: (trendKey: string, isSaved: boolean) => void;
   onClose: () => void;
   onSelectSlug: (slug: string) => void;
@@ -142,6 +146,26 @@ function qualityVariant(tag: TrendSignalQualityTag) {
   if (tag === "cross_source_confirmation" || tag === "alias_variation")
     return "accent" as const;
   return "muted" as const;
+}
+
+function watchlistStatusVariant(status: WatchlistStatus) {
+  if (status === "rising") return "secondary" as const;
+  if (status === "stable") return "muted" as const;
+  if (status === "cooling") return "accent" as const;
+  return "danger" as const;
+}
+
+function watchlistStatusIcon(status: WatchlistStatus) {
+  if (status === "rising") return TrendingUp;
+  if (status === "cooling") return AlertTriangle;
+  if (status === "attention") return ShieldAlert;
+  if (status === "stale") return Clock3;
+  return Gauge;
+}
+
+function formatSignedDelta(value: number) {
+  if (value > 0) return `+${value}`;
+  return String(value);
 }
 
 function confidenceVariant(confidence: TrendScoringTransparencyConfidence) {
@@ -351,6 +375,7 @@ export function TrendDetailDrawer({
   selectedWindow,
   initialTrend,
   savedTrendKeys,
+  savedTrends = [],
   onSavedChange,
   onClose,
   onSelectSlug,
@@ -425,6 +450,19 @@ export function TrendDetailDrawer({
 
   const detail = detailState.status === "success" ? detailState.data : null;
   const trend = detail?.trend ?? initialTrend ?? null;
+  const watchlistItem = useMemo(() => {
+    if (!trend) return null;
+
+    const trendKey = (trend.canonicalKey || trend.id).toLowerCase();
+    return (
+      savedTrends.find(
+        (item) =>
+          item.trendKey === trendKey ||
+          item.trendSlug === trend.slug ||
+          item.currentTrend?.slug === trend.slug,
+      ) ?? null
+    );
+  }, [savedTrends, trend]);
   const chartData = useMemo(
     () => buildChartData(detail?.intelligence.snapshots ?? []),
     [detail?.intelligence.snapshots],
@@ -520,6 +558,10 @@ export function TrendDetailDrawer({
                   icon={Radar}
                 />
               </section>
+
+              {watchlistItem ? (
+                <WatchlistDeltaSection item={watchlistItem} />
+              ) : null}
 
               <section className="rounded-3xl border border-border/10 bg-card/72 p-5 shadow-card">
                 <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-secondary">
@@ -778,6 +820,130 @@ export function TrendDetailDrawer({
         </div>
       </aside>
     </div>
+  );
+}
+
+function WatchlistDeltaSection({ item }: { item: SavedTrendWithCurrent }) {
+  const delta = item.delta;
+  const StatusIcon = watchlistStatusIcon(delta.watchStatus);
+
+  return (
+    <section className="rounded-3xl border border-secondary/18 bg-card/72 p-5 shadow-card">
+      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+            <BookmarkCheck className="h-4 w-4" />
+            Watchlist movement
+          </div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground/75">
+            Saved baseline compared with the current snapshot for this window.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant={watchlistStatusVariant(delta.watchStatus)}>
+            <StatusIcon className="mr-1.5 h-3.5 w-3.5" />
+            {delta.watchStatusLabel}
+          </Badge>
+          {delta.newSignalsCount > 0 ? (
+            <Badge variant="secondary">
+              New evidence +{delta.newSignalsCount}
+            </Badge>
+          ) : null}
+          {!delta.hasEvidenceBaseline ? (
+            <Badge variant="accent">Baseline incomplete</Badge>
+          ) : null}
+          {delta.lifecycleChanged ? (
+            <Badge variant="accent">
+              {delta.previousLifecycleStatus ?? "unknown"} →{" "}
+              {delta.currentLifecycleStatus ?? "unknown"}
+            </Badge>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-4">
+        <MovementCard
+          label="Trend score"
+          value={`${item.lastSeenScore} → ${item.currentScore}`}
+          helper={formatSignedDelta(delta.scoreDelta)}
+          className={movementTone(delta.scoreDelta)}
+        />
+        <MovementCard
+          label="Creator"
+          value={`${item.lastSeenCreatorOpportunityScore} → ${item.currentCreatorOpportunityScore}`}
+          helper={formatSignedDelta(delta.creatorOpportunityDelta)}
+          className={movementTone(delta.creatorOpportunityDelta)}
+        />
+        <MovementCard
+          label="Quality"
+          value={`${item.lastSeenQualityScore} → ${item.currentQualityScore}`}
+          helper={formatSignedDelta(delta.qualityDelta)}
+          className={movementTone(delta.qualityDelta)}
+        />
+        <MovementCard
+          label="Mentions"
+          value={
+            delta.hasEvidenceBaseline
+              ? `${item.lastSeenMentionCount} → ${
+                  item.currentTrend?.mentionCount ?? item.lastSeenMentionCount
+                }`
+              : String(item.currentTrend?.mentionCount ?? 0)
+          }
+          helper={
+            delta.hasEvidenceBaseline
+              ? formatSignedDelta(delta.mentionDelta)
+              : "re-save baseline"
+          }
+          className={
+            delta.hasEvidenceBaseline
+              ? movementTone(delta.mentionDelta)
+              : "text-accent"
+          }
+        />
+      </div>
+
+      <p className="mt-4 rounded-2xl border border-border/10 bg-muted/30 p-4 text-sm leading-6 text-muted-foreground/78">
+        {delta.summary} {delta.recommendedAction}
+      </p>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-secondary/15 bg-secondary/10 p-4">
+          <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-secondary">
+            <TrendingUp className="h-4 w-4" />
+            Positive movement
+          </div>
+          {delta.drivers.length > 0 ? (
+            <ul className="space-y-2 text-sm leading-6 text-muted-foreground/78">
+              {delta.drivers.map((driver) => (
+                <li key={driver}>{driver}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm leading-6 text-muted-foreground/72">
+              No major positive movement since this trend was saved.
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-primary/15 bg-primary/10 p-4">
+          <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+            <AlertTriangle className="h-4 w-4" />
+            Watch pressure
+          </div>
+          {delta.warnings.length > 0 ? (
+            <ul className="space-y-2 text-sm leading-6 text-red-100/82">
+              {delta.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm leading-6 text-muted-foreground/72">
+              No major warning pressure detected for this saved trend.
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 

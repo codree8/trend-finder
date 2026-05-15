@@ -18,6 +18,7 @@ import type {
   DashboardTrend,
   DashboardTrendsResponse,
   DashboardWindow,
+  SavedTrendWithCurrent,
   WatchlistResponse,
 } from "@/lib/trends/types";
 
@@ -129,7 +130,7 @@ export function DashboardView() {
   const [selectedTrendSlug, setSelectedTrendSlug] = useState<string | null>(
     null,
   );
-  const [savedTrendKeys, setSavedTrendKeys] = useState<string[]>([]);
+  const [savedTrends, setSavedTrends] = useState<SavedTrendWithCurrent[]>([]);
 
   const loadDashboardData = useCallback(
     async (windowValue: DashboardWindow) => {
@@ -171,11 +172,9 @@ export function DashboardView() {
 
         if (!response.ok || !payload.ok) return;
 
-        setSavedTrendKeys(
-          (payload as WatchlistResponse).items.map((item) => item.trendKey),
-        );
+        setSavedTrends((payload as WatchlistResponse).items);
       } catch {
-        setSavedTrendKeys([]);
+        setSavedTrends([]);
       }
     },
     [],
@@ -183,19 +182,16 @@ export function DashboardView() {
 
   const handleSavedTrendChange = useCallback(
     (trendKey: string, isSaved: boolean) => {
-      setSavedTrendKeys((current) => {
-        const next = new Set(current);
-
-        if (isSaved) {
-          next.add(trendKey);
-        } else {
-          next.delete(trendKey);
-        }
-
-        return Array.from(next);
+      setSavedTrends((current) => {
+        if (isSaved) return current;
+        return current.filter((item) => item.trendKey !== trendKey);
       });
+
+      if (isSaved) {
+        void loadSavedTrendKeys(trendWindow);
+      }
     },
-    [],
+    [loadSavedTrendKeys, trendWindow],
   );
 
   useEffect(() => {
@@ -209,6 +205,7 @@ export function DashboardView() {
   useEffect(() => {
     function handleScanCompleted() {
       void loadDashboardData(trendWindow);
+      void loadSavedTrendKeys(trendWindow);
     }
 
     window.addEventListener(TREND_SCAN_COMPLETED_EVENT, handleScanCompleted);
@@ -217,7 +214,7 @@ export function DashboardView() {
         TREND_SCAN_COMPLETED_EVENT,
         handleScanCompleted,
       );
-  }, [loadDashboardData, trendWindow]);
+  }, [loadDashboardData, loadSavedTrendKeys, trendWindow]);
 
   const filteredTrends = useMemo(() => {
     return data.trends.filter(
@@ -280,8 +277,8 @@ export function DashboardView() {
   }, [data.hiddenGems, data.signalTable, data.trends, selectedTrendSlug]);
 
   const savedTrendKeySet = useMemo(
-    () => new Set(savedTrendKeys),
-    [savedTrendKeys],
+    () => new Set(savedTrends.map((item) => item.trendKey)),
+    [savedTrends],
   );
 
   return (
@@ -396,6 +393,7 @@ export function DashboardView() {
         selectedWindow={trendWindow}
         initialTrend={selectedTrend}
         savedTrendKeys={savedTrendKeySet}
+        savedTrends={savedTrends}
         onSavedChange={handleSavedTrendChange}
         onClose={() => setSelectedTrendSlug(null)}
         onSelectSlug={setSelectedTrendSlug}
