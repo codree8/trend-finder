@@ -306,6 +306,49 @@ export type WatchlistErrorResponse = {
   error?: string;
 };
 
+export type TrendActionPriority = "act_now" | "monitor" | "review" | "ignore";
+
+export type TrendActionUrgencyLevel = "high" | "medium" | "low";
+
+export type TrendActionRecommendation = {
+  actionPriority: TrendActionPriority;
+  actionPriorityLabel: string;
+  actionScore: number;
+  urgencyLevel: TrendActionUrgencyLevel;
+  summary: string;
+  recommendedNextStep: string;
+  reasons: string[];
+  warnings: string[];
+};
+
+export type ActionQueueItem = TrendActionRecommendation & {
+  trend: DashboardTrend;
+  isSaved: boolean;
+  watchlistItem: SavedTrendWithCurrent | null;
+};
+
+export type ActionQueueSummary = {
+  actNow: number;
+  monitor: number;
+  review: number;
+  ignore: number;
+  highUrgency: number;
+};
+
+export type ActionQueueResponse = {
+  ok: true;
+  window: DashboardWindow;
+  generatedAt: string;
+  summary: ActionQueueSummary;
+  items: ActionQueueItem[];
+};
+
+export type ActionQueueErrorResponse = {
+  ok: false;
+  message: string;
+  error?: string;
+};
+
 export type TrendEvidenceType =
   | "early_signal"
   | "cross_source_confirmation"

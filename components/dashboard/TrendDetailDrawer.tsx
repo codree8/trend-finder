@@ -35,6 +35,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { WatchlistButton } from "@/components/watchlist/WatchlistButton";
+import { buildTrendActionRecommendation } from "@/lib/trends/action-priority";
 import type {
   CreatorContentRisk,
   CreatorOpportunity,
@@ -45,6 +46,9 @@ import type {
   RelatedTrend,
   SavedTrendWithCurrent,
   TopicQuality,
+  TrendActionPriority,
+  TrendActionRecommendation,
+  TrendActionUrgencyLevel,
   TrendDetailResponse,
   TrendDetailSignal,
   TrendDetailSnapshot,
@@ -161,6 +165,26 @@ function watchlistStatusIcon(status: WatchlistStatus) {
   if (status === "attention") return ShieldAlert;
   if (status === "stale") return Clock3;
   return Gauge;
+}
+
+function actionPriorityVariant(priority: TrendActionPriority) {
+  if (priority === "act_now") return "secondary" as const;
+  if (priority === "monitor") return "accent" as const;
+  if (priority === "review") return "default" as const;
+  return "danger" as const;
+}
+
+function actionUrgencyVariant(urgency: TrendActionUrgencyLevel) {
+  if (urgency === "high") return "danger" as const;
+  if (urgency === "medium") return "accent" as const;
+  return "muted" as const;
+}
+
+function actionPriorityIcon(priority: TrendActionPriority) {
+  if (priority === "act_now") return Target;
+  if (priority === "monitor") return Radar;
+  if (priority === "review") return ShieldAlert;
+  return AlertTriangle;
 }
 
 function formatSignedDelta(value: number) {
@@ -463,6 +487,14 @@ export function TrendDetailDrawer({
       ) ?? null
     );
   }, [savedTrends, trend]);
+  const actionRecommendation = useMemo(() => {
+    if (!trend) return null;
+
+    return buildTrendActionRecommendation({
+      trend,
+      watchlistItem,
+    });
+  }, [trend, watchlistItem]);
   const chartData = useMemo(
     () => buildChartData(detail?.intelligence.snapshots ?? []),
     [detail?.intelligence.snapshots],
@@ -561,6 +593,13 @@ export function TrendDetailDrawer({
 
               {watchlistItem ? (
                 <WatchlistDeltaSection item={watchlistItem} />
+              ) : null}
+
+              {actionRecommendation ? (
+                <ActionPrioritySection
+                  recommendation={actionRecommendation}
+                  trend={detail.trend}
+                />
               ) : null}
 
               <section className="rounded-3xl border border-border/10 bg-card/72 p-5 shadow-card">
@@ -820,6 +859,120 @@ export function TrendDetailDrawer({
         </div>
       </aside>
     </div>
+  );
+}
+
+function ActionPrioritySection({
+  recommendation,
+  trend,
+}: {
+  recommendation: TrendActionRecommendation;
+  trend: DashboardTrend;
+}) {
+  const PriorityIcon = actionPriorityIcon(recommendation.actionPriority);
+
+  return (
+    <section className="rounded-3xl border border-secondary/18 bg-card/72 p-5 shadow-card">
+      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+            <Target className="h-4 w-4" />
+            Recommended action
+          </div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground/75">
+            Priority radar combines score, creator timing, quality, lifecycle,
+            freshness and watchlist movement into one action call.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant={actionPriorityVariant(recommendation.actionPriority)}>
+            <PriorityIcon className="mr-1.5 h-3.5 w-3.5" />
+            {recommendation.actionPriorityLabel}
+          </Badge>
+          <Badge variant={actionUrgencyVariant(recommendation.urgencyLevel)}>
+            {recommendation.urgencyLevel} urgency
+          </Badge>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-4">
+        <MovementCard
+          label="Action score"
+          value={String(recommendation.actionScore)}
+          helper="priority score"
+          className={scoreTone(recommendation.actionScore)}
+        />
+        <MovementCard
+          label="Creator"
+          value={String(trend.creatorOpportunity.score)}
+          helper={trend.creatorOpportunity.recommendedTiming}
+          className={scoreTone(trend.creatorOpportunity.score)}
+        />
+        <MovementCard
+          label="Quality"
+          value={String(trend.topicQuality.score)}
+          helper={trend.topicQuality.gateStatus}
+          className={scoreTone(trend.topicQuality.score)}
+        />
+        <MovementCard
+          label="Lifecycle"
+          value={trend.lifecycle.status}
+          helper="timing window"
+          className={
+            trend.lifecycle.status === "Emerging" ||
+            trend.lifecycle.status === "Accelerating"
+              ? "text-secondary"
+              : trend.lifecycle.status === "Cooling" ||
+                  trend.lifecycle.status === "Stale" ||
+                  trend.lifecycle.status === "Dormant"
+                ? "text-primary"
+                : "text-accent"
+          }
+        />
+      </div>
+
+      <p className="mt-4 rounded-2xl border border-border/10 bg-muted/30 p-4 text-sm leading-6 text-muted-foreground/78">
+        {recommendation.summary} {recommendation.recommendedNextStep}
+      </p>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-secondary/15 bg-secondary/10 p-4">
+          <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-secondary">
+            <CheckCircle2 className="h-4 w-4" />
+            Priority drivers
+          </div>
+          {recommendation.reasons.length > 0 ? (
+            <ul className="space-y-2 text-sm leading-6 text-muted-foreground/78">
+              {recommendation.reasons.map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm leading-6 text-muted-foreground/72">
+              No strong positive driver was detected for this priority call.
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-primary/15 bg-primary/10 p-4">
+          <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+            <AlertTriangle className="h-4 w-4" />
+            Priority pressure
+          </div>
+          {recommendation.warnings.length > 0 ? (
+            <ul className="space-y-2 text-sm leading-6 text-red-100/82">
+              {recommendation.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm leading-6 text-muted-foreground/72">
+              No major warning pressure detected for this priority call.
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 

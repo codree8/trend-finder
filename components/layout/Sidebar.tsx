@@ -8,6 +8,7 @@ import {
   BookmarkCheck,
   FileText,
   Gauge,
+  ListChecks,
   Lightbulb,
   Radar,
   Settings,
@@ -41,6 +42,7 @@ const dashboardSections = [
 
 const routeItems = [
   { href: "/watchlist", label: "Watchlist", icon: BookmarkCheck },
+  { href: "/action-queue", label: "Action Queue", icon: ListChecks },
   { href: "/reports", label: "Reports", icon: FileText },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
