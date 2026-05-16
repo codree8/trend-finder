@@ -23,6 +23,7 @@ import {
   Layers3,
   Lightbulb,
   Loader2,
+  Mail,
   Printer,
   Radar,
   ShieldAlert,
@@ -49,6 +50,7 @@ import {
   buildDailyBriefAutomationConfigUrl,
   buildDailyBriefAutomationDryRunUrl,
   buildDailyBriefAutomationGuardrailsUrl,
+  buildDailyBriefAutomationInternalEmailTestPrepUrl,
   buildDailyBriefAutomationManualApprovalUrl,
   buildDailyBriefAutomationPreLiveChecklistUrl,
   buildDailyBriefAutomationPreviewUrl,
@@ -94,6 +96,11 @@ import {
   manualApprovalStatusTone,
   type AutomationManualApprovalStatus,
 } from "@/lib/trends/automation-manual-approval";
+import {
+  buildAutomationInternalEmailTestPrep,
+  internalEmailTestPrepStatusTone,
+  type AutomationInternalEmailTestPrepStatus,
+} from "@/lib/trends/automation-internal-email-test-prep";
 import {
   buildExportSystemReadiness,
   type ExportSystemReadinessStatus,
@@ -319,6 +326,24 @@ function manualApprovalStatusLabel(status: AutomationManualApprovalStatus) {
   const labels: Record<AutomationManualApprovalStatus, string> = {
     ready_for_review: "Ready for review",
     review_required: "Review required",
+    blocked: "Blocked",
+  };
+
+  return labels[status];
+}
+
+function internalEmailTestPrepStatusVariant(
+  status: AutomationInternalEmailTestPrepStatus,
+): BadgeProps["variant"] {
+  return reportToneVariant(internalEmailTestPrepStatusTone(status));
+}
+
+function internalEmailTestPrepStatusLabel(
+  status: AutomationInternalEmailTestPrepStatus,
+) {
+  const labels: Record<AutomationInternalEmailTestPrepStatus, string> = {
+    prep_ready: "Prep ready",
+    review: "Needs review",
     blocked: "Blocked",
   };
 
@@ -1019,6 +1044,31 @@ function ExportReadyStructurePanel({
       automationPreLiveChecklist,
       automationPreview,
       exportReadiness,
+    ],
+  );
+
+
+  const automationInternalEmailTestPrep = useMemo(
+    () =>
+      buildAutomationInternalEmailTestPrep({
+        config: automationConfig,
+        manifest: automationDryRun,
+        guardrails: automationGuardrails,
+        preview: automationPreview,
+        checklist: automationPreLiveChecklist,
+        manualApproval: automationManualApproval,
+        readiness: exportReadiness,
+        serverPdfQa,
+      }),
+    [
+      automationConfig,
+      automationDryRun,
+      automationGuardrails,
+      automationManualApproval,
+      automationPreLiveChecklist,
+      automationPreview,
+      exportReadiness,
+      serverPdfQa,
     ],
   );
 
@@ -1875,6 +1925,75 @@ function ExportReadyStructurePanel({
               <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
                 {automationManualApproval.cannotApproveUntil[0] ??
                   "Reviewer policy is defined for the later internal test step."}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-accent/15 bg-accent/10 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+                <Mail className="h-3.5 w-3.5" />
+                Limited Internal Email Test Prep
+              </div>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground/78">
+                Prep-only internal email test contract. It previews the future
+                email package and attachment candidates, but still has no
+                provider, recipients, send action, cron or persistence.
+              </p>
+              <p className="mt-2 text-xs leading-5 text-secondary/85">
+                {automationInternalEmailTestPrep.recommendedNextStep}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Badge
+                variant={internalEmailTestPrepStatusVariant(
+                  automationInternalEmailTestPrep.prepStatus,
+                )}
+              >
+                {internalEmailTestPrepStatusLabel(
+                  automationInternalEmailTestPrep.prepStatus,
+                )}
+              </Badge>
+              <Badge variant="secondary">
+                {automationInternalEmailTestPrep.prepMode}
+              </Badge>
+              <Badge variant="danger">send: false</Badge>
+              <Badge variant="danger">provider: false</Badge>
+              <Badge variant="danger">recipients: 0</Badge>
+              <Button asChild size="sm" variant="ghost">
+                <a
+                  href={buildDailyBriefAutomationInternalEmailTestPrepUrl(selectedWindow)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Test Prep JSON
+                </a>
+              </Button>
+            </div>
+          </div>
+          <div className="mt-3 grid gap-2 md:grid-cols-3">
+            <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3">
+              <p className="text-xs font-semibold text-foreground">Subject</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                {automationInternalEmailTestPrep.emailPackagePreview.subject}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3">
+              <p className="text-xs font-semibold text-foreground">Top blocker</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                {automationInternalEmailTestPrep.hardBlockers[0] ??
+                  "No hard prep blocker; future send still needs explicit provider and recipients."}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3">
+              <p className="text-xs font-semibold text-foreground">
+                Before internal send
+              </p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                {automationInternalEmailTestPrep.requiredBeforeInternalTestSend[0] ??
+                  "Define explicit internal-only recipients in a later manual test step."}
               </p>
             </div>
           </div>

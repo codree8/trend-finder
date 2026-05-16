@@ -136,3 +136,11 @@ export function buildDailyBriefAutomationManualApprovalUrl(
 
   return `/api/daily-brief/automation/manual-approval?${params.toString()}`;
 }
+
+export function buildDailyBriefAutomationInternalEmailTestPrepUrl(
+  trendWindow: DashboardWindow,
+) {
+  const params = new URLSearchParams({ window: trendWindow });
+
+  return `/api/daily-brief/automation/internal-email-test-prep?${params.toString()}`;
+}

@@ -43,6 +43,7 @@ import {
   buildDailyBriefAutomationConfigUrl,
   buildDailyBriefAutomationDryRunUrl,
   buildDailyBriefAutomationGuardrailsUrl,
+  buildDailyBriefAutomationInternalEmailTestPrepUrl,
   buildDailyBriefAutomationManualApprovalUrl,
   buildDailyBriefAutomationPreLiveChecklistUrl,
   buildDailyBriefAutomationPreviewUrl,
@@ -118,6 +119,15 @@ import {
   type AutomationManualApprovalSeverity,
   type AutomationManualApprovalStatus,
 } from "@/lib/trends/automation-manual-approval";
+import {
+  buildAutomationInternalEmailTestPrep,
+  internalEmailTestPrepGateTone,
+  internalEmailTestPrepStatusTone,
+  type AutomationInternalEmailTestPrep,
+  type AutomationInternalEmailTestPrepGateStatus,
+  type AutomationInternalEmailTestPrepSeverity,
+  type AutomationInternalEmailTestPrepStatus,
+} from "@/lib/trends/automation-internal-email-test-prep";
 import {
   buildExportSystemReadiness,
   type ExportSystemReadiness,
@@ -429,6 +439,39 @@ function manualApprovalStatusLabel(status: AutomationManualApprovalStatus) {
   const labels: Record<AutomationManualApprovalStatus, string> = {
     ready_for_review: "Ready for review",
     review_required: "Review required",
+    blocked: "Blocked",
+  };
+
+  return labels[status];
+}
+
+function internalEmailTestPrepStatusVariant(
+  status: AutomationInternalEmailTestPrepStatus,
+): BadgeProps["variant"] {
+  return reportToneVariant(internalEmailTestPrepStatusTone(status));
+}
+
+function internalEmailTestPrepGateVariant(
+  status: AutomationInternalEmailTestPrepGateStatus,
+): BadgeProps["variant"] {
+  return reportToneVariant(internalEmailTestPrepGateTone(status));
+}
+
+function internalEmailTestPrepSeverityVariant(
+  severity: AutomationInternalEmailTestPrepSeverity,
+): BadgeProps["variant"] {
+  if (severity === "danger") return "danger";
+  if (severity === "warning") return "accent";
+  if (severity === "success") return "secondary";
+  return "muted";
+}
+
+function internalEmailTestPrepStatusLabel(
+  status: AutomationInternalEmailTestPrepStatus,
+) {
+  const labels: Record<AutomationInternalEmailTestPrepStatus, string> = {
+    prep_ready: "Prep ready",
+    review: "Needs review",
     blocked: "Blocked",
   };
 
@@ -3221,6 +3264,264 @@ function AutomationManualApprovalPanel({
   );
 }
 
+function InternalEmailTestPrepPanel({
+  prep,
+  selectedWindow,
+}: {
+  prep: AutomationInternalEmailTestPrep;
+  selectedWindow: DashboardWindow;
+}) {
+  const visibleGates = prep.prepGates
+    .filter((gate) => gate.status !== "pass" || gate.testBlocking)
+    .slice(0, 8);
+  const requiredBeforeSend = prep.requiredBeforeInternalTestSend.slice(0, 6);
+
+  return (
+    <Card className="border-accent/15 bg-[#160d0d]/72 signal-glow">
+      <CardHeader>
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+              <Mail className="h-4 w-4" />
+              Limited Internal Email Test Prep
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge variant={internalEmailTestPrepStatusVariant(prep.prepStatus)}>
+                {internalEmailTestPrepStatusLabel(prep.prepStatus)}
+              </Badge>
+              <Badge variant="secondary">{prep.prepMode}</Badge>
+              <Badge variant="danger">wouldSendNow: false</Badge>
+              <Badge variant="danger">provider: false</Badge>
+              <Badge variant="danger">recipients: 0</Badge>
+            </div>
+            <CardTitle className="mt-4 text-2xl tracking-[-0.035em]">
+              Prep the internal email test boundary without sending anything.
+            </CardTitle>
+            <CardDescription className="mt-2 max-w-4xl leading-6">
+              This layer describes the future manual internal email test package:
+              subject, body preview, artifact candidates, recipient policy,
+              provider boundary and blocked send capabilities. It does not add a
+              provider, recipients, scheduler, persistence or Send button.
+            </CardDescription>
+            <p className="mt-3 max-w-4xl text-sm leading-6 text-secondary/85">
+              {prep.recommendedNextStep}
+            </p>
+          </div>
+          <div className="grid min-w-[280px] grid-cols-2 gap-2 text-center">
+            <MiniMetric label="Safety" value={`${prep.sourceSummary.safetyScore}/100`} />
+            <MiniMetric label="Pre-live" value={`${prep.sourceSummary.preLiveScore}/100`} />
+            <MiniMetric label="Gates" value={prep.prepGates.length} />
+            <MiniMetric label="Blockers" value={prep.hardBlockers.length} />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm" variant="secondary">
+            <a
+              href={buildDailyBriefAutomationInternalEmailTestPrepUrl(selectedWindow)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <FileJson className="mr-2 h-4 w-4" />
+              Test prep JSON
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <a
+              href={buildDailyBriefAutomationManualApprovalUrl(selectedWindow)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Clipboard className="mr-2 h-4 w-4" />
+              Approval JSON
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="ghost">
+            <a
+              href={buildDailyBriefAutomationPreviewUrl(selectedWindow)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              Preview JSON
+            </a>
+          </Button>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-4">
+          <StatusTile
+            label="Send capability"
+            value={prep.providerPolicy.sendCapabilityEnabled ? "Enabled" : "Blocked"}
+            helper={prep.providerPolicy.detail}
+            variant="danger"
+          />
+          <StatusTile
+            label="Provider"
+            value={prep.providerPolicy.providerConfigured ? "Configured" : "Absent"}
+            helper="No provider SDK/API is imported, configured or called in this prep step."
+            variant="danger"
+          />
+          <StatusTile
+            label="Recipients"
+            value={`${prep.recipientPolicy.recipientCount}`}
+            helper={prep.recipientPolicy.detail}
+            variant="secondary"
+          />
+          <StatusTile
+            label="Cron"
+            value={prep.testPlan.cronAllowed ? "Allowed" : "Blocked"}
+            helper="Internal email tests must stay manual-only before any scheduler exists."
+            variant="danger"
+          />
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+          <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-4">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              <Mail className="h-3.5 w-3.5" />
+              Email package preview
+            </div>
+            <h3 className="mt-3 text-lg font-semibold tracking-[-0.02em]">
+              {prep.emailPackagePreview.subject}
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground/72">
+              {prep.emailPackagePreview.preheader}
+            </p>
+            <p className="mt-3 text-xs leading-5 text-secondary/85">
+              {prep.emailPackagePreview.bodyPreview}
+            </p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              <MiniMetric
+                label="Attachments"
+                value={prep.emailPackagePreview.attachmentCandidates.length}
+              />
+              <MiniMetric
+                label="Markdown"
+                value={prep.emailPackagePreview.markdownCharacters}
+              />
+              <MiniMetric
+                label="Would send"
+                value={prep.emailPackagePreview.wouldSendNow ? "Yes" : "No"}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border/10 bg-muted/20 p-4">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              <Download className="h-3.5 w-3.5" />
+              Attachment candidates
+            </div>
+            <div className="mt-4 space-y-3">
+              {prep.emailPackagePreview.attachmentCandidates.map((candidate) => (
+                <div
+                  key={candidate.id}
+                  className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-foreground">
+                      {candidate.label}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="muted">{candidate.format}</Badge>
+                      <Badge
+                        variant={
+                          candidate.status === "ready"
+                            ? "secondary"
+                            : candidate.status === "review"
+                              ? "accent"
+                              : candidate.status === "blocked"
+                                ? "danger"
+                                : "muted"
+                        }
+                      >
+                        {candidate.status}
+                      </Badge>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground/68">
+                    {candidate.detail}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-2xl border border-accent/20 bg-accent/10 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Required before internal test send
+            </p>
+            <div className="mt-3 space-y-2">
+              {(requiredBeforeSend.length > 0
+                ? requiredBeforeSend
+                : ["No current prep blocker. A future send step still needs explicit provider and recipient configuration."]
+              ).map((item) => (
+                <p
+                  key={item}
+                  className="rounded-2xl border border-border/10 bg-[#0f0808]/35 px-3 py-2 text-xs leading-5 text-muted-foreground/72"
+                >
+                  {item}
+                </p>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-danger/20 bg-danger/10 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Disallowed actions
+            </p>
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground/72">
+              {prep.disallowedActions.slice(0, 6).map((item) => (
+                <li key={item}>• {item}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border/10 bg-muted/20 p-4">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+            <ShieldAlert className="h-3.5 w-3.5" />
+            Prep gates
+          </div>
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            {(visibleGates.length > 0
+              ? visibleGates
+              : prep.prepGates.slice(0, 6)
+            ).map((gate) => (
+              <div
+                key={gate.id}
+                className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">
+                    {gate.label}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant={internalEmailTestPrepGateVariant(gate.status)}>
+                      {gate.status}
+                    </Badge>
+                    <Badge variant={internalEmailTestPrepSeverityVariant(gate.severity)}>
+                      {gate.severity}
+                    </Badge>
+                  </div>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground/68">
+                  {gate.detail}
+                </p>
+                <p className="mt-2 text-xs leading-5 text-secondary/80">
+                  {gate.requiredAction}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function ReportsHubView() {
   const [selectedWindow, setSelectedWindow] = useState<DashboardWindow>("7d");
   const [brief, setBrief] = useState<DailyBriefResponse | null>(null);
@@ -3421,6 +3722,38 @@ export function ReportsHubView() {
       automationPreLiveChecklist,
       automationPreview,
       exportReadiness,
+    ],
+  );
+
+
+  const automationInternalEmailTestPrep = useMemo(
+    () =>
+      automationDryRun &&
+      automationGuardrails &&
+      automationPreview &&
+      automationPreLiveChecklist &&
+      automationManualApproval &&
+      exportReadiness
+        ? buildAutomationInternalEmailTestPrep({
+            config: automationConfig,
+            manifest: automationDryRun,
+            guardrails: automationGuardrails,
+            preview: automationPreview,
+            checklist: automationPreLiveChecklist,
+            manualApproval: automationManualApproval,
+            readiness: exportReadiness,
+            serverPdfQa,
+          })
+        : null,
+    [
+      automationConfig,
+      automationDryRun,
+      automationGuardrails,
+      automationManualApproval,
+      automationPreLiveChecklist,
+      automationPreview,
+      exportReadiness,
+      serverPdfQa,
     ],
   );
 
@@ -3948,6 +4281,12 @@ export function ReportsHubView() {
             {automationManualApproval ? (
               <AutomationManualApprovalPanel
                 approval={automationManualApproval}
+                selectedWindow={selectedWindow}
+              />
+            ) : null}
+            {automationInternalEmailTestPrep ? (
+              <InternalEmailTestPrepPanel
+                prep={automationInternalEmailTestPrep}
                 selectedWindow={selectedWindow}
               />
             ) : null}
