@@ -45,6 +45,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  buildDailyBriefAutomationConfigUrl,
   buildDailyBriefAutomationDryRunUrl,
   buildDailyBriefAutomationGuardrailsUrl,
   buildDailyBriefAutomationPreviewUrl,
@@ -60,6 +61,11 @@ import {
   printLayoutStatusTone,
 } from "@/lib/trends/daily-brief-print-layout-qa";
 import { buildReportsExportFlowQa } from "@/lib/trends/reports-export-flow-qa";
+import {
+  buildAutomationConfigContract,
+  safetyModeTone,
+  type AutomationConfigSafetyMode,
+} from "@/lib/trends/automation-config";
 import {
   buildAutomationDryRunManifest,
   dryRunStatusTone,
@@ -275,6 +281,12 @@ function previewStatusVariant(
   if (status === "safe") return "secondary";
   if (status === "review") return "accent";
   return "danger";
+}
+
+function safetyModeVariant(
+  mode: AutomationConfigSafetyMode,
+): BadgeProps["variant"] {
+  return reportToneVariant(safetyModeTone(mode));
 }
 
 function liveAutomationVariant(
@@ -919,6 +931,11 @@ function ExportReadyStructurePanel({
     [automationDryRun, automationGuardrails, exportReadiness, serverPdfQa],
   );
 
+  const automationConfig = useMemo(
+    () => buildAutomationConfigContract(),
+    [],
+  );
+
   const topGuardrailBlockers = automationGuardrails.blockerPolicy.blockedBy.slice(
     0,
     3,
@@ -968,6 +985,9 @@ function ExportReadyStructurePanel({
               </Badge>
               <Badge variant={dryRunVariant(automationDryRun.status)}>
                 Dry-run {automationDryRun.status}
+              </Badge>
+              <Badge variant={safetyModeVariant(automationConfig.safetyMode)}>
+                Config {automationConfig.safetyMode}
               </Badge>
             </div>
             <CardDescription className="mt-3 max-w-4xl text-sm leading-6">
@@ -1086,6 +1106,16 @@ function ExportReadyStructurePanel({
                   Guardrails JSON
                 </a>
               </Button>
+              <Button asChild size="sm" variant="ghost">
+                <a
+                  href={buildDailyBriefAutomationConfigUrl()}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  Config JSON
+                </a>
+              </Button>
             </div>
           </div>
           <div className="grid min-w-[280px] grid-cols-2 gap-2 text-center">
@@ -1105,6 +1135,10 @@ function ExportReadyStructurePanel({
             <MiniMetric
               label="Guardrails"
               value={automationGuardrails.safetyScore}
+            />
+            <MiniMetric
+              label="Config"
+              value={automationConfig.blockedCapabilities.length}
             />
           </div>
         </div>
@@ -1536,6 +1570,67 @@ function ExportReadyStructurePanel({
               <p className="text-xs font-semibold text-foreground">Email preview</p>
               <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
                 {automationPreview.simulatedEmailPreview.subject}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-secondary/15 bg-[#0f0808]/35 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Automation Config Contract
+              </div>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground/78">
+                Hardcoded safe-by-default contract: no real recipients, no live
+                email, no cron, no database writes and no send button.
+              </p>
+              <p className="mt-2 text-xs leading-5 text-secondary/85">
+                {automationConfig.recommendedNextStep}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant={safetyModeVariant(automationConfig.safetyMode)}>
+                {automationConfig.safetyMode}
+              </Badge>
+              <Badge variant="danger">automation: false</Badge>
+              <Badge variant="danger">liveEmail: false</Badge>
+              <Badge variant="danger">cron: false</Badge>
+              <Badge variant="secondary">manual approval required</Badge>
+              <Button asChild size="sm" variant="ghost">
+                <a
+                  href={buildDailyBriefAutomationConfigUrl()}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Config JSON
+                </a>
+              </Button>
+            </div>
+          </div>
+          <div className="mt-3 grid gap-2 md:grid-cols-3">
+            <div className="rounded-2xl border border-border/10 bg-muted/20 p-3">
+              <p className="text-xs font-semibold text-foreground">Recipients</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                {automationConfig.recipients.length} configured. Real recipients
+                are blocked and not loaded from env.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border/10 bg-muted/20 p-3">
+              <p className="text-xs font-semibold text-foreground">Blocked</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                {automationConfig.blockedCapabilities[0]?.label} and {" "}
+                {automationConfig.blockedCapabilities.length - 1} more live
+                capabilities are blocked.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border/10 bg-muted/20 p-3">
+              <p className="text-xs font-semibold text-foreground">
+                Before live
+              </p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                {automationConfig.requiredBeforeLive[0]}
               </p>
             </div>
           </div>

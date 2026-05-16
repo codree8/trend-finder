@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/card";
 import {
   buildDailyBriefApiUrl,
+  buildDailyBriefAutomationConfigUrl,
   buildDailyBriefAutomationDryRunUrl,
   buildDailyBriefAutomationGuardrailsUrl,
   buildDailyBriefAutomationPreviewUrl,
@@ -67,6 +68,13 @@ import {
   type ReportsExportFlowSeverity,
   type ReportsExportFlowStatus,
 } from "@/lib/trends/reports-export-flow-qa";
+import {
+  buildAutomationConfigContract,
+  safetyModeTone,
+  type AutomationConfigContract,
+  type AutomationConfigIntegrityStatus,
+  type AutomationConfigSafetyMode,
+} from "@/lib/trends/automation-config";
 import {
   buildAutomationDryRunManifest,
   dryRunGateTone,
@@ -319,6 +327,18 @@ function previewRiskVariant(
   if (severity === "danger") return "danger";
   if (severity === "warning") return "accent";
   return "muted";
+}
+
+function safetyModeVariant(
+  mode: AutomationConfigSafetyMode,
+): BadgeProps["variant"] {
+  return reportToneVariant(safetyModeTone(mode));
+}
+
+function configIntegrityVariant(
+  status: AutomationConfigIntegrityStatus,
+): BadgeProps["variant"] {
+  return status === "pass" ? "secondary" : "danger";
 }
 
 function compactSectionDescription(value: string) {
@@ -1136,7 +1156,8 @@ function AutomationDryRunManifestPanel({
   const visibleGates = manifest.gates.filter(
     (gateItem) => gateItem.status !== "pass" && gateItem.status !== "protected",
   );
-  const topGates = visibleGates.length > 0 ? visibleGates : manifest.gates.slice(0, 4);
+  const topGates =
+    visibleGates.length > 0 ? visibleGates : manifest.gates.slice(0, 4);
 
   return (
     <Card className="border-accent/15 bg-[#160d0d]/72 signal-glow">
@@ -1169,10 +1190,19 @@ function AutomationDryRunManifestPanel({
             </p>
           </div>
           <div className="grid min-w-[280px] grid-cols-2 gap-2 text-center">
-            <MiniMetric label="Channels" value={manifest.metrics.channelsReady} />
-            <MiniMetric label="Artifacts" value={manifest.metrics.artifactsReady} />
+            <MiniMetric
+              label="Channels"
+              value={manifest.metrics.channelsReady}
+            />
+            <MiniMetric
+              label="Artifacts"
+              value={manifest.metrics.artifactsReady}
+            />
             <MiniMetric label="Blockers" value={manifest.metrics.blockers} />
-            <MiniMetric label="Safeguards" value={manifest.metrics.safeguards} />
+            <MiniMetric
+              label="Safeguards"
+              value={manifest.metrics.safeguards}
+            />
           </div>
         </div>
       </CardHeader>
@@ -1200,7 +1230,9 @@ function AutomationDryRunManifestPanel({
           </Button>
           <Button asChild size="sm" variant="outline">
             <a
-              href={buildDailyBriefPdfExportUrl(selectedWindow, { inline: true })}
+              href={buildDailyBriefPdfExportUrl(selectedWindow, {
+                inline: true,
+              })}
               target="_blank"
               rel="noreferrer"
             >
@@ -1267,7 +1299,8 @@ function AutomationDryRunManifestPanel({
                 Delivery channels
               </p>
               <p className="mt-2 text-sm leading-6 text-muted-foreground/72">
-                Every channel below is simulated. liveDeliveryEnabled is false across the manifest.
+                Every channel below is simulated. liveDeliveryEnabled is false
+                across the manifest.
               </p>
             </div>
             <Badge variant="secondary">wouldSendIfLive: false</Badge>
@@ -1371,14 +1404,16 @@ function AutomationDryRunManifestPanel({
               Dry-run blockers and warnings
             </div>
             <div className="mt-3 grid gap-2 lg:grid-cols-2">
-              {[...manifest.blockers, ...manifest.warnings.slice(0, 4)].map((item) => (
-                <div
-                  key={item}
-                  className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3 text-xs leading-5 text-muted-foreground/72"
-                >
-                  {item}
-                </div>
-              ))}
+              {[...manifest.blockers, ...manifest.warnings.slice(0, 4)].map(
+                (item) => (
+                  <div
+                    key={item}
+                    className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3 text-xs leading-5 text-muted-foreground/72"
+                  >
+                    {item}
+                  </div>
+                ),
+              )}
             </div>
           </div>
         ) : null}
@@ -1510,7 +1545,9 @@ function AutomationDryRunGuardrailsPanel({
             <div className="mt-3 space-y-2">
               {(blockers.length > 0
                 ? blockers
-                : ["No current guardrail blockers. Live automation is still intentionally unavailable."]
+                : [
+                    "No current guardrail blockers. Live automation is still intentionally unavailable.",
+                  ]
               ).map((item) => (
                 <div
                   key={item}
@@ -1623,7 +1660,9 @@ function AutomationDryRunGuardrailsPanel({
                     >
                       live disabled
                     </Badge>
-                    <Badge variant={channel.risk === "none" ? "secondary" : "accent"}>
+                    <Badge
+                      variant={channel.risk === "none" ? "secondary" : "accent"}
+                    >
                       risk: {channel.risk}
                     </Badge>
                   </div>
@@ -1644,7 +1683,10 @@ function AutomationDryRunGuardrailsPanel({
             Export readiness summary
           </p>
           <div className="mt-3 grid gap-3 md:grid-cols-4">
-            <MiniMetric label="Readiness" value={guardrails.exportReadinessSummary.score} />
+            <MiniMetric
+              label="Readiness"
+              value={guardrails.exportReadinessSummary.score}
+            />
             <MiniMetric
               label="Manual"
               value={guardrails.exportReadinessSummary.manualExportScore}
@@ -1695,10 +1737,18 @@ function AutomationPreviewConsolePanel({
                 Preview: {preview.previewStatus}
               </Badge>
               <Badge variant="secondary">Mode: {preview.automationMode}</Badge>
-              <Badge variant={guardrailVariant(preview.guardrailsSummary.guardrailStatus)}>
+              <Badge
+                variant={guardrailVariant(
+                  preview.guardrailsSummary.guardrailStatus,
+                )}
+              >
                 Guardrails: {preview.guardrailsSummary.guardrailStatus}
               </Badge>
-              <Badge variant={readinessVariant(preview.exportReadinessSummary.status)}>
+              <Badge
+                variant={readinessVariant(
+                  preview.exportReadinessSummary.status,
+                )}
+              >
                 Readiness: {preview.exportReadinessSummary.statusLabel}
               </Badge>
               <Badge variant="muted">No send path</Badge>
@@ -1851,11 +1901,21 @@ function AutomationPreviewConsolePanel({
               Guardrails summary
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Badge variant={guardrailVariant(preview.guardrailsSummary.guardrailStatus)}>
+              <Badge
+                variant={guardrailVariant(
+                  preview.guardrailsSummary.guardrailStatus,
+                )}
+              >
                 {preview.guardrailsSummary.guardrailStatus}
               </Badge>
-              <Badge variant={liveAutomationVariant(preview.guardrailsSummary.liveAutomationStatus)}>
-                {automationStatusLabel(preview.guardrailsSummary.liveAutomationStatus)}
+              <Badge
+                variant={liveAutomationVariant(
+                  preview.guardrailsSummary.liveAutomationStatus,
+                )}
+              >
+                {automationStatusLabel(
+                  preview.guardrailsSummary.liveAutomationStatus,
+                )}
               </Badge>
               <Badge variant="muted">
                 Risk: {preview.guardrailsSummary.simulatedSendRisk.level}
@@ -1871,7 +1931,11 @@ function AutomationPreviewConsolePanel({
               Export readiness summary
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Badge variant={readinessVariant(preview.exportReadinessSummary.status)}>
+              <Badge
+                variant={readinessVariant(
+                  preview.exportReadinessSummary.status,
+                )}
+              >
                 {preview.exportReadinessSummary.statusLabel}
               </Badge>
               <Badge variant="muted">
@@ -1891,7 +1955,8 @@ function AutomationPreviewConsolePanel({
                 Primary artifacts
               </p>
               <p className="mt-2 text-sm leading-6 text-muted-foreground/72">
-                These are links the future automation package would depend on, still as preview-only artifacts.
+                These are links the future automation package would depend on,
+                still as preview-only artifacts.
               </p>
             </div>
             <Badge variant="secondary">{primaryArtifacts.length} primary</Badge>
@@ -1938,7 +2003,9 @@ function AutomationPreviewConsolePanel({
             <div className="mt-3 space-y-2">
               {(visibleBlockers.length > 0
                 ? visibleBlockers
-                : ["No current blockers in the preview console. Live automation is still intentionally unavailable."]
+                : [
+                    "No current blockers in the preview console. Live automation is still intentionally unavailable.",
+                  ]
               ).map((item) => (
                 <div
                   key={item}
@@ -1962,7 +2029,8 @@ function AutomationPreviewConsolePanel({
                       id: "no-risk",
                       label: "No active preview risk",
                       severity: "info" as const,
-                      detail: "No send, scheduler or persistence risk was detected in this dry-run preview.",
+                      detail:
+                        "No send, scheduler or persistence risk was detected in this dry-run preview.",
                       mitigation: "Keep live flags out of this layer.",
                     },
                   ]
@@ -2082,6 +2150,243 @@ function ReportDocumentPanel({
               </p>
             </div>
           ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AutomationConfigContractPanel({
+  config,
+  selectedWindow,
+}: {
+  config: AutomationConfigContract;
+  selectedWindow: DashboardWindow;
+}) {
+  const criticalFailures = config.configIntegrityChecks.filter(
+    (item) => item.critical && !item.passed,
+  );
+  const topRequiredBeforeLive = config.requiredBeforeLive.slice(0, 6);
+  const topBlockedCapabilities = config.blockedCapabilities.slice(0, 6);
+
+  return (
+    <Card className="border-secondary/15 bg-[#160d0d]/72 signal-glow">
+      <CardHeader>
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+              <ShieldCheck className="h-4 w-4" />
+              Automation Config Contract
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge variant={safetyModeVariant(config.safetyMode)}>
+                Safety mode: {config.safetyMode}
+              </Badge>
+              <Badge variant="muted">automationEnabled: false</Badge>
+              <Badge variant="muted">liveEmailEnabled: false</Badge>
+              <Badge variant="muted">cronEnabled: false</Badge>
+              <Badge variant="secondary">manual approval required</Badge>
+            </div>
+            <CardTitle className="mt-4 text-2xl tracking-[-0.035em]">
+              One safe source of truth before automation grows teeth.
+            </CardTitle>
+            <CardDescription className="mt-2 max-w-4xl leading-6">
+              The contract keeps Daily Brief automation hard-blocked from live
+              delivery while still allowing HTML, JSON, PDF and email-preview
+              inspection. Recipients are intentionally empty and not loaded from
+              environment variables.
+            </CardDescription>
+            <p className="mt-3 max-w-4xl text-sm leading-6 text-secondary/85">
+              {config.recommendedNextStep}
+            </p>
+          </div>
+          <div className="grid min-w-[280px] grid-cols-2 gap-2 text-center">
+            <MiniMetric label="Recipients" value={config.recipients.length} />
+            <MiniMetric
+              label="Blocked"
+              value={config.blockedCapabilities.length}
+            />
+            <MiniMetric label="Windows" value={config.allowedWindows.length} />
+            <MiniMetric label="Failures" value={criticalFailures.length} />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm" variant="secondary">
+            <a
+              href={buildDailyBriefAutomationConfigUrl()}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Code2 className="mr-2 h-4 w-4" />
+              Config JSON
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <a
+              href={buildDailyBriefAutomationPreviewUrl(selectedWindow)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Layers3 className="mr-2 h-4 w-4" />
+              Preview console
+            </a>
+          </Button>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-3">
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Core flags
+            </p>
+            <div className="mt-3 grid gap-2">
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-border/10 bg-[#0f0808]/35 p-2 text-xs">
+                <span className="text-muted-foreground/72">Automation</span>
+                <Badge variant="danger">false</Badge>
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-border/10 bg-[#0f0808]/35 p-2 text-xs">
+                <span className="text-muted-foreground/72">Live email</span>
+                <Badge variant="danger">false</Badge>
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-border/10 bg-[#0f0808]/35 p-2 text-xs">
+                <span className="text-muted-foreground/72">Cron</span>
+                <Badge variant="danger">false</Badge>
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-border/10 bg-[#0f0808]/35 p-2 text-xs">
+                <span className="text-muted-foreground/72">
+                  Manual send only
+                </span>
+                <Badge variant="secondary">true</Badge>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Recipient policy
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Badge variant="muted">{config.recipientPolicy.status}</Badge>
+              <Badge variant="danger">max: 0</Badge>
+              <Badge variant="danger">env recipients: false</Badge>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground/72">
+              {config.recipientPolicy.detail}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Allowed surface
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {config.allowedWindows.map((window) => (
+                <Badge key={window} variant="secondary">
+                  {window}
+                </Badge>
+              ))}
+              {config.allowedChannels.map((channel) => (
+                <Badge key={channel.id} variant="muted">
+                  {channel.id}
+                </Badge>
+              ))}
+            </div>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground/72">
+              Allowed channels expose artifacts and previews only. None of them
+              has live delivery enabled.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-2">
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+                Blocked capabilities
+              </p>
+              <Badge variant="danger">
+                {config.blockedCapabilities.length} blocked
+              </Badge>
+            </div>
+            <div className="mt-4 grid gap-2">
+              {topBlockedCapabilities.map((item) => (
+                <div
+                  key={item.id}
+                  className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="danger">blocked</Badge>
+                    {item.critical ? (
+                      <Badge variant="accent">critical</Badge>
+                    ) : null}
+                  </div>
+                  <p className="mt-2 text-sm font-semibold text-foreground">
+                    {item.label}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                    {item.detail}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+                Required before live
+              </p>
+              <Badge variant="muted">pre-live work</Badge>
+            </div>
+            <div className="mt-4 grid gap-2">
+              {topRequiredBeforeLive.map((item) => (
+                <div
+                  key={item}
+                  className="rounded-xl border border-border/10 bg-[#0f0808]/35 p-3 text-xs leading-5 text-muted-foreground/72"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Config integrity checks
+            </p>
+            <Badge
+              variant={criticalFailures.length > 0 ? "danger" : "secondary"}
+            >
+              {criticalFailures.length} critical failure
+              {criticalFailures.length === 1 ? "" : "s"}
+            </Badge>
+          </div>
+          <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+            {config.configIntegrityChecks.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={configIntegrityVariant(item.status)}>
+                    {item.status}
+                  </Badge>
+                  {item.critical ? (
+                    <Badge variant="muted">critical</Badge>
+                  ) : null}
+                </div>
+                <p className="mt-2 text-xs font-semibold text-foreground">
+                  {item.label}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                  {item.detail}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -2282,7 +2587,14 @@ export function ReportsHubView() {
             readiness: exportReadiness,
           })
         : null,
-    [brief, exportQa, exportReadiness, printLayoutQa, reportDocument, serverPdfQa],
+    [
+      brief,
+      exportQa,
+      exportReadiness,
+      printLayoutQa,
+      reportDocument,
+      serverPdfQa,
+    ],
   );
 
   const automationGuardrails = useMemo(
@@ -2308,6 +2620,8 @@ export function ReportsHubView() {
         : null,
     [automationDryRun, automationGuardrails, exportReadiness, serverPdfQa],
   );
+
+  const automationConfig = useMemo(() => buildAutomationConfigContract(), []);
 
   const exportCards = useMemo<ExportCard[]>(() => {
     const htmlActions = (
@@ -2724,10 +3038,19 @@ export function ReportsHubView() {
                         </Badge>
                       ) : null}
                       {automationPreview ? (
-                        <Badge variant={previewStatusVariant(automationPreview.previewStatus)}>
+                        <Badge
+                          variant={previewStatusVariant(
+                            automationPreview.previewStatus,
+                          )}
+                        >
                           Preview: {automationPreview.previewStatus}
                         </Badge>
                       ) : null}
+                      <Badge
+                        variant={safetyModeVariant(automationConfig.safetyMode)}
+                      >
+                        Config: {automationConfig.safetyMode}
+                      </Badge>
                       <Badge variant="muted">
                         Confidence {brief.briefPosture.confidence}/100
                       </Badge>
@@ -2802,6 +3125,10 @@ export function ReportsHubView() {
                 selectedWindow={selectedWindow}
               />
             ) : null}
+            <AutomationConfigContractPanel
+              config={automationConfig}
+              selectedWindow={selectedWindow}
+            />
 
             <div className="grid gap-4 xl:grid-cols-3">
               {exportCards.map((card) => (

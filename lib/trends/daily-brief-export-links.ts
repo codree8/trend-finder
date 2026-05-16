@@ -117,3 +117,6 @@ export function buildDailyBriefAutomationPreviewUrl(
 
   return `/api/daily-brief/automation/preview?${params.toString()}`;
 }
+export function buildDailyBriefAutomationConfigUrl() {
+  return "/api/daily-brief/automation/config";
+}
