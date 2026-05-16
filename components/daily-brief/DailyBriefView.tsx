@@ -25,6 +25,7 @@ import {
   Printer,
   Radar,
   ShieldAlert,
+  ShieldCheck,
   Sparkles,
   Target,
   TrendingUp,
@@ -44,6 +45,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  buildDailyBriefAutomationDryRunUrl,
   buildDailyBriefExportReadinessUrl,
   buildDailyBriefHtmlExportUrl,
   buildDailyBriefJsonExportUrl,
@@ -56,6 +58,11 @@ import {
   printLayoutStatusTone,
 } from "@/lib/trends/daily-brief-print-layout-qa";
 import { buildReportsExportFlowQa } from "@/lib/trends/reports-export-flow-qa";
+import {
+  buildAutomationDryRunManifest,
+  dryRunStatusTone,
+  type AutomationDryRunManifestStatus,
+} from "@/lib/trends/automation-dry-run-manifest";
 import {
   buildExportSystemReadiness,
   type ExportSystemReadinessStatus,
@@ -236,6 +243,12 @@ function readinessVariant(
   if (status === "ready") return "secondary";
   if (status === "review") return "accent";
   return "danger";
+}
+
+function dryRunVariant(
+  status: AutomationDryRunManifestStatus,
+): BadgeProps["variant"] {
+  return reportToneVariant(dryRunStatusTone(status));
 }
 
 function qaWarningVariant(
@@ -472,6 +485,7 @@ export function DailyBriefView() {
             <ExecutiveSummaryCard brief={brief} />
             <DailyBriefQaPanel qa={brief.qa} />
             <ExportReadyStructurePanel
+              brief={brief}
               document={brief.reportDocument}
               selectedWindow={trendWindow}
               serverPdfQa={serverPdfQa}
@@ -793,11 +807,13 @@ function DailyBriefQaPanel({ qa }: { qa: DailyBriefQaSummary }) {
 }
 
 function ExportReadyStructurePanel({
+  brief,
   document,
   selectedWindow,
   serverPdfQa,
   serverPdfQaError,
 }: {
+  brief: DailyBriefResponse;
   document: DailyBriefReportDocument;
   selectedWindow: DashboardWindow;
   serverPdfQa: DailyBriefServerPdfReliabilityQa | null;
@@ -822,6 +838,19 @@ function ExportReadyStructurePanel({
         serverPdfQa,
       }),
     [document, exportQa, printQa, serverPdfQa],
+  );
+
+  const automationDryRun = useMemo(
+    () =>
+      buildAutomationDryRunManifest({
+        brief,
+        document,
+        exportQa,
+        printQa,
+        serverPdfQa,
+        readiness: exportReadiness,
+      }),
+    [brief, document, exportQa, exportReadiness, printQa, serverPdfQa],
   );
 
   return (
@@ -865,6 +894,9 @@ function ExportReadyStructurePanel({
               ) : null}
               <Badge variant={readinessVariant(exportReadiness.status)}>
                 Readiness {exportReadiness.score}/100
+              </Badge>
+              <Badge variant={dryRunVariant(automationDryRun.status)}>
+                Dry-run {automationDryRun.status}
               </Badge>
             </div>
             <CardDescription className="mt-3 max-w-4xl text-sm leading-6">
@@ -963,6 +995,16 @@ function ExportReadyStructurePanel({
                   Readiness JSON
                 </a>
               </Button>
+              <Button asChild size="sm" variant="secondary">
+                <a
+                  href={buildDailyBriefAutomationDryRunUrl(selectedWindow)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  Dry-run manifest
+                </a>
+              </Button>
             </div>
           </div>
           <div className="grid min-w-[280px] grid-cols-2 gap-2 text-center">
@@ -978,6 +1020,7 @@ function ExportReadyStructurePanel({
             <MiniMetric label="Print QA" value={printQa.score} />
             <MiniMetric label="PDF QA" value={serverPdfQa?.score ?? 0} />
             <MiniMetric label="Ready" value={exportReadiness.score} />
+            <MiniMetric label="Dry-run" value={automationDryRun.metrics.blockers} />
           </div>
         </div>
       </CardHeader>
@@ -1239,6 +1282,54 @@ function ExportReadyStructurePanel({
                 cron sending.
               </div>
             ) : null}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-accent/20 bg-accent/10 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+                Automation dry-run manifest
+              </p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground/78">
+                {automationDryRun.summary}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-secondary/85">
+                {automationDryRun.recommendedNextStep}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant={dryRunVariant(automationDryRun.status)}>
+                {automationDryRun.statusLabel}
+              </Badge>
+              <Badge variant="secondary">dryRun: true</Badge>
+              <Badge variant={automationDryRun.metrics.blockers > 0 ? "danger" : "secondary"}>
+                {automationDryRun.metrics.blockers} blocker
+                {automationDryRun.metrics.blockers === 1 ? "" : "s"}
+              </Badge>
+              <Badge variant="muted">No email sent</Badge>
+            </div>
+          </div>
+          <div className="mt-3 grid gap-2 md:grid-cols-3">
+            {automationDryRun.deliveryChannels.slice(0, 3).map((channel) => (
+              <div
+                key={channel.id}
+                className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={reportToneVariant(channel.tone)}>
+                    {channel.status}
+                  </Badge>
+                  <Badge variant="muted">{channel.role}</Badge>
+                </div>
+                <p className="mt-2 text-xs font-semibold text-foreground">
+                  {channel.label}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                  {channel.detail}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
 

@@ -94,3 +94,11 @@ export function buildDailyBriefExportReadinessUrl(
 
   return `/api/daily-brief/export/readiness?${params.toString()}`;
 }
+
+export function buildDailyBriefAutomationDryRunUrl(
+  trendWindow: DashboardWindow,
+) {
+  const params = new URLSearchParams({ window: trendWindow });
+
+  return `/api/daily-brief/automation/dry-run?${params.toString()}`;
+}

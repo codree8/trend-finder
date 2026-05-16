@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/card";
 import {
   buildDailyBriefApiUrl,
+  buildDailyBriefAutomationDryRunUrl,
   buildDailyBriefExportReadinessUrl,
   buildDailyBriefFullJsonExportUrl,
   buildDailyBriefHtmlExportUrl,
@@ -63,6 +64,14 @@ import {
   type ReportsExportFlowSeverity,
   type ReportsExportFlowStatus,
 } from "@/lib/trends/reports-export-flow-qa";
+import {
+  buildAutomationDryRunManifest,
+  dryRunGateTone,
+  dryRunStatusTone,
+  type AutomationDryRunGateStatus,
+  type AutomationDryRunManifest,
+  type AutomationDryRunManifestStatus,
+} from "@/lib/trends/automation-dry-run-manifest";
 import {
   buildExportSystemReadiness,
   type ExportSystemReadiness,
@@ -231,6 +240,18 @@ function readinessSeverityVariant(
   if (severity === "warning") return "accent";
   if (severity === "danger") return "danger";
   return "muted";
+}
+
+function dryRunVariant(
+  status: AutomationDryRunManifestStatus,
+): BadgeProps["variant"] {
+  return reportToneVariant(dryRunStatusTone(status));
+}
+
+function dryRunGateVariant(
+  status: AutomationDryRunGateStatus,
+): BadgeProps["variant"] {
+  return reportToneVariant(dryRunGateTone(status));
 }
 
 function compactSectionDescription(value: string) {
@@ -1038,6 +1059,267 @@ function ExportSystemReadinessPanel({
   );
 }
 
+function AutomationDryRunManifestPanel({
+  manifest,
+  selectedWindow,
+}: {
+  manifest: AutomationDryRunManifest;
+  selectedWindow: DashboardWindow;
+}) {
+  const visibleGates = manifest.gates.filter(
+    (gateItem) => gateItem.status !== "pass" && gateItem.status !== "protected",
+  );
+  const topGates = visibleGates.length > 0 ? visibleGates : manifest.gates.slice(0, 4);
+
+  return (
+    <Card className="border-accent/15 bg-[#160d0d]/72 signal-glow">
+      <CardHeader>
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+              <ShieldCheck className="h-4 w-4" />
+              Automation Dry-Run Manifest
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge variant={dryRunVariant(manifest.status)}>
+                {manifest.statusLabel}
+              </Badge>
+              <Badge variant={dryRunVariant(manifest.status)}>
+                {manifest.simulatedOutcomeLabel}
+              </Badge>
+              <Badge variant="secondary">dryRun: true</Badge>
+              <Badge variant="muted">No email sent</Badge>
+              <Badge variant="muted">No cron created</Badge>
+            </div>
+            <CardTitle className="mt-4 text-2xl tracking-[-0.035em]">
+              Automation can now rehearse without touching the send button.
+            </CardTitle>
+            <CardDescription className="mt-2 max-w-4xl leading-6">
+              {manifest.summary}
+            </CardDescription>
+            <p className="mt-3 max-w-4xl text-sm leading-6 text-muted-foreground/72">
+              {manifest.recommendedNextStep}
+            </p>
+          </div>
+          <div className="grid min-w-[280px] grid-cols-2 gap-2 text-center">
+            <MiniMetric label="Channels" value={manifest.metrics.channelsReady} />
+            <MiniMetric label="Artifacts" value={manifest.metrics.artifactsReady} />
+            <MiniMetric label="Blockers" value={manifest.metrics.blockers} />
+            <MiniMetric label="Safeguards" value={manifest.metrics.safeguards} />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm" variant="secondary">
+            <a
+              href={buildDailyBriefAutomationDryRunUrl(selectedWindow)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Code2 className="mr-2 h-4 w-4" />
+              Manifest JSON
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <a
+              href={buildDailyBriefHtmlExportUrl(selectedWindow)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              Preview HTML
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <a
+              href={buildDailyBriefPdfExportUrl(selectedWindow, { inline: true })}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Preview PDF
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="ghost">
+            <a
+              href={buildDailyBriefExportReadinessUrl(selectedWindow)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ShieldCheck className="mr-2 h-4 w-4" />
+              Readiness JSON
+            </a>
+          </Button>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[1fr_0.85fr]">
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Simulated payload
+            </p>
+            <p className="mt-3 text-sm font-semibold text-foreground">
+              {manifest.payloadPreview.subject}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-secondary/80">
+              {manifest.payloadPreview.preheader}
+            </p>
+            <p className="mt-3 whitespace-pre-line rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3 text-xs leading-5 text-muted-foreground/72">
+              {manifest.payloadPreview.bodyPreview}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {manifest.payloadPreview.attachmentSummary.map((item) => (
+                <Badge key={item} variant="muted">
+                  {item}
+                </Badge>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-secondary/15 bg-secondary/10 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Protected boundaries
+            </p>
+            <div className="mt-3 space-y-2">
+              {manifest.safeguards.slice(0, 6).map((item) => (
+                <div
+                  key={item}
+                  className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3 text-xs leading-5 text-muted-foreground/72"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+                Delivery channels
+              </p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground/72">
+                Every channel below is simulated. liveDeliveryEnabled is false across the manifest.
+              </p>
+            </div>
+            <Badge variant="secondary">wouldSendIfLive: false</Badge>
+          </div>
+          <div className="mt-4 grid gap-2 lg:grid-cols-2 xl:grid-cols-3">
+            {manifest.deliveryChannels.map((channelItem) => (
+              <div
+                key={channelItem.id}
+                className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={reportToneVariant(channelItem.tone)}>
+                    {channelItem.status}
+                  </Badge>
+                  <Badge variant="muted">{channelItem.role}</Badge>
+                  {!channelItem.liveDeliveryEnabled ? (
+                    <Badge variant="secondary">disabled</Badge>
+                  ) : null}
+                </div>
+                <p className="mt-3 text-sm font-semibold text-foreground">
+                  {channelItem.label}
+                </p>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground/68">
+                  {channelItem.detail}
+                </p>
+                <p className="mt-2 text-xs leading-5 text-secondary/80">
+                  Dependency: {channelItem.dependency}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[1fr_0.85fr]">
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Manifest gates
+            </p>
+            <div className="mt-3 grid gap-2 lg:grid-cols-2">
+              {topGates.map((gateItem) => (
+                <div
+                  key={gateItem.id}
+                  className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={dryRunGateVariant(gateItem.status)}>
+                      {gateItem.status}
+                    </Badge>
+                    <Badge
+                      variant={
+                        gateItem.severity === "danger"
+                          ? "danger"
+                          : gateItem.severity === "warning"
+                            ? "accent"
+                            : gateItem.severity === "success"
+                              ? "secondary"
+                              : "muted"
+                      }
+                    >
+                      {gateItem.severity}
+                    </Badge>
+                    {gateItem.automationBlocking ? (
+                      <Badge variant="danger">blocker</Badge>
+                    ) : null}
+                  </div>
+                  <p className="mt-3 text-sm font-semibold text-foreground">
+                    {gateItem.label}
+                  </p>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground/68">
+                    {gateItem.detail}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Execution checklist
+            </p>
+            <div className="mt-3 space-y-2">
+              {manifest.executionChecklist.map((item, index) => (
+                <div
+                  key={item}
+                  className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3 text-xs leading-5 text-muted-foreground/72"
+                >
+                  <span className="mr-2 font-semibold text-secondary">
+                    {index + 1}.
+                  </span>
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {manifest.blockers.length > 0 || manifest.warnings.length > 0 ? (
+          <div className="rounded-2xl border border-accent/25 bg-accent/10 p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-accent-foreground">
+              <AlertTriangle className="h-4 w-4" />
+              Dry-run blockers and warnings
+            </div>
+            <div className="mt-3 grid gap-2 lg:grid-cols-2">
+              {[...manifest.blockers, ...manifest.warnings.slice(0, 4)].map((item) => (
+                <div
+                  key={item}
+                  className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3 text-xs leading-5 text-muted-foreground/72"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
 function ReportDocumentPanel({
   reportDocument,
 }: {
@@ -1313,6 +1595,21 @@ export function ReportsHubView() {
     [exportQa, printLayoutQa, reportDocument, serverPdfQa],
   );
 
+  const automationDryRun = useMemo(
+    () =>
+      brief && reportDocument && exportQa && printLayoutQa && exportReadiness
+        ? buildAutomationDryRunManifest({
+            brief,
+            document: reportDocument,
+            exportQa,
+            printQa: printLayoutQa,
+            serverPdfQa,
+            readiness: exportReadiness,
+          })
+        : null,
+    [brief, exportQa, exportReadiness, printLayoutQa, reportDocument, serverPdfQa],
+  );
+
   const exportCards = useMemo<ExportCard[]>(() => {
     const htmlActions = (
       <>
@@ -1434,6 +1731,27 @@ export function ReportsHubView() {
       </>
     );
 
+    const dryRunActions = (
+      <>
+        <Button asChild size="sm" variant="secondary">
+          <a
+            href={buildDailyBriefAutomationDryRunUrl(selectedWindow)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <ShieldCheck className="mr-2 h-4 w-4" />
+            Manifest JSON
+          </a>
+        </Button>
+        <Button asChild size="sm" variant="outline">
+          <Link href={buildDailyBriefPageUrl(selectedWindow)}>
+            <Newspaper className="mr-2 h-4 w-4" />
+            Review brief
+          </Link>
+        </Button>
+      </>
+    );
+
     const developerActions = (
       <>
         <Button asChild size="sm" variant="outline">
@@ -1531,6 +1849,18 @@ export function ReportsHubView() {
         actions: developerActions,
       },
       {
+        id: "automation-dry-run",
+        title: "Automation Dry-Run",
+        description:
+          "Simulates what a future automated Daily Brief package would contain without sending email, creating cron jobs or writing report history.",
+        group: "Developer",
+        status: "ready",
+        recommendedUse:
+          "Use before any real automation work to inspect channels, artifacts, safeguards and blockers.",
+        icon: ShieldCheck,
+        actions: dryRunActions,
+      },
+      {
         id: "daily-brief-email",
         title: "Email Report",
         description:
@@ -1599,7 +1929,7 @@ export function ReportsHubView() {
           </div>
         </section>
 
-        <div className="grid gap-3 md:grid-cols-7">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
           <MiniMetric label="Active window" value={selectedWindow} />
           <MiniMetric
             label="Live exports"
@@ -1620,6 +1950,10 @@ export function ReportsHubView() {
           <MiniMetric
             label="Readiness"
             value={exportReadiness ? `${exportReadiness.score}/100` : "..."}
+          />
+          <MiniMetric
+            label="Dry-run"
+            value={automationDryRun ? automationDryRun.status : "..."}
           />
           <MiniMetric
             label="Latest scan"
@@ -1675,6 +2009,11 @@ export function ReportsHubView() {
                           Readiness: {exportReadiness.statusLabel}
                         </Badge>
                       ) : null}
+                      {automationDryRun ? (
+                        <Badge variant={dryRunVariant(automationDryRun.status)}>
+                          Dry-run: {automationDryRun.statusLabel}
+                        </Badge>
+                      ) : null}
                       <Badge variant="muted">
                         Confidence {brief.briefPosture.confidence}/100
                       </Badge>
@@ -1728,6 +2067,12 @@ export function ReportsHubView() {
             {exportReadiness ? (
               <ExportSystemReadinessPanel
                 readiness={exportReadiness}
+                selectedWindow={selectedWindow}
+              />
+            ) : null}
+            {automationDryRun ? (
+              <AutomationDryRunManifestPanel
+                manifest={automationDryRun}
                 selectedWindow={selectedWindow}
               />
             ) : null}
