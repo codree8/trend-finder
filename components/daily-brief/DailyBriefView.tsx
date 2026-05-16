@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/card";
 import {
   buildDailyBriefAutomationDryRunUrl,
+  buildDailyBriefAutomationGuardrailsUrl,
   buildDailyBriefExportReadinessUrl,
   buildDailyBriefHtmlExportUrl,
   buildDailyBriefJsonExportUrl,
@@ -63,6 +64,12 @@ import {
   dryRunStatusTone,
   type AutomationDryRunManifestStatus,
 } from "@/lib/trends/automation-dry-run-manifest";
+import {
+  buildAutomationDryRunGuardrails,
+  guardrailStatusTone,
+  type AutomationDryRunGuardrailStatus,
+  type AutomationLiveAutomationStatus,
+} from "@/lib/trends/automation-dry-run-guardrails";
 import {
   buildExportSystemReadiness,
   type ExportSystemReadinessStatus,
@@ -249,6 +256,32 @@ function dryRunVariant(
   status: AutomationDryRunManifestStatus,
 ): BadgeProps["variant"] {
   return reportToneVariant(dryRunStatusTone(status));
+}
+
+function guardrailVariant(
+  status: AutomationDryRunGuardrailStatus,
+): BadgeProps["variant"] {
+  return reportToneVariant(guardrailStatusTone(status));
+}
+
+function liveAutomationVariant(
+  status: AutomationLiveAutomationStatus,
+): BadgeProps["variant"] {
+  if (status === "ready_for_dry_run_only") return "secondary";
+  if (status === "ready_for_limited_test") return "accent";
+  if (status === "not_configured") return "muted";
+  return "danger";
+}
+
+function automationStatusLabel(status: AutomationLiveAutomationStatus) {
+  const labels: Record<AutomationLiveAutomationStatus, string> = {
+    blocked: "Blocked",
+    not_configured: "Not configured",
+    ready_for_dry_run_only: "Dry-run only",
+    ready_for_limited_test: "Limited test ready",
+  };
+
+  return labels[status];
 }
 
 function qaWarningVariant(
@@ -853,6 +886,20 @@ function ExportReadyStructurePanel({
     [brief, document, exportQa, exportReadiness, printQa, serverPdfQa],
   );
 
+  const automationGuardrails = useMemo(
+    () =>
+      buildAutomationDryRunGuardrails({
+        manifest: automationDryRun,
+        readiness: exportReadiness,
+      }),
+    [automationDryRun, exportReadiness],
+  );
+
+  const topGuardrailBlockers = automationGuardrails.blockerPolicy.blockedBy.slice(
+    0,
+    3,
+  );
+
   return (
     <Card className="border-secondary/15 bg-[#160d0d]/62">
       <CardHeader>
@@ -1005,6 +1052,16 @@ function ExportReadyStructurePanel({
                   Dry-run manifest
                 </a>
               </Button>
+              <Button asChild size="sm" variant="outline">
+                <a
+                  href={buildDailyBriefAutomationGuardrailsUrl(selectedWindow)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <ShieldAlert className="mr-2 h-4 w-4" />
+                  Guardrails JSON
+                </a>
+              </Button>
             </div>
           </div>
           <div className="grid min-w-[280px] grid-cols-2 gap-2 text-center">
@@ -1021,6 +1078,10 @@ function ExportReadyStructurePanel({
             <MiniMetric label="PDF QA" value={serverPdfQa?.score ?? 0} />
             <MiniMetric label="Ready" value={exportReadiness.score} />
             <MiniMetric label="Dry-run" value={automationDryRun.metrics.blockers} />
+            <MiniMetric
+              label="Guardrails"
+              value={automationGuardrails.safetyScore}
+            />
           </div>
         </div>
       </CardHeader>
@@ -1302,14 +1363,72 @@ function ExportReadyStructurePanel({
               <Badge variant={dryRunVariant(automationDryRun.status)}>
                 {automationDryRun.statusLabel}
               </Badge>
+              <Badge variant={guardrailVariant(automationGuardrails.guardrailStatus)}>
+                Guardrails: {automationGuardrails.guardrailStatus}
+              </Badge>
+              <Badge
+                variant={liveAutomationVariant(
+                  automationGuardrails.liveAutomationStatus,
+                )}
+              >
+                {automationStatusLabel(automationGuardrails.liveAutomationStatus)}
+              </Badge>
               <Badge variant="secondary">dryRun: true</Badge>
-              <Badge variant={automationDryRun.metrics.blockers > 0 ? "danger" : "secondary"}>
+              <Badge
+                variant={
+                  automationDryRun.metrics.blockers > 0 ? "danger" : "secondary"
+                }
+              >
                 {automationDryRun.metrics.blockers} blocker
                 {automationDryRun.metrics.blockers === 1 ? "" : "s"}
               </Badge>
               <Badge variant="muted">No email sent</Badge>
             </div>
           </div>
+          <div className="mt-3 rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={guardrailVariant(automationGuardrails.guardrailStatus)}>
+                {automationGuardrails.safetyScore}/100 safety
+              </Badge>
+              <Badge
+                variant={
+                  automationGuardrails.simulatedSendRisk.level === "none"
+                    ? "secondary"
+                    : "accent"
+                }
+              >
+                Send risk: {automationGuardrails.simulatedSendRisk.level}
+              </Badge>
+              <Button asChild size="sm" variant="ghost">
+                <a
+                  href={buildDailyBriefAutomationGuardrailsUrl(selectedWindow)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Guardrails JSON
+                </a>
+              </Button>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground/72">
+              {automationGuardrails.recommendedNextStep}
+            </p>
+            <div className="mt-2 grid gap-2 md:grid-cols-3">
+              {(topGuardrailBlockers.length > 0
+                ? topGuardrailBlockers
+                : [
+                    "No current guardrail blockers. Live sending still remains unavailable by design.",
+                  ]
+              ).map((item) => (
+                <div
+                  key={item}
+                  className="rounded-xl border border-border/10 bg-muted/20 p-2 text-xs leading-5 text-muted-foreground/72"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="mt-3 grid gap-2 md:grid-cols-3">
             {automationDryRun.deliveryChannels.slice(0, 3).map((channel) => (
               <div

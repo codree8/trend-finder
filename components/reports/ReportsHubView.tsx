@@ -24,6 +24,7 @@ import {
   Mail,
   Newspaper,
   Printer,
+  ShieldAlert,
   ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
@@ -40,6 +41,7 @@ import {
 import {
   buildDailyBriefApiUrl,
   buildDailyBriefAutomationDryRunUrl,
+  buildDailyBriefAutomationGuardrailsUrl,
   buildDailyBriefExportReadinessUrl,
   buildDailyBriefFullJsonExportUrl,
   buildDailyBriefHtmlExportUrl,
@@ -72,6 +74,14 @@ import {
   type AutomationDryRunManifest,
   type AutomationDryRunManifestStatus,
 } from "@/lib/trends/automation-dry-run-manifest";
+import {
+  buildAutomationDryRunGuardrails,
+  guardrailStatusTone,
+  type AutomationDryRunGuardrailCheckStatus,
+  type AutomationDryRunGuardrailStatus,
+  type AutomationDryRunGuardrails,
+  type AutomationLiveAutomationStatus,
+} from "@/lib/trends/automation-dry-run-guardrails";
 import {
   buildExportSystemReadiness,
   type ExportSystemReadiness,
@@ -252,6 +262,40 @@ function dryRunGateVariant(
   status: AutomationDryRunGateStatus,
 ): BadgeProps["variant"] {
   return reportToneVariant(dryRunGateTone(status));
+}
+
+function guardrailVariant(
+  status: AutomationDryRunGuardrailStatus,
+): BadgeProps["variant"] {
+  return reportToneVariant(guardrailStatusTone(status));
+}
+
+function guardrailCheckVariant(
+  status: AutomationDryRunGuardrailCheckStatus,
+): BadgeProps["variant"] {
+  if (status === "pass" || status === "protected") return "secondary";
+  if (status === "watch") return "accent";
+  return "danger";
+}
+
+function liveAutomationVariant(
+  status: AutomationLiveAutomationStatus,
+): BadgeProps["variant"] {
+  if (status === "ready_for_dry_run_only") return "secondary";
+  if (status === "ready_for_limited_test") return "accent";
+  if (status === "not_configured") return "muted";
+  return "danger";
+}
+
+function automationStatusLabel(status: AutomationLiveAutomationStatus) {
+  const labels: Record<AutomationLiveAutomationStatus, string> = {
+    blocked: "Blocked",
+    not_configured: "Not configured",
+    ready_for_dry_run_only: "Dry-run only",
+    ready_for_limited_test: "Limited test ready",
+  };
+
+  return labels[status];
 }
 
 function compactSectionDescription(value: string) {
@@ -1320,6 +1364,289 @@ function AutomationDryRunManifestPanel({
   );
 }
 
+function AutomationDryRunGuardrailsPanel({
+  guardrails,
+  selectedWindow,
+}: {
+  guardrails: AutomationDryRunGuardrails;
+  selectedWindow: DashboardWindow;
+}) {
+  const topCriticalGuardrails = guardrails.criticalGuardrails.slice(0, 8);
+  const blockers = guardrails.blockerPolicy.blockedBy.slice(0, 6);
+  const cannotGoLive = guardrails.cannotGoLiveUntil.slice(0, 7);
+  const topChannels = guardrails.channelReadiness.channels.slice(0, 6);
+
+  return (
+    <Card className="border-secondary/15 bg-[#160d0d]/72 signal-glow">
+      <CardHeader>
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+              <ShieldAlert className="h-4 w-4" />
+              Automation Dry-Run QA + Guardrails
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge variant={guardrailVariant(guardrails.guardrailStatus)}>
+                {guardrails.guardrailStatus}
+              </Badge>
+              <Badge
+                variant={liveAutomationVariant(guardrails.liveAutomationStatus)}
+              >
+                {automationStatusLabel(guardrails.liveAutomationStatus)}
+              </Badge>
+              <Badge
+                variant={
+                  guardrails.simulatedSendRisk.level === "none"
+                    ? "secondary"
+                    : guardrails.simulatedSendRisk.level === "low"
+                      ? "accent"
+                      : "danger"
+                }
+              >
+                Send risk: {guardrails.simulatedSendRisk.level}
+              </Badge>
+              <Badge variant="muted">fail-closed</Badge>
+            </div>
+            <CardTitle className="mt-4 text-2xl tracking-[-0.035em]">
+              Safety gate before anything gets near a real send path.
+            </CardTitle>
+            <CardDescription className="mt-2 max-w-4xl leading-6">
+              {guardrails.simulatedSendRisk.summary}
+            </CardDescription>
+            <p className="mt-3 max-w-4xl text-sm leading-6 text-muted-foreground/72">
+              {guardrails.recommendedNextStep}
+            </p>
+          </div>
+          <div className="grid min-w-[280px] grid-cols-2 gap-2 text-center">
+            <MiniMetric label="Safety" value={guardrails.safetyScore} />
+            <MiniMetric
+              label="Risk"
+              value={guardrails.simulatedSendRisk.score}
+            />
+            <MiniMetric
+              label="Blocked"
+              value={guardrails.blockerPolicy.blockedBy.length}
+            />
+            <MiniMetric
+              label="Req. ready"
+              value={guardrails.artifactReadiness.requiredReady}
+            />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm" variant="secondary">
+            <a
+              href={buildDailyBriefAutomationGuardrailsUrl(selectedWindow)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Code2 className="mr-2 h-4 w-4" />
+              Guardrails JSON
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <a
+              href={buildDailyBriefAutomationDryRunUrl(selectedWindow)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ShieldCheck className="mr-2 h-4 w-4" />
+              Manifest JSON
+            </a>
+          </Button>
+          {guardrails.crossWindowSummary.requiredWindows.map((item) => (
+            <Button
+              key={item.window}
+              asChild
+              size="sm"
+              variant={item.isCurrent ? "outline" : "ghost"}
+            >
+              <a href={item.guardrailsUrl} target="_blank" rel="noreferrer">
+                {item.window} guardrails
+              </a>
+            </Button>
+          ))}
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+          <div className="rounded-2xl border border-secondary/15 bg-secondary/10 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Blocker policy
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Badge variant="secondary">{guardrails.blockerPolicy.mode}</Badge>
+              <Badge variant="muted">send button unavailable</Badge>
+              <Badge variant="muted">scheduler unavailable</Badge>
+              <Badge variant="muted">DB write unavailable</Badge>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground/78">
+              {guardrails.blockerPolicy.detail}
+            </p>
+            <div className="mt-3 space-y-2">
+              {(blockers.length > 0
+                ? blockers
+                : ["No current guardrail blockers. Live automation is still intentionally unavailable."]
+              ).map((item) => (
+                <div
+                  key={item}
+                  className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3 text-xs leading-5 text-muted-foreground/72"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Cannot go live until
+            </p>
+            <div className="mt-3 grid gap-2 lg:grid-cols-2">
+              {cannotGoLive.map((item, index) => (
+                <div
+                  key={`${index}-${item}`}
+                  className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3 text-xs leading-5 text-muted-foreground/72"
+                >
+                  <span className="mr-2 font-semibold text-secondary">
+                    {index + 1}.
+                  </span>
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+                  Critical guardrails
+                </p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground/72">
+                  These checks decide whether the dry-run boundary is actually
+                  safe, not just nicely worded. Because vibes are not QA.
+                </p>
+              </div>
+              <Badge variant={guardrailVariant(guardrails.guardrailStatus)}>
+                {guardrails.safetyScore}/100 safety
+              </Badge>
+            </div>
+            <div className="mt-4 grid gap-2 lg:grid-cols-2">
+              {topCriticalGuardrails.map((item) => (
+                <div
+                  key={item.id}
+                  className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={guardrailCheckVariant(item.status)}>
+                      {item.status}
+                    </Badge>
+                    {item.critical ? (
+                      <Badge variant="danger">critical</Badge>
+                    ) : null}
+                  </div>
+                  <p className="mt-3 text-sm font-semibold text-foreground">
+                    {item.label}
+                  </p>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground/68">
+                    {item.detail}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Channel readiness
+            </p>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground/72">
+              {guardrails.channelReadiness.summary}
+            </p>
+            <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+              <MiniMetric
+                label="Ready"
+                value={guardrails.channelReadiness.counts.ready}
+              />
+              <MiniMetric
+                label="Review"
+                value={guardrails.channelReadiness.counts.review}
+              />
+              <MiniMetric
+                label="Blocked"
+                value={guardrails.channelReadiness.counts.blocked}
+              />
+              <MiniMetric
+                label="Planned"
+                value={guardrails.channelReadiness.counts.planned}
+              />
+            </div>
+            <div className="mt-4 space-y-2">
+              {topChannels.map((channel) => (
+                <div
+                  key={channel.id}
+                  className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="muted">{channel.status}</Badge>
+                    <Badge
+                      variant={
+                        channel.liveDeliveryEnabled ? "danger" : "secondary"
+                      }
+                    >
+                      live disabled
+                    </Badge>
+                    <Badge variant={channel.risk === "none" ? "secondary" : "accent"}>
+                      risk: {channel.risk}
+                    </Badge>
+                  </div>
+                  <p className="mt-2 text-sm font-semibold text-foreground">
+                    {channel.label}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                    {channel.detail}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+            Export readiness summary
+          </p>
+          <div className="mt-3 grid gap-3 md:grid-cols-4">
+            <MiniMetric label="Readiness" value={guardrails.exportReadinessSummary.score} />
+            <MiniMetric
+              label="Manual"
+              value={guardrails.exportReadinessSummary.manualExportScore}
+            />
+            <MiniMetric
+              label="Automation"
+              value={guardrails.exportReadinessSummary.automationReadinessScore}
+            />
+            <MiniMetric
+              label="Warnings"
+              value={guardrails.exportReadinessSummary.warnings}
+            />
+          </div>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground/72">
+            {guardrails.exportReadinessSummary.summary}
+          </p>
+          <p className="mt-2 text-xs leading-5 text-secondary/85">
+            {guardrails.crossWindowSummary.detail}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ReportDocumentPanel({
   reportDocument,
 }: {
@@ -1610,6 +1937,17 @@ export function ReportsHubView() {
     [brief, exportQa, exportReadiness, printLayoutQa, reportDocument, serverPdfQa],
   );
 
+  const automationGuardrails = useMemo(
+    () =>
+      automationDryRun && exportReadiness
+        ? buildAutomationDryRunGuardrails({
+            manifest: automationDryRun,
+            readiness: exportReadiness,
+          })
+        : null,
+    [automationDryRun, exportReadiness],
+  );
+
   const exportCards = useMemo<ExportCard[]>(() => {
     const htmlActions = (
       <>
@@ -1744,6 +2082,16 @@ export function ReportsHubView() {
           </a>
         </Button>
         <Button asChild size="sm" variant="outline">
+          <a
+            href={buildDailyBriefAutomationGuardrailsUrl(selectedWindow)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <ShieldAlert className="mr-2 h-4 w-4" />
+            Guardrails
+          </a>
+        </Button>
+        <Button asChild size="sm" variant="ghost">
           <Link href={buildDailyBriefPageUrl(selectedWindow)}>
             <Newspaper className="mr-2 h-4 w-4" />
             Review brief
@@ -2073,6 +2421,12 @@ export function ReportsHubView() {
             {automationDryRun ? (
               <AutomationDryRunManifestPanel
                 manifest={automationDryRun}
+                selectedWindow={selectedWindow}
+              />
+            ) : null}
+            {automationGuardrails ? (
+              <AutomationDryRunGuardrailsPanel
+                guardrails={automationGuardrails}
                 selectedWindow={selectedWindow}
               />
             ) : null}
