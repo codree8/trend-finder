@@ -110,3 +110,10 @@ export function buildDailyBriefAutomationGuardrailsUrl(
 
   return `/api/daily-brief/automation/dry-run/guardrails?${params.toString()}`;
 }
+export function buildDailyBriefAutomationPreviewUrl(
+  trendWindow: DashboardWindow,
+) {
+  const params = new URLSearchParams({ window: trendWindow });
+
+  return `/api/daily-brief/automation/preview?${params.toString()}`;
+}

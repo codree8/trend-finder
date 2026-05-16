@@ -47,6 +47,7 @@ import {
 import {
   buildDailyBriefAutomationDryRunUrl,
   buildDailyBriefAutomationGuardrailsUrl,
+  buildDailyBriefAutomationPreviewUrl,
   buildDailyBriefExportReadinessUrl,
   buildDailyBriefHtmlExportUrl,
   buildDailyBriefJsonExportUrl,
@@ -70,6 +71,10 @@ import {
   type AutomationDryRunGuardrailStatus,
   type AutomationLiveAutomationStatus,
 } from "@/lib/trends/automation-dry-run-guardrails";
+import {
+  buildAutomationPreviewConsole,
+  type AutomationPreviewStatus,
+} from "@/lib/trends/automation-preview-console";
 import {
   buildExportSystemReadiness,
   type ExportSystemReadinessStatus,
@@ -262,6 +267,14 @@ function guardrailVariant(
   status: AutomationDryRunGuardrailStatus,
 ): BadgeProps["variant"] {
   return reportToneVariant(guardrailStatusTone(status));
+}
+
+function previewStatusVariant(
+  status: AutomationPreviewStatus,
+): BadgeProps["variant"] {
+  if (status === "safe") return "secondary";
+  if (status === "review") return "accent";
+  return "danger";
 }
 
 function liveAutomationVariant(
@@ -895,6 +908,17 @@ function ExportReadyStructurePanel({
     [automationDryRun, exportReadiness],
   );
 
+  const automationPreview = useMemo(
+    () =>
+      buildAutomationPreviewConsole({
+        manifest: automationDryRun,
+        guardrails: automationGuardrails,
+        readiness: exportReadiness,
+        serverPdfQa,
+      }),
+    [automationDryRun, automationGuardrails, exportReadiness, serverPdfQa],
+  );
+
   const topGuardrailBlockers = automationGuardrails.blockerPolicy.blockedBy.slice(
     0,
     3,
@@ -1449,6 +1473,71 @@ function ExportReadyStructurePanel({
                 </p>
               </div>
             ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-secondary/15 bg-secondary/10 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+                <Layers3 className="h-3.5 w-3.5" />
+                Automation Preview Console
+              </div>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground/78">
+                {automationPreview.summary}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-secondary/85">
+                {automationPreview.recommendedNextStep}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant={previewStatusVariant(automationPreview.previewStatus)}>
+                Preview: {automationPreview.previewStatus}
+              </Badge>
+              <Badge variant="secondary">{automationPreview.automationMode}</Badge>
+              <Badge variant="muted">
+                Safety {automationPreview.guardrailsSummary.safetyScore}/100
+              </Badge>
+              <Badge
+                variant={
+                  automationPreview.blockers.length > 0 ? "danger" : "secondary"
+                }
+              >
+                {automationPreview.blockers.length} blocker
+                {automationPreview.blockers.length === 1 ? "" : "s"}
+              </Badge>
+              <Button asChild size="sm" variant="ghost">
+                <a
+                  href={buildDailyBriefAutomationPreviewUrl(selectedWindow)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Preview JSON
+                </a>
+              </Button>
+            </div>
+          </div>
+          <div className="mt-3 grid gap-2 md:grid-cols-3">
+            <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3">
+              <p className="text-xs font-semibold text-foreground">Top blocker</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                {automationPreview.blockers[0] ??
+                  "No active blocker. Live sending is still intentionally unavailable."}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3">
+              <p className="text-xs font-semibold text-foreground">Top risk</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                {automationPreview.risks[0]?.detail ??
+                  "No send, scheduler or persistence risk detected in preview."}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3">
+              <p className="text-xs font-semibold text-foreground">Email preview</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                {automationPreview.simulatedEmailPreview.subject}
+              </p>
+            </div>
           </div>
         </div>
 
