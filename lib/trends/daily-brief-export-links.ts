@@ -51,6 +51,12 @@ export function buildDailyBriefPdfExportUrl(
   return `/api/daily-brief/export/pdf?${params.toString()}`;
 }
 
+export function buildDailyBriefPdfHealthUrl(trendWindow: DashboardWindow) {
+  const params = new URLSearchParams({ window: trendWindow });
+
+  return `/api/daily-brief/export/pdf/health?${params.toString()}`;
+}
+
 export function buildDailyBriefJsonExportUrl(
   trendWindow: DashboardWindow,
   options: {

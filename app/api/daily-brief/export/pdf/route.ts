@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getDailyBrief } from "@/lib/trends/daily-brief";
 import { buildDailyBriefPrintLayoutQa } from "@/lib/trends/daily-brief-print-layout-qa";
 import { buildDailyBriefServerPdf } from "@/lib/trends/daily-brief-server-pdf";
+import { buildDailyBriefServerPdfReliabilityQa } from "@/lib/trends/daily-brief-server-pdf-qa";
 import { normalizeDashboardWindow } from "@/lib/trends/get-dashboard-trends";
 import type { DailyBriefErrorResponse } from "@/lib/trends/types";
 
@@ -19,6 +20,11 @@ export async function GET(request: Request) {
     const brief = await getDailyBrief(window);
     const printQa = buildDailyBriefPrintLayoutQa(brief.reportDocument);
     const pdf = buildDailyBriefServerPdf(brief.reportDocument);
+    const pdfReliabilityQa = buildDailyBriefServerPdfReliabilityQa({
+      document: brief.reportDocument,
+      pdf,
+      printQa,
+    });
     const dispositionType = truthy(searchParams.get("inline"))
       ? "inline"
       : "attachment";
@@ -37,6 +43,10 @@ export async function GET(request: Request) {
         "X-Content-Type-Options": "nosniff",
         "X-Server-PDF-Export": "daily-brief-server-pdf-v1",
         "X-Server-PDF-Pages": String(pdf.pageCount),
+        "X-Server-PDF-Byte-Size": String(pdf.bytes.byteLength),
+        "X-Server-PDF-QA-Status": pdfReliabilityQa.status,
+        "X-Server-PDF-QA-Score": String(pdfReliabilityQa.score),
+        "X-Server-PDF-Health": `/api/daily-brief/export/pdf/health?window=${window}`,
         "X-Print-Layout-Status": printQa.status,
         "X-Print-Layout-Score": String(printQa.score),
         "X-Estimated-Print-Pages": String(printQa.metrics.estimatedPages),

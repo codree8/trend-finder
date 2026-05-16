@@ -47,12 +47,18 @@ import {
   buildDailyBriefHtmlExportUrl,
   buildDailyBriefJsonExportUrl,
   buildDailyBriefPdfExportUrl,
+  buildDailyBriefPdfHealthUrl,
   buildDailyBriefPdfPrepUrl,
 } from "@/lib/trends/daily-brief-export-links";
 import {
   buildDailyBriefPrintLayoutQa,
   printLayoutStatusTone,
 } from "@/lib/trends/daily-brief-print-layout-qa";
+import type {
+  DailyBriefServerPdfReliabilityQa,
+  DailyBriefServerPdfReliabilitySeverity,
+  DailyBriefServerPdfReliabilityStatus,
+} from "@/lib/trends/daily-brief-server-pdf-qa";
 import type {
   ActionQueueItem,
   DailyBriefAvoidSeverity,
@@ -201,6 +207,23 @@ function reportToneVariant(
   return "muted";
 }
 
+function serverPdfReliabilityVariant(
+  status: DailyBriefServerPdfReliabilityStatus,
+): BadgeProps["variant"] {
+  if (status === "healthy") return "secondary";
+  if (status === "review") return "accent";
+  return "danger";
+}
+
+function serverPdfIssueVariant(
+  severity: DailyBriefServerPdfReliabilitySeverity,
+): BadgeProps["variant"] {
+  if (severity === "danger") return "danger";
+  if (severity === "warning") return "accent";
+  if (severity === "success") return "secondary";
+  return "muted";
+}
+
 function qaWarningVariant(
   severity: DailyBriefQaWarning["severity"],
 ): BadgeProps["variant"] {
@@ -284,6 +307,9 @@ export function DailyBriefView() {
   const [brief, setBrief] = useState<DailyBriefResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [serverPdfQa, setServerPdfQa] =
+    useState<DailyBriefServerPdfReliabilityQa | null>(null);
+  const [serverPdfQaError, setServerPdfQaError] = useState<string | null>(null);
   const [selectedTrendSlug, setSelectedTrendSlug] = useState<string | null>(
     null,
   );
@@ -315,9 +341,38 @@ export function DailyBriefView() {
     }
   }, [trendWindow]);
 
+  const loadServerPdfQa = useCallback(async () => {
+    setServerPdfQa(null);
+    setServerPdfQaError(null);
+
+    try {
+      const response = await fetch(buildDailyBriefPdfHealthUrl(trendWindow), {
+        cache: "no-store",
+      });
+      const payload = await response.json();
+
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.message ?? "Failed to load PDF health.");
+      }
+
+      setServerPdfQa(payload.qa as DailyBriefServerPdfReliabilityQa);
+    } catch (healthError) {
+      setServerPdfQa(null);
+      setServerPdfQaError(
+        healthError instanceof Error
+          ? healthError.message
+          : "Failed to load PDF health.",
+      );
+    }
+  }, [trendWindow]);
+
   useEffect(() => {
     void loadBrief();
   }, [loadBrief]);
+
+  useEffect(() => {
+    void loadServerPdfQa();
+  }, [loadServerPdfQa]);
 
   const savedTrendKeys = useMemo(
     () => new Set(brief?.savedTrendKeys ?? []),
@@ -344,9 +399,9 @@ export function DailyBriefView() {
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
               Manual daily brief built from the existing radar, action queue,
-              watchlist delta, creator timing and noise suppression layers. No
-              email, no PDF, no cron magic. Just the signal without the
-              confetti.
+              watchlist delta, creator timing and noise suppression layers. PDF
+              export exists, but email and cron automation stay out until the
+              export path is boringly reliable.
             </p>
           </div>
 
@@ -405,6 +460,8 @@ export function DailyBriefView() {
             <ExportReadyStructurePanel
               document={brief.reportDocument}
               selectedWindow={trendWindow}
+              serverPdfQa={serverPdfQa}
+              serverPdfQaError={serverPdfQaError}
             />
             <IntelligenceNarrativesSection
               narratives={brief.intelligenceNarratives}
@@ -724,9 +781,13 @@ function DailyBriefQaPanel({ qa }: { qa: DailyBriefQaSummary }) {
 function ExportReadyStructurePanel({
   document,
   selectedWindow,
+  serverPdfQa,
+  serverPdfQaError,
 }: {
   document: DailyBriefReportDocument;
   selectedWindow: DashboardWindow;
+  serverPdfQa: DailyBriefServerPdfReliabilityQa | null;
+  serverPdfQaError: string | null;
 }) {
   const validationWarnings = document.integrity.validationWarnings;
   const printQa = useMemo(
@@ -766,6 +827,13 @@ function ExportReadyStructurePanel({
                 ~{printQa.metrics.estimatedPages} A4 page
                 {printQa.metrics.estimatedPages === 1 ? "" : "s"}
               </Badge>
+              {serverPdfQa ? (
+                <Badge
+                  variant={serverPdfReliabilityVariant(serverPdfQa.status)}
+                >
+                  Server PDF {serverPdfQa.score}/100
+                </Badge>
+              ) : null}
             </div>
             <CardDescription className="mt-3 max-w-4xl text-sm leading-6">
               The brief now exposes a stable report document model plus real
@@ -813,6 +881,16 @@ function ExportReadyStructurePanel({
                   Preview PDF
                 </a>
               </Button>
+              <Button asChild size="sm" variant="ghost">
+                <a
+                  href={buildDailyBriefPdfHealthUrl(selectedWindow)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <ShieldAlert className="mr-2 h-4 w-4" />
+                  PDF health
+                </a>
+              </Button>
               <Button asChild size="sm" variant="outline">
                 <a
                   href={buildDailyBriefPdfPrepUrl(selectedWindow)}
@@ -856,6 +934,7 @@ function ExportReadyStructurePanel({
               value={document.integrity.trendReferenceCount}
             />
             <MiniMetric label="Print QA" value={printQa.score} />
+            <MiniMetric label="PDF QA" value={serverPdfQa?.score ?? 0} />
           </div>
         </div>
       </CardHeader>
@@ -970,6 +1049,77 @@ function ExportReadyStructurePanel({
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="rounded-2xl border border-secondary/15 bg-secondary/10 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+                Server PDF reliability
+              </p>
+              {serverPdfQa ? (
+                <p className="mt-2 text-sm leading-6 text-muted-foreground/78">
+                  {serverPdfQa.summary}
+                </p>
+              ) : (
+                <p className="mt-2 text-sm leading-6 text-muted-foreground/78">
+                  {serverPdfQaError ??
+                    "PDF health is still loading for this window."}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {serverPdfQa ? (
+                <>
+                  <Badge
+                    variant={serverPdfReliabilityVariant(serverPdfQa.status)}
+                  >
+                    {serverPdfQa.statusLabel}
+                  </Badge>
+                  <Badge variant="muted">
+                    {serverPdfQa.metrics.kilobytes} KB
+                  </Badge>
+                  <Badge variant="muted">
+                    {serverPdfQa.metrics.pageCount} page
+                    {serverPdfQa.metrics.pageCount === 1 ? "" : "s"}
+                  </Badge>
+                </>
+              ) : (
+                <Badge variant={serverPdfQaError ? "danger" : "muted"}>
+                  {serverPdfQaError ? "Health unavailable" : "Checking"}
+                </Badge>
+              )}
+            </div>
+          </div>
+          {serverPdfQa ? (
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+              {serverPdfQa.issues.slice(0, 3).map((issue) => (
+                <div
+                  key={issue.id}
+                  className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={serverPdfIssueVariant(issue.severity)}>
+                      {issue.severity}
+                    </Badge>
+                    <p className="text-xs font-semibold text-foreground">
+                      {issue.label}
+                    </p>
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground/68">
+                    {issue.detail}
+                  </p>
+                </div>
+              ))}
+              {serverPdfQa.issues.length === 0 ? (
+                <div className="rounded-2xl border border-secondary/15 bg-secondary/10 p-3 text-xs leading-5 text-muted-foreground/76 md:col-span-3">
+                  No server PDF reliability issue was detected. Still preview
+                  the file before using it publicly; PDF readers are peaceful
+                  until they suddenly aren’t.
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         {validationWarnings.length > 0 ? (

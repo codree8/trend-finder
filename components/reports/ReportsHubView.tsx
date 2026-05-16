@@ -44,6 +44,7 @@ import {
   buildDailyBriefJsonExportUrl,
   buildDailyBriefPageUrl,
   buildDailyBriefPdfExportUrl,
+  buildDailyBriefPdfHealthUrl,
   buildDailyBriefPdfPrepUrl,
 } from "@/lib/trends/daily-brief-export-links";
 import {
@@ -61,6 +62,11 @@ import {
   type ReportsExportFlowSeverity,
   type ReportsExportFlowStatus,
 } from "@/lib/trends/reports-export-flow-qa";
+import type {
+  DailyBriefServerPdfReliabilityQa,
+  DailyBriefServerPdfReliabilitySeverity,
+  DailyBriefServerPdfReliabilityStatus,
+} from "@/lib/trends/daily-brief-server-pdf-qa";
 import type {
   DailyBriefReportAudience,
   DailyBriefReportDocument,
@@ -156,6 +162,23 @@ function exportFlowVariant(
 function exportCardVariant(status: ExportCardStatus): BadgeProps["variant"] {
   if (status === "live") return "secondary";
   if (status === "ready") return "accent";
+  return "muted";
+}
+
+function serverPdfReliabilityVariant(
+  status: DailyBriefServerPdfReliabilityStatus,
+): BadgeProps["variant"] {
+  if (status === "healthy") return "secondary";
+  if (status === "review") return "accent";
+  return "danger";
+}
+
+function serverPdfIssueVariant(
+  severity: DailyBriefServerPdfReliabilitySeverity,
+): BadgeProps["variant"] {
+  if (severity === "danger") return "danger";
+  if (severity === "warning") return "accent";
+  if (severity === "success") return "secondary";
   return "muted";
 }
 
@@ -602,6 +625,204 @@ function PrintLayoutQaPanel({ qa }: { qa: DailyBriefPrintLayoutQa }) {
   );
 }
 
+function ServerPdfReliabilityPanel({
+  qa,
+  error,
+  selectedWindow,
+}: {
+  qa: DailyBriefServerPdfReliabilityQa | null;
+  error: string | null;
+  selectedWindow: DashboardWindow;
+}) {
+  if (!qa && !error) {
+    return (
+      <Card className="border-border/10 bg-[#160d0d]/62">
+        <CardContent className="flex items-center p-6 text-sm text-muted-foreground/75">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin text-secondary" />
+          Checking server PDF reliability...
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error || !qa) {
+    return (
+      <Card className="border-primary/25 bg-primary/10">
+        <CardHeader>
+          <div className="flex items-center gap-2 text-sm font-semibold text-red-100">
+            <AlertTriangle className="h-4 w-4" />
+            Server PDF QA could not load
+          </div>
+          <CardDescription className="mt-2 leading-6 text-red-100/80">
+            {error ??
+              "The PDF health endpoint did not return a usable response."}
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  const visibleChecks = qa.checks.slice(0, 6);
+  const visibleIssues = qa.issues.slice(0, 4);
+
+  return (
+    <Card className="border-secondary/15 bg-[#160d0d]/72 signal-glow">
+      <CardHeader>
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+              <ShieldCheck className="h-4 w-4" />
+              Server PDF QA & export reliability
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge variant={serverPdfReliabilityVariant(qa.status)}>
+                {qa.statusLabel}
+              </Badge>
+              <Badge variant="muted">PDF QA {qa.score}/100</Badge>
+              <Badge variant="accent">
+                {qa.metrics.pageCount} page
+                {qa.metrics.pageCount === 1 ? "" : "s"}
+              </Badge>
+              <Badge variant="muted">{qa.metrics.kilobytes} KB</Badge>
+              <Badge
+                variant={qa.metrics.pageDelta > 2 ? "accent" : "secondary"}
+              >
+                Δ {qa.metrics.pageDelta} vs print estimate
+              </Badge>
+            </div>
+            <CardTitle className="mt-4 text-2xl tracking-[-0.035em]">
+              Binary PDF is checked before it becomes the default export path.
+            </CardTitle>
+            <CardDescription className="mt-2 max-w-4xl leading-6">
+              {qa.summary}
+            </CardDescription>
+            <p className="mt-3 max-w-4xl text-sm leading-6 text-muted-foreground/72">
+              {qa.recommendedAction}
+            </p>
+          </div>
+          <div className="grid min-w-[280px] grid-cols-2 gap-2 text-center">
+            <MiniMetric label="Objects" value={qa.metrics.pdfObjects} />
+            <MiniMetric label="Streams" value={qa.metrics.contentStreams} />
+            <MiniMetric
+              label="Bytes/page"
+              value={qa.metrics.bytesPerPage.toLocaleString("en")}
+            />
+            <MiniMetric
+              label="Density/page"
+              value={qa.metrics.textDensityPerPage.toLocaleString("en")}
+            />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm" variant="secondary">
+            <a href={buildDailyBriefPdfExportUrl(selectedWindow)}>
+              <Download className="mr-2 h-4 w-4" />
+              Download PDF
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <a
+              href={buildDailyBriefPdfExportUrl(selectedWindow, {
+                inline: true,
+              })}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              Preview PDF
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="ghost">
+            <a
+              href={buildDailyBriefPdfHealthUrl(selectedWindow)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Code2 className="mr-2 h-4 w-4" />
+              PDF health JSON
+            </a>
+          </Button>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Structural checks
+            </p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {visibleChecks.map((check) => (
+                <div
+                  key={check.id}
+                  className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+                >
+                  <div className="flex items-center gap-2">
+                    {check.passed ? (
+                      <CheckCircle2 className="h-4 w-4 text-secondary" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4 text-accent" />
+                    )}
+                    <p className="text-sm font-semibold text-foreground">
+                      {check.label}
+                    </p>
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground/66">
+                    {check.detail}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Reliability issues
+            </p>
+            {visibleIssues.length > 0 ? (
+              <div className="mt-3 space-y-2">
+                {visibleIssues.map((issue) => (
+                  <div
+                    key={issue.id}
+                    className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant={serverPdfIssueVariant(issue.severity)}>
+                        {issue.severity}
+                      </Badge>
+                      <p className="text-sm font-semibold text-foreground">
+                        {issue.label}
+                      </p>
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground/66">
+                      {issue.detail}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-3 rounded-2xl border border-secondary/15 bg-secondary/10 p-4 text-sm leading-6 text-muted-foreground/80">
+                No PDF reliability issue was detected for this window.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+            Tuning notes
+          </p>
+          <ul className="mt-3 list-inside list-disc space-y-1 text-sm leading-6 text-muted-foreground/76">
+            {qa.tuningNotes.map((note) => (
+              <li key={note}>{note}</li>
+            ))}
+          </ul>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ReportDocumentPanel({
   reportDocument,
 }: {
@@ -775,6 +996,9 @@ export function ReportsHubView() {
   const [brief, setBrief] = useState<DailyBriefResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [serverPdfQa, setServerPdfQa] =
+    useState<DailyBriefServerPdfReliabilityQa | null>(null);
+  const [serverPdfQaError, setServerPdfQaError] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<CopyState>("idle");
 
   const loadBrief = useCallback(async () => {
@@ -805,9 +1029,41 @@ export function ReportsHubView() {
     }
   }, [selectedWindow]);
 
+  const loadServerPdfQa = useCallback(async () => {
+    setServerPdfQa(null);
+    setServerPdfQaError(null);
+
+    try {
+      const response = await fetch(
+        buildDailyBriefPdfHealthUrl(selectedWindow),
+        {
+          cache: "no-store",
+        },
+      );
+      const payload = await response.json();
+
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.message ?? "Failed to load PDF health.");
+      }
+
+      setServerPdfQa(payload.qa as DailyBriefServerPdfReliabilityQa);
+    } catch (healthError) {
+      setServerPdfQa(null);
+      setServerPdfQaError(
+        healthError instanceof Error
+          ? healthError.message
+          : "Failed to load PDF health.",
+      );
+    }
+  }, [selectedWindow]);
+
   useEffect(() => {
     void loadBrief();
   }, [loadBrief]);
+
+  useEffect(() => {
+    void loadServerPdfQa();
+  }, [loadServerPdfQa]);
 
   useEffect(() => {
     if (copyState === "idle") return;
@@ -898,6 +1154,16 @@ export function ReportsHubView() {
           >
             <Eye className="mr-2 h-4 w-4" />
             Preview PDF
+          </a>
+        </Button>
+        <Button asChild size="sm" variant="ghost">
+          <a
+            href={buildDailyBriefPdfHealthUrl(selectedWindow)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Code2 className="mr-2 h-4 w-4" />
+            Health
           </a>
         </Button>
       </>
@@ -1105,7 +1371,7 @@ export function ReportsHubView() {
           </div>
         </section>
 
-        <div className="grid gap-3 md:grid-cols-5">
+        <div className="grid gap-3 md:grid-cols-6">
           <MiniMetric label="Active window" value={selectedWindow} />
           <MiniMetric
             label="Live exports"
@@ -1118,6 +1384,10 @@ export function ReportsHubView() {
           <MiniMetric
             label="Print QA"
             value={printLayoutQa ? `${printLayoutQa.score}/100` : "..."}
+          />
+          <MiniMetric
+            label="PDF QA"
+            value={serverPdfQa ? `${serverPdfQa.score}/100` : "..."}
           />
           <MiniMetric
             label="Latest scan"
@@ -1157,6 +1427,15 @@ export function ReportsHubView() {
                       <Badge variant={printLayoutVariant(printLayoutQa.status)}>
                         Print QA: {printLayoutQa.statusLabel}
                       </Badge>
+                      {serverPdfQa ? (
+                        <Badge
+                          variant={serverPdfReliabilityVariant(
+                            serverPdfQa.status,
+                          )}
+                        >
+                          PDF QA: {serverPdfQa.statusLabel}
+                        </Badge>
+                      ) : null}
                       <Badge variant="muted">
                         Confidence {brief.briefPosture.confidence}/100
                       </Badge>
@@ -1202,6 +1481,11 @@ export function ReportsHubView() {
 
             <ExportFlowQaPanel qa={exportQa} />
             <PrintLayoutQaPanel qa={printLayoutQa} />
+            <ServerPdfReliabilityPanel
+              qa={serverPdfQa}
+              error={serverPdfQaError}
+              selectedWindow={selectedWindow}
+            />
 
             <div className="grid gap-4 xl:grid-cols-3">
               {exportCards.map((card) => (
