@@ -397,6 +397,69 @@ export type ActionQueueErrorResponse = {
   error?: string;
 };
 
+export type DailyBriefExecutiveSummary = {
+  headline: string;
+  narrative: string;
+  bullets: string[];
+};
+
+export type DailyBriefRadarStats = {
+  totalTrends: number;
+  actNow: number;
+  monitor: number;
+  hiddenGems: number;
+  creatorOpportunities: number;
+  watchlistMoving: number;
+  watchlistNeedsAttention: number;
+  topicsToAvoid: number;
+  sourceCoverageLabel: string;
+  latestScanAt: string | null;
+};
+
+export type DailyBriefAvoidSeverity =
+  | "noise"
+  | "stale"
+  | "saturated"
+  | "generic"
+  | "weak_signal";
+
+export type DailyBriefTopicToAvoid = {
+  trend: DashboardTrend;
+  severity: DailyBriefAvoidSeverity;
+  reason: string;
+  warnings: string[];
+};
+
+export type DailyBriefRecommendedFocus = {
+  focusToday: string;
+  monitor: string;
+  avoid: string;
+  rationale: string[];
+};
+
+export type DailyBriefResponse = {
+  ok: true;
+  window: DashboardWindow;
+  generatedAt: string;
+  executiveSummary: DailyBriefExecutiveSummary;
+  radarStats: DailyBriefRadarStats;
+  topPriorityActions: ActionQueueItem[];
+  watchlistMovement: SavedTrendWithCurrent[];
+  hiddenGemsWorthWatching: DashboardTrend[];
+  creatorOpportunities: DashboardTrend[];
+  topicsToAvoid: DailyBriefTopicToAvoid[];
+  overallWarnings: string[];
+  recommendedFocus: DailyBriefRecommendedFocus;
+  savedTrendKeys: string[];
+  savedTrends: SavedTrendWithCurrent[];
+};
+
+export type DailyBriefErrorResponse = {
+  ok: false;
+  message: string;
+  error?: string;
+};
+
 export type TrendEvidenceType =
   | "early_signal"
   | "cross_source_confirmation"
