@@ -43,6 +43,9 @@ import type {
   ActionQueueItem,
   DailyBriefAvoidSeverity,
   DailyBriefNarrative,
+  DailyBriefNarrativeCalibrationStatus,
+  DailyBriefQaSummary,
+  DailyBriefQaWarning,
   DailyBriefResponse,
   DailyBriefTopicToAvoid,
   DashboardTrend,
@@ -150,6 +153,41 @@ function narrativeVariant(
   if (tone === "monitor") return "accent";
   if (tone === "risk") return "danger";
   return "muted";
+}
+
+function qaStatusVariant(
+  status: DailyBriefQaSummary["status"],
+): BadgeProps["variant"] {
+  if (status === "healthy") return "secondary";
+  if (status === "review" || status === "too_cautious") return "accent";
+  return "danger";
+}
+
+function qaWarningVariant(
+  severity: DailyBriefQaWarning["severity"],
+): BadgeProps["variant"] {
+  if (severity === "danger") return "danger";
+  if (severity === "warning") return "accent";
+  return "muted";
+}
+
+function calibrationVariant(
+  status: DailyBriefNarrativeCalibrationStatus,
+): BadgeProps["variant"] {
+  if (status === "clean") return "secondary";
+  if (status === "softened" || status === "needs_review") return "accent";
+  return "danger";
+}
+
+function calibrationLabel(status: DailyBriefNarrativeCalibrationStatus) {
+  const labels: Record<DailyBriefNarrativeCalibrationStatus, string> = {
+    clean: "QA clean",
+    softened: "QA softened",
+    downgraded: "QA downgraded",
+    needs_review: "QA review",
+  };
+
+  return labels[status];
 }
 
 function confidenceLabel(value: number) {
@@ -323,6 +361,7 @@ export function DailyBriefView() {
         {brief ? (
           <>
             <ExecutiveSummaryCard brief={brief} />
+            <DailyBriefQaPanel qa={brief.qa} />
             <IntelligenceNarrativesSection
               narratives={brief.intelligenceNarratives}
               onSelectTrend={(slug) => setSelectedTrendSlug(slug)}
@@ -520,6 +559,124 @@ function StatCard({
   );
 }
 
+function DailyBriefQaPanel({ qa }: { qa: DailyBriefQaSummary }) {
+  const visibleAdjustments = qa.narrativeAdjustments.filter(
+    (adjustment) => adjustment.status !== "clean",
+  );
+
+  return (
+    <Card className="border-accent/15 bg-accent/5">
+      <CardHeader>
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-accent">
+              <ShieldAlert className="h-4 w-4" />
+              Daily Brief QA & narrative tuning
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Badge variant={qaStatusVariant(qa.status)}>
+                {qa.statusLabel}
+              </Badge>
+              <Badge variant="muted">
+                Avg narrative confidence {qa.averageNarrativeConfidence}/100
+              </Badge>
+              <Badge variant="muted">
+                Evidence density {qa.evidenceDensity}/100
+              </Badge>
+            </div>
+            <CardDescription className="mt-3 max-w-4xl text-sm leading-6">
+              This layer checks whether the brief is overclaiming. It tunes
+              confidence and narrative tone when evidence, source diversity,
+              quality gate or action calibration are not strong enough.
+            </CardDescription>
+          </div>
+          <div className="grid min-w-[280px] grid-cols-2 gap-2 text-center sm:grid-cols-3">
+            <MiniMetric label="Narratives" value={qa.totalNarratives} />
+            <MiniMetric label="Calibrated" value={qa.calibratedNarratives} />
+            <MiniMetric label="Aggressive" value={qa.aggressiveNarratives} />
+            <MiniMetric
+              label="Thin evidence"
+              value={qa.lowEvidenceNarratives}
+            />
+            <MiniMetric
+              label="Ungrounded"
+              value={qa.ungroundedOpportunityNarratives}
+            />
+            <MiniMetric label="Actionable" value={qa.actionabilityScore} />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {qa.warnings.length > 0 ? (
+          <div className="grid gap-2 lg:grid-cols-2">
+            {qa.warnings.map((warning) => (
+              <div
+                key={`${warning.title}-${warning.detail}`}
+                className="rounded-2xl border border-border/10 bg-[#0f0808]/40 p-4"
+              >
+                <Badge variant={qaWarningVariant(warning.severity)}>
+                  {warning.severity}
+                </Badge>
+                <p className="mt-3 text-sm font-semibold text-foreground">
+                  {warning.title}
+                </p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground/78">
+                  {warning.detail}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-secondary/15 bg-secondary/10 p-4 text-sm leading-6 text-muted-foreground/82">
+            No QA warning was triggered. Narrative tone currently matches the
+            available evidence.
+          </div>
+        )}
+
+        {visibleAdjustments.length > 0 ? (
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Narrative adjustments
+            </p>
+            <div className="mt-3 grid gap-2 lg:grid-cols-2">
+              {visibleAdjustments.slice(0, 4).map((adjustment) => (
+                <div
+                  key={adjustment.narrativeId}
+                  className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3 text-sm leading-6 text-muted-foreground/80"
+                >
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <Badge variant={calibrationVariant(adjustment.status)}>
+                      {calibrationLabel(adjustment.status)}
+                    </Badge>
+                    <span>
+                      {adjustment.confidenceBefore} →{" "}
+                      {adjustment.confidenceAfter}
+                    </span>
+                  </div>
+                  <p className="font-medium text-foreground">
+                    {adjustment.narrativeTitle}
+                  </p>
+                  {adjustment.reasons.length > 0 ? (
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground/65">
+                      {adjustment.reasons[0]}
+                    </p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        <SignalList
+          title="Tuning notes"
+          items={qa.tuningNotes}
+          empty="No tuning notes available."
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
 function IntelligenceNarrativesSection({
   narratives,
   onSelectTrend,
@@ -571,6 +728,13 @@ function NarrativeCard({
                 {confidenceLabel(narrative.confidence)} · {narrative.confidence}
                 /100
               </Badge>
+              {narrative.calibration ? (
+                <Badge
+                  variant={calibrationVariant(narrative.calibration.status)}
+                >
+                  {calibrationLabel(narrative.calibration.status)}
+                </Badge>
+              ) : null}
             </div>
             <CardTitle className="text-lg leading-6">
               {narrative.title}
@@ -601,6 +765,27 @@ function NarrativeCard({
           empty="No supporting evidence available."
           danger={narrative.tone === "risk"}
         />
+        {narrative.calibration ? (
+          <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-4 text-sm leading-6 text-muted-foreground/82">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <Badge variant={calibrationVariant(narrative.calibration.status)}>
+                {calibrationLabel(narrative.calibration.status)}
+              </Badge>
+              <span>
+                Confidence {narrative.calibration.confidenceBefore} →{" "}
+                {narrative.calibration.confidenceAfter}
+              </span>
+            </div>
+            <p>{narrative.calibration.note}</p>
+            {narrative.calibration.reasons.length > 0 ? (
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-muted-foreground/68">
+                {narrative.calibration.reasons.map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : null}
         <div className="rounded-2xl border border-secondary/15 bg-secondary/10 p-4 text-sm leading-6 text-muted-foreground/82">
           <span className="font-semibold text-secondary">
             Recommended move:

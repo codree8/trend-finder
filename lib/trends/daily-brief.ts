@@ -1,4 +1,5 @@
 import { getActionQueue } from "@/lib/trends/action-queue";
+import { tuneDailyBriefNarratives } from "@/lib/trends/daily-brief-qa";
 import {
   getDashboardTrends,
   normalizeDashboardWindow,
@@ -902,9 +903,18 @@ export async function getDailyBrief(
       dashboardData.latestScan?.sourceCoverage.label ?? "No scan coverage yet",
     latestScanAt: dashboardData.latestScan?.createdAt ?? null,
   });
-  const intelligenceNarratives = buildIntelligenceNarratives({
+  const rawIntelligenceNarratives = buildIntelligenceNarratives({
     window,
     briefPosture,
+    topPriorityActions,
+    watchlistMovement,
+    hiddenGems: hiddenGemsWorthWatching,
+    creatorOpportunities,
+    topicsToAvoid,
+    overallWarnings,
+  });
+  const narrativeTuning = tuneDailyBriefNarratives({
+    narratives: rawIntelligenceNarratives,
     topPriorityActions,
     watchlistMovement,
     hiddenGems: hiddenGemsWorthWatching,
@@ -931,7 +941,8 @@ export async function getDailyBrief(
     executiveSummary,
     radarStats,
     briefPosture,
-    intelligenceNarratives,
+    qa: narrativeTuning.qa,
+    intelligenceNarratives: narrativeTuning.narratives,
     topPriorityActions,
     watchlistMovement,
     hiddenGemsWorthWatching,

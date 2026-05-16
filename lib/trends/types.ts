@@ -451,6 +451,20 @@ export type DailyBriefNarrativeTone =
   | "risk"
   | "neutral";
 
+export type DailyBriefNarrativeCalibrationStatus =
+  | "clean"
+  | "softened"
+  | "downgraded"
+  | "needs_review";
+
+export type DailyBriefNarrativeCalibration = {
+  status: DailyBriefNarrativeCalibrationStatus;
+  note: string;
+  confidenceBefore: number;
+  confidenceAfter: number;
+  reasons: string[];
+};
+
 export type DailyBriefNarrative = {
   id: string;
   eyebrow: string;
@@ -463,6 +477,48 @@ export type DailyBriefNarrative = {
   recommendedMove: string;
   relatedTrendSlug: string | null;
   relatedTrendKey: string | null;
+  calibration?: DailyBriefNarrativeCalibration;
+};
+
+export type DailyBriefQaStatus =
+  | "healthy"
+  | "review"
+  | "too_aggressive"
+  | "too_cautious";
+
+export type DailyBriefQaWarning = {
+  severity: "info" | "warning" | "danger";
+  title: string;
+  detail: string;
+};
+
+export type DailyBriefQaAdjustment = {
+  narrativeId: string;
+  narrativeTitle: string;
+  status: DailyBriefNarrativeCalibrationStatus;
+  confidenceBefore: number;
+  confidenceAfter: number;
+  reasons: string[];
+};
+
+export type DailyBriefQaSummary = {
+  status: DailyBriefQaStatus;
+  statusLabel: string;
+  generatedAt: string;
+  totalNarratives: number;
+  highConfidenceNarratives: number;
+  lowEvidenceNarratives: number;
+  aggressiveNarratives: number;
+  ungroundedOpportunityNarratives: number;
+  calibratedNarratives: number;
+  averageNarrativeConfidence: number;
+  postureConfidence: number;
+  evidenceDensity: number;
+  actionabilityScore: number;
+  actNowShare: number;
+  warnings: DailyBriefQaWarning[];
+  tuningNotes: string[];
+  narrativeAdjustments: DailyBriefQaAdjustment[];
 };
 
 export type DailyBriefResponse = {
@@ -472,6 +528,7 @@ export type DailyBriefResponse = {
   executiveSummary: DailyBriefExecutiveSummary;
   radarStats: DailyBriefRadarStats;
   briefPosture: DailyBriefPosture;
+  qa: DailyBriefQaSummary;
   intelligenceNarratives: DailyBriefNarrative[];
   topPriorityActions: ActionQueueItem[];
   watchlistMovement: SavedTrendWithCurrent[];
