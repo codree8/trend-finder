@@ -1,5 +1,6 @@
 import { getActionQueue } from "@/lib/trends/action-queue";
 import { tuneDailyBriefNarratives } from "@/lib/trends/daily-brief-qa";
+import { buildDailyBriefReportDocument } from "@/lib/trends/daily-brief-report-document";
 import {
   getDashboardTrends,
   normalizeDashboardWindow,
@@ -933,15 +934,33 @@ export async function getDailyBrief(
   const savedTrendKeys = watchlistData.items.map((item) =>
     normalizeKey(item.trendKey),
   );
-
-  return {
-    ok: true,
+  const generatedAt = new Date().toISOString();
+  const reportDocument = buildDailyBriefReportDocument({
     window,
-    generatedAt: new Date().toISOString(),
+    generatedAt,
     executiveSummary,
     radarStats,
     briefPosture,
     qa: narrativeTuning.qa,
+    intelligenceNarratives: narrativeTuning.narratives,
+    topPriorityActions,
+    watchlistMovement,
+    hiddenGemsWorthWatching,
+    creatorOpportunities,
+    topicsToAvoid,
+    overallWarnings,
+    recommendedFocus,
+  });
+
+  return {
+    ok: true,
+    window,
+    generatedAt,
+    executiveSummary,
+    radarStats,
+    briefPosture,
+    qa: narrativeTuning.qa,
+    reportDocument,
     intelligenceNarratives: narrativeTuning.narratives,
     topPriorityActions,
     watchlistMovement,

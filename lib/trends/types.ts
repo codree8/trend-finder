@@ -521,6 +521,103 @@ export type DailyBriefQaSummary = {
   narrativeAdjustments: DailyBriefQaAdjustment[];
 };
 
+export type DailyBriefReportAudience = "ui" | "html" | "pdf" | "email" | "json";
+
+export type DailyBriefReportTone =
+  | "positive"
+  | "neutral"
+  | "warning"
+  | "danger";
+
+export type DailyBriefReportMetric = {
+  label: string;
+  value: string;
+  helper?: string;
+  tone?: DailyBriefReportTone;
+};
+
+export type DailyBriefReportTrendReference = {
+  topic: string;
+  slug: string | null;
+  trendKey: string | null;
+  status: string;
+  score: number;
+  qualityScore: number;
+  lifecycleStatus: string;
+  helper: string;
+};
+
+export type DailyBriefReportBlockType =
+  | "summary"
+  | "metric_grid"
+  | "narrative"
+  | "trend_list"
+  | "watchlist_movement"
+  | "avoid_list"
+  | "focus"
+  | "warning_list";
+
+export type DailyBriefReportBlock = {
+  id: string;
+  type: DailyBriefReportBlockType;
+  title: string;
+  description?: string;
+  body?: string;
+  bullets?: string[];
+  metrics?: DailyBriefReportMetric[];
+  trendRefs?: DailyBriefReportTrendReference[];
+  tone?: DailyBriefReportTone;
+  exportPriority: number;
+};
+
+export type DailyBriefReportSection = {
+  id: string;
+  eyebrow: string;
+  title: string;
+  description: string;
+  tone: DailyBriefReportTone;
+  blocks: DailyBriefReportBlock[];
+  exportPriority: number;
+  pageBreakBefore?: boolean;
+};
+
+export type DailyBriefReportQuickCopy = {
+  headline: string;
+  summary: string;
+  bullets: string[];
+  focusToday: string;
+  monitor: string;
+  avoid: string;
+  markdown: string;
+};
+
+export type DailyBriefReportDocument = {
+  schemaVersion: "daily-brief-export-v1";
+  documentType: "daily_intelligence_brief";
+  title: string;
+  subtitle: string;
+  window: DashboardWindow;
+  generatedAt: string;
+  exportTargets: DailyBriefReportAudience[];
+  metadata: {
+    posture: DailyBriefPosture["posture"];
+    postureLabel: string;
+    postureConfidence: number;
+    qaStatus: DailyBriefQaStatus;
+    qaStatusLabel: string;
+    sourceCoverageLabel: string;
+    latestScanAt: string | null;
+  };
+  sections: DailyBriefReportSection[];
+  quickCopy: DailyBriefReportQuickCopy;
+  integrity: {
+    sectionCount: number;
+    blockCount: number;
+    trendReferenceCount: number;
+    validationWarnings: string[];
+  };
+};
+
 export type DailyBriefResponse = {
   ok: true;
   window: DashboardWindow;
@@ -529,6 +626,7 @@ export type DailyBriefResponse = {
   radarStats: DailyBriefRadarStats;
   briefPosture: DailyBriefPosture;
   qa: DailyBriefQaSummary;
+  reportDocument: DailyBriefReportDocument;
   intelligenceNarratives: DailyBriefNarrative[];
   topPriorityActions: ActionQueueItem[];
   watchlistMovement: SavedTrendWithCurrent[];

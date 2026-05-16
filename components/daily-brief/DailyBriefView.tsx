@@ -17,6 +17,7 @@ import {
   Clock3,
   Eye,
   FileText,
+  Layers3,
   Lightbulb,
   Loader2,
   Radar,
@@ -46,6 +47,7 @@ import type {
   DailyBriefNarrativeCalibrationStatus,
   DailyBriefQaSummary,
   DailyBriefQaWarning,
+  DailyBriefReportDocument,
   DailyBriefResponse,
   DailyBriefTopicToAvoid,
   DashboardTrend,
@@ -362,6 +364,7 @@ export function DailyBriefView() {
           <>
             <ExecutiveSummaryCard brief={brief} />
             <DailyBriefQaPanel qa={brief.qa} />
+            <ExportReadyStructurePanel document={brief.reportDocument} />
             <IntelligenceNarrativesSection
               narratives={brief.intelligenceNarratives}
               onSelectTrend={(slug) => setSelectedTrendSlug(slug)}
@@ -672,6 +675,124 @@ function DailyBriefQaPanel({ qa }: { qa: DailyBriefQaSummary }) {
           items={qa.tuningNotes}
           empty="No tuning notes available."
         />
+      </CardContent>
+    </Card>
+  );
+}
+
+function ExportReadyStructurePanel({
+  document,
+}: {
+  document: DailyBriefReportDocument;
+}) {
+  const validationWarnings = document.integrity.validationWarnings;
+
+  return (
+    <Card className="border-secondary/15 bg-[#160d0d]/62">
+      <CardHeader>
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+              <Layers3 className="h-4 w-4" />
+              Export-ready report structure
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Badge variant="secondary">{document.schemaVersion}</Badge>
+              <Badge variant="muted">
+                {document.exportTargets.join(" / ")}
+              </Badge>
+              <Badge
+                variant={validationWarnings.length > 0 ? "accent" : "secondary"}
+              >
+                {validationWarnings.length > 0
+                  ? `${validationWarnings.length} export caution${validationWarnings.length === 1 ? "" : "s"}`
+                  : "Export clean"}
+              </Badge>
+            </div>
+            <CardDescription className="mt-3 max-w-4xl text-sm leading-6">
+              The brief now exposes a stable report document model for later
+              HTML, PDF, email and JSON exports. This is not a download feature
+              yet; it is the contract that prevents future exports from scraping
+              UI cards like a raccoon in a dashboard dumpster.
+            </CardDescription>
+          </div>
+          <div className="grid min-w-[280px] grid-cols-3 gap-2 text-center">
+            <MiniMetric
+              label="Sections"
+              value={document.integrity.sectionCount}
+            />
+            <MiniMetric label="Blocks" value={document.integrity.blockCount} />
+            <MiniMetric
+              label="Refs"
+              value={document.integrity.trendReferenceCount}
+            />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Section outline
+            </p>
+            <div className="mt-3 space-y-2">
+              {document.sections.map((section) => (
+                <div
+                  key={section.id}
+                  className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-foreground">
+                      {section.title}
+                    </p>
+                    <Badge variant="muted">
+                      {section.blocks.length} block
+                      {section.blocks.length === 1 ? "" : "s"}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                    {section.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Quick-copy payload
+            </p>
+            <p className="mt-3 text-sm font-semibold leading-6 text-foreground">
+              {document.quickCopy.headline}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground/78">
+              {document.quickCopy.summary}
+            </p>
+            <div className="mt-3 rounded-2xl border border-secondary/15 bg-secondary/10 p-3 text-xs leading-5 text-muted-foreground/72">
+              Markdown payload ready · {document.quickCopy.markdown.length}
+              characters
+            </div>
+          </div>
+        </div>
+
+        {validationWarnings.length > 0 ? (
+          <SignalList
+            title="Export cautions"
+            items={validationWarnings}
+            empty="No export cautions."
+            danger
+          />
+        ) : (
+          <div className="rounded-2xl border border-secondary/15 bg-secondary/10 p-4 text-sm leading-6 text-muted-foreground/82">
+            Export structure is clean: sections, blocks, trend references and
+            quick-copy payload are present. Future export routes can consume
+            <span className="font-semibold text-secondary">
+              {" "}
+              reportDocument{" "}
+            </span>
+            directly.
+          </div>
+        )}
       </CardContent>
     </Card>
   );
