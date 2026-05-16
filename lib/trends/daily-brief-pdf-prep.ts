@@ -1,3 +1,11 @@
+import {
+  buildDailyBriefPrintLayoutQa,
+  printLayoutRiskTone,
+  printLayoutStatusTone,
+  type DailyBriefPrintBlockAssessment,
+  type DailyBriefPrintLayoutQa,
+  type DailyBriefPrintSectionAssessment,
+} from "@/lib/trends/daily-brief-print-layout-qa";
 import type {
   DailyBriefReportBlock,
   DailyBriefReportDocument,
@@ -94,10 +102,16 @@ function renderTrendReferences(
   </div>`;
 }
 
-function renderBlock(block: DailyBriefReportBlock) {
+function renderBlock(
+  block: DailyBriefReportBlock,
+  assessment?: DailyBriefPrintBlockAssessment,
+) {
   const tone = normalizeTone(block.tone);
+  const printClass = assessment
+    ? ` block-print-${assessment.risk} ${assessment.keepTogether ? "keep-together" : "split-allowed"}`
+    : "";
 
-  return `<article class="report-block block-${tone}">
+  return `<article class="report-block block-${tone}${printClass}">
     <div class="block-meta">
       ${renderBadge(toneLabels[tone], tone)}
       <span>${escapeHtml(block.type.replaceAll("_", " "))}</span>
@@ -111,18 +125,33 @@ function renderBlock(block: DailyBriefReportBlock) {
   </article>`;
 }
 
-function renderSection(section: DailyBriefReportSection) {
+function renderSection(
+  section: DailyBriefReportSection,
+  assessment?: DailyBriefPrintSectionAssessment,
+) {
   const tone = normalizeTone(section.tone);
+  const assessmentByBlockId = new Map(
+    assessment?.blocks.map((block) => [block.id, block]) ?? [],
+  );
+  const printClass = assessment ? ` section-print-${assessment.risk}` : "";
+  const pageBreakClass = section.pageBreakBefore ? " page-break-before" : "";
 
-  return `<section class="report-section ${section.pageBreakBefore ? "page-break-before" : ""}">
-    <div class="section-meta">
-      <span>${escapeHtml(section.eyebrow)}</span>
-      ${renderBadge(toneLabels[tone], tone)}
+  return `<section class="report-section${pageBreakClass}${printClass}">
+    <div class="section-heading">
+      <div class="section-meta">
+        <span>${escapeHtml(section.eyebrow)}</span>
+        <span class="section-badge-row">
+          ${renderBadge(toneLabels[tone], tone)}
+          ${assessment ? renderBadge(`Print ${assessment.risk}`, printLayoutRiskTone(assessment.risk)) : ""}
+        </span>
+      </div>
+      <h2>${escapeHtml(section.title)}</h2>
+      <p class="section-description">${escapeHtml(section.description)}</p>
     </div>
-    <h2>${escapeHtml(section.title)}</h2>
-    <p class="section-description">${escapeHtml(section.description)}</p>
     <div class="block-list">
-      ${section.blocks.map(renderBlock).join("\n")}
+      ${section.blocks
+        .map((block) => renderBlock(block, assessmentByBlockId.get(block.id)))
+        .join("\n")}
     </div>
   </section>`;
 }
@@ -144,12 +173,57 @@ function renderValidationWarnings(document: DailyBriefReportDocument) {
   </aside>`;
 }
 
+function renderPrintLayoutQa(qa: DailyBriefPrintLayoutQa) {
+  const tone = printLayoutStatusTone(qa.status);
+
+  return `<aside class="print-qa print-qa-${qa.status}">
+    <div class="print-qa-header">
+      <div>
+        <p class="meta-label">Print QA</p>
+        <h2>${escapeHtml(qa.statusLabel)}</h2>
+        <p>${escapeHtml(qa.summary)}</p>
+      </div>
+      <div class="print-qa-score">
+        <span>${escapeHtml(qa.score)}</span>
+        <small>/100</small>
+      </div>
+    </div>
+    <div class="print-qa-metrics">
+      <div><strong>${escapeHtml(qa.metrics.estimatedPages)}</strong><span>est. pages</span></div>
+      <div><strong>${escapeHtml(qa.metrics.printableSections)}</strong><span>sections</span></div>
+      <div><strong>${escapeHtml(qa.metrics.denseSections)}</strong><span>dense sections</span></div>
+      <div><strong>${escapeHtml(qa.metrics.oversizedBlocks)}</strong><span>oversized blocks</span></div>
+      <div><strong>${escapeHtml(qa.metrics.splitAllowedBlocks)}</strong><span>split allowed</span></div>
+      <div><strong>${escapeHtml(qa.metrics.forcedPageBreaks)}</strong><span>page breaks</span></div>
+    </div>
+    <div class="print-qa-note">
+      ${renderBadge(qa.recommendedPrintMode, tone)}
+    </div>
+    ${
+      qa.issues.length > 0
+        ? `<ul class="print-qa-issues">
+            ${qa.issues
+              .map(
+                (issue) =>
+                  `<li><strong>${escapeHtml(issue.label)}:</strong> ${escapeHtml(issue.detail)}</li>`,
+              )
+              .join("\n")}
+          </ul>`
+        : `<p class="print-qa-clean">No print layout issues detected for this window.</p>`
+    }
+  </aside>`;
+}
+
 export function buildDailyBriefPdfPrepHtml(
   document: DailyBriefReportDocument,
   options: { autoPrint?: boolean } = {},
 ) {
   const generatedAt = formatDate(document.generatedAt);
   const latestScanAt = formatDate(document.metadata.latestScanAt);
+  const printQa = buildDailyBriefPrintLayoutQa(document);
+  const sectionAssessmentById = new Map(
+    printQa.sections.map((section) => [section.id, section]),
+  );
   const qaTone: DailyBriefReportTone =
     document.metadata.qaStatus === "healthy"
       ? "positive"
@@ -357,12 +431,28 @@ export function buildDailyBriefPdfPrepHtml(
       padding-top: 10mm;
       break-inside: auto;
       page-break-inside: auto;
+      orphans: 3;
+      widows: 3;
+    }
+
+    .section-heading {
+      break-inside: avoid;
+      page-break-inside: avoid;
+      break-after: avoid;
+      page-break-after: avoid;
     }
 
     .section-meta {
       justify-content: space-between;
       margin-bottom: 6px;
       color: var(--burgundy);
+    }
+
+    .section-badge-row {
+      display: inline-flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
     }
 
     h2 {
@@ -395,6 +485,22 @@ export function buildDailyBriefPdfPrepHtml(
       padding: 11px;
       break-inside: avoid;
       page-break-inside: avoid;
+      orphans: 3;
+      widows: 3;
+    }
+
+    .report-block.split-allowed,
+    .block-print-high {
+      break-inside: auto;
+      page-break-inside: auto;
+    }
+
+    .block-print-medium {
+      border-style: solid;
+    }
+
+    .block-print-high {
+      border-style: dashed;
     }
 
     .block-positive { border-left: 4px solid var(--success); }
@@ -462,6 +568,11 @@ export function buildDailyBriefPdfPrepHtml(
       padding-left: 16px;
     }
 
+    .bullet-list li {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
     .bullet-list li + li { margin-top: 4px; }
 
     .trend-ref-list {
@@ -510,6 +621,114 @@ export function buildDailyBriefPdfPrepHtml(
     .print-note-warning { border-left: 4px solid var(--warning); }
     .print-note ul { margin-bottom: 0; padding-left: 16px; }
 
+    .print-qa {
+      margin-top: 8mm;
+      padding: 11px;
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--success);
+      border-radius: 14px;
+      background: #fffdf9;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .print-qa-review { border-left-color: var(--warning); }
+    .print-qa-caution { border-left-color: var(--danger); }
+
+    .print-qa-header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .print-qa-header h2 {
+      margin-bottom: 4px;
+      font-size: 18px;
+    }
+
+    .print-qa-header p {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .print-qa-score {
+      min-width: 23mm;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      padding: 8px;
+      text-align: center;
+      background: var(--soft);
+    }
+
+    .print-qa-score span {
+      display: block;
+      color: var(--gold);
+      font-size: 24px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .print-qa-score small {
+      color: var(--faint);
+      font-size: 9px;
+      font-weight: 800;
+    }
+
+    .print-qa-metrics {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .print-qa-metrics div {
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      padding: 7px;
+      background: var(--soft);
+    }
+
+    .print-qa-metrics strong,
+    .print-qa-metrics span {
+      display: block;
+    }
+
+    .print-qa-metrics strong {
+      color: var(--ink);
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    .print-qa-metrics span {
+      margin-top: 3px;
+      color: var(--faint);
+      font-size: 7.5px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .print-qa-note {
+      margin-top: 8px;
+    }
+
+    .print-qa-issues,
+    .print-qa-clean {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 9.5px;
+    }
+
+    .print-qa-issues {
+      padding-left: 16px;
+    }
+
+    .print-qa-issues li + li {
+      margin-top: 3px;
+    }
+
     .footer {
       display: flex;
       justify-content: space-between;
@@ -549,8 +768,24 @@ export function buildDailyBriefPdfPrepHtml(
         background: #fffaf4;
       }
 
+      .cover,
+      .print-qa,
+      .section-heading,
+      .metric,
+      .trend-ref,
+      .bullet-list li {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
       .cover {
         break-after: avoid;
+      }
+
+      .report-block.split-allowed,
+      .block-print-high {
+        break-inside: auto;
+        page-break-inside: auto;
       }
 
       a[href]::after {
@@ -565,7 +800,8 @@ export function buildDailyBriefPdfPrepHtml(
       }
 
       .meta-grid,
-      .metric-grid {
+      .metric-grid,
+      .print-qa-metrics {
         grid-template-columns: 1fr 1fr;
       }
 
@@ -606,7 +842,13 @@ export function buildDailyBriefPdfPrepHtml(
       </div>
     </header>
 
-    ${document.sections.map(renderSection).join("\n")}
+    ${renderPrintLayoutQa(printQa)}
+
+    ${document.sections
+      .map((section) =>
+        renderSection(section, sectionAssessmentById.get(section.id)),
+      )
+      .join("\n")}
 
     ${renderValidationWarnings(document)}
 

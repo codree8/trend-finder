@@ -48,6 +48,10 @@ import {
   buildDailyBriefJsonExportUrl,
   buildDailyBriefPdfPrepUrl,
 } from "@/lib/trends/daily-brief-export-links";
+import {
+  buildDailyBriefPrintLayoutQa,
+  printLayoutStatusTone,
+} from "@/lib/trends/daily-brief-print-layout-qa";
 import type {
   ActionQueueItem,
   DailyBriefAvoidSeverity,
@@ -185,6 +189,15 @@ function qaStatusVariant(
   if (status === "healthy") return "secondary";
   if (status === "review" || status === "too_cautious") return "accent";
   return "danger";
+}
+
+function reportToneVariant(
+  tone: "positive" | "neutral" | "warning" | "danger",
+): BadgeProps["variant"] {
+  if (tone === "positive") return "secondary";
+  if (tone === "warning") return "accent";
+  if (tone === "danger") return "danger";
+  return "muted";
 }
 
 function qaWarningVariant(
@@ -715,6 +728,10 @@ function ExportReadyStructurePanel({
   selectedWindow: DashboardWindow;
 }) {
   const validationWarnings = document.integrity.validationWarnings;
+  const printQa = useMemo(
+    () => buildDailyBriefPrintLayoutQa(document),
+    [document],
+  );
 
   return (
     <Card className="border-secondary/15 bg-[#160d0d]/62">
@@ -736,6 +753,17 @@ function ExportReadyStructurePanel({
                 {validationWarnings.length > 0
                   ? `${validationWarnings.length} export caution${validationWarnings.length === 1 ? "" : "s"}`
                   : "Export clean"}
+              </Badge>
+              <Badge
+                variant={reportToneVariant(
+                  printLayoutStatusTone(printQa.status),
+                )}
+              >
+                {printQa.statusLabel} · {printQa.score}/100
+              </Badge>
+              <Badge variant="muted">
+                ~{printQa.metrics.estimatedPages} A4 page
+                {printQa.metrics.estimatedPages === 1 ? "" : "s"}
               </Badge>
             </div>
             <CardDescription className="mt-3 max-w-4xl text-sm leading-6">
@@ -798,7 +826,7 @@ function ExportReadyStructurePanel({
               </Button>
             </div>
           </div>
-          <div className="grid min-w-[280px] grid-cols-3 gap-2 text-center">
+          <div className="grid min-w-[280px] grid-cols-2 gap-2 text-center">
             <MiniMetric
               label="Sections"
               value={document.integrity.sectionCount}
@@ -808,6 +836,7 @@ function ExportReadyStructurePanel({
               label="Refs"
               value={document.integrity.trendReferenceCount}
             />
+            <MiniMetric label="Print QA" value={printQa.score} />
           </div>
         </div>
       </CardHeader>
@@ -854,6 +883,73 @@ function ExportReadyStructurePanel({
               Markdown payload ready · {document.quickCopy.markdown.length}
               characters
             </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-accent/20 bg-accent/10 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+                PDF prep QA
+              </p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground/78">
+                {printQa.summary}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Badge
+                variant={reportToneVariant(
+                  printLayoutStatusTone(printQa.status),
+                )}
+              >
+                {printQa.statusLabel}
+              </Badge>
+              <Badge variant="muted">
+                {printQa.metrics.denseSections} dense section
+                {printQa.metrics.denseSections === 1 ? "" : "s"}
+              </Badge>
+              <Badge
+                variant={
+                  printQa.metrics.oversizedBlocks > 0 ? "danger" : "secondary"
+                }
+              >
+                {printQa.metrics.oversizedBlocks} oversized block
+                {printQa.metrics.oversizedBlocks === 1 ? "" : "s"}
+              </Badge>
+            </div>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            {printQa.sections.slice(0, 3).map((section) => (
+              <div
+                key={section.id}
+                className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-foreground">
+                    {section.title}
+                  </p>
+                  <Badge
+                    variant={reportToneVariant(
+                      printLayoutStatusTone(
+                        section.risk === "low"
+                          ? "ready"
+                          : section.risk === "medium"
+                            ? "review"
+                            : "caution",
+                      ),
+                    )}
+                  >
+                    {section.risk}
+                  </Badge>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground/68">
+                  ~{section.estimatedPages} page
+                  {section.estimatedPages === 1 ? "" : "s"} ·{" "}
+                  {section.blockCount} block
+                  {section.blockCount === 1 ? "" : "s"}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
 

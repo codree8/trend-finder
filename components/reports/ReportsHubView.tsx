@@ -46,6 +46,14 @@ import {
   buildDailyBriefPdfPrepUrl,
 } from "@/lib/trends/daily-brief-export-links";
 import {
+  buildDailyBriefPrintLayoutQa,
+  printLayoutRiskTone,
+  printLayoutStatusTone,
+  type DailyBriefPrintLayoutQa,
+  type DailyBriefPrintLayoutSeverity,
+  type DailyBriefPrintLayoutStatus,
+} from "@/lib/trends/daily-brief-print-layout-qa";
+import {
   buildReportsExportFlowQa,
   type ReportsExportChannel,
   type ReportsExportFlowQa,
@@ -120,6 +128,20 @@ function reportToneVariant(tone: DailyBriefReportTone): BadgeProps["variant"] {
   if (tone === "warning") return "accent";
   if (tone === "danger") return "danger";
   return "muted";
+}
+
+function printLayoutVariant(
+  status: DailyBriefPrintLayoutStatus,
+): BadgeProps["variant"] {
+  return reportToneVariant(printLayoutStatusTone(status));
+}
+
+function printIssueVariant(
+  severity: DailyBriefPrintLayoutSeverity,
+): BadgeProps["variant"] {
+  if (severity === "warning") return "danger";
+  if (severity === "info") return "accent";
+  return "secondary";
 }
 
 function exportFlowVariant(
@@ -437,6 +459,148 @@ function ExportFlowQaPanel({ qa }: { qa: ReportsExportFlowQa }) {
   );
 }
 
+function PrintLayoutQaPanel({ qa }: { qa: DailyBriefPrintLayoutQa }) {
+  return (
+    <Card className="border-accent/15 bg-[#160d0d]/62">
+      <CardHeader>
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+              <Printer className="h-4 w-4" />
+              PDF prep QA & print layout tuning
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge variant={printLayoutVariant(qa.status)}>
+                {qa.statusLabel}
+              </Badge>
+              <Badge variant="muted">Print score {qa.score}/100</Badge>
+              <Badge variant="accent">
+                ~{qa.metrics.estimatedPages} A4 page
+                {qa.metrics.estimatedPages === 1 ? "" : "s"}
+              </Badge>
+              <Badge
+                variant={
+                  qa.metrics.oversizedBlocks > 0 ? "danger" : "secondary"
+                }
+              >
+                {qa.metrics.oversizedBlocks} oversized block
+                {qa.metrics.oversizedBlocks === 1 ? "" : "s"}
+              </Badge>
+            </div>
+            <CardTitle className="mt-4 text-2xl tracking-[-0.035em]">
+              Print layout is checked before pretending this is a real PDF
+              engine.
+            </CardTitle>
+            <CardDescription className="mt-2 max-w-4xl leading-6">
+              {qa.summary}
+            </CardDescription>
+            <p className="mt-3 max-w-4xl text-sm leading-6 text-muted-foreground/72">
+              {qa.recommendedPrintMode}
+            </p>
+          </div>
+          <div className="grid min-w-[280px] grid-cols-2 gap-2 text-center">
+            <MiniMetric label="Sections" value={qa.metrics.printableSections} />
+            <MiniMetric
+              label="Forced breaks"
+              value={qa.metrics.forcedPageBreaks}
+            />
+            <MiniMetric
+              label="Keep together"
+              value={qa.metrics.keepTogetherBlocks}
+            />
+            <MiniMetric
+              label="Split allowed"
+              value={qa.metrics.splitAllowedBlocks}
+            />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
+          {qa.sections.map((section) => (
+            <div
+              key={section.id}
+              className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-4"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-foreground">
+                  {section.title}
+                </p>
+                <Badge
+                  variant={reportToneVariant(printLayoutRiskTone(section.risk))}
+                >
+                  {section.risk}
+                </Badge>
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                <MiniMetric
+                  label="Pages"
+                  value={`~${section.estimatedPages}`}
+                />
+                <MiniMetric label="Blocks" value={section.blockCount} />
+                <MiniMetric
+                  label="Break"
+                  value={section.forcedPageBreak ? "Yes" : "No"}
+                />
+              </div>
+              {section.notes[0] ? (
+                <p className="mt-3 text-xs leading-5 text-muted-foreground/68">
+                  {section.notes[0]}
+                </p>
+              ) : null}
+            </div>
+          ))}
+        </div>
+
+        {qa.issues.length > 0 ? (
+          <div className="rounded-2xl border border-accent/25 bg-accent/10 p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-accent-foreground">
+              <AlertTriangle className="h-4 w-4" />
+              Print layout issues
+            </div>
+            <div className="mt-3 grid gap-2 lg:grid-cols-2">
+              {qa.issues.map((issue) => (
+                <div
+                  key={issue.id}
+                  className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={printIssueVariant(issue.severity)}>
+                      {issue.severity}
+                    </Badge>
+                    <p className="text-sm font-semibold text-foreground">
+                      {issue.label}
+                    </p>
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground/70">
+                    {issue.detail}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 rounded-2xl border border-secondary/20 bg-secondary/10 p-4 text-sm text-secondary">
+            <CheckCircle2 className="h-4 w-4" />
+            No print layout issues detected for the selected window.
+          </div>
+        )}
+
+        <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+            Tuning notes
+          </p>
+          <ul className="mt-3 list-inside list-disc space-y-1 text-sm leading-6 text-muted-foreground/78">
+            {qa.tuningNotes.map((note) => (
+              <li key={note}>{note}</li>
+            ))}
+          </ul>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ReportDocumentPanel({
   reportDocument,
 }: {
@@ -655,6 +819,12 @@ export function ReportsHubView() {
 
   const exportQa = useMemo(
     () => (reportDocument ? buildReportsExportFlowQa(reportDocument) : null),
+    [reportDocument],
+  );
+
+  const printLayoutQa = useMemo(
+    () =>
+      reportDocument ? buildDailyBriefPrintLayoutQa(reportDocument) : null,
     [reportDocument],
   );
 
@@ -909,7 +1079,7 @@ export function ReportsHubView() {
           </div>
         </section>
 
-        <div className="grid gap-3 md:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-5">
           <MiniMetric label="Active window" value={selectedWindow} />
           <MiniMetric
             label="Live exports"
@@ -918,6 +1088,10 @@ export function ReportsHubView() {
           <MiniMetric
             label="Flow QA"
             value={exportQa ? `${exportQa.score}/100` : "..."}
+          />
+          <MiniMetric
+            label="Print QA"
+            value={printLayoutQa ? `${printLayoutQa.score}/100` : "..."}
           />
           <MiniMetric
             label="Latest scan"
@@ -936,7 +1110,7 @@ export function ReportsHubView() {
 
         {!isLoading && !brief ? <EmptyState error={error} /> : null}
 
-        {brief && reportDocument && exportQa ? (
+        {brief && reportDocument && exportQa && printLayoutQa ? (
           <>
             <Card className="border-border/10 bg-[#160d0d]/62">
               <CardHeader>
@@ -953,6 +1127,9 @@ export function ReportsHubView() {
                       </Badge>
                       <Badge variant={exportFlowVariant(exportQa.status)}>
                         Export QA: {exportQa.statusLabel}
+                      </Badge>
+                      <Badge variant={printLayoutVariant(printLayoutQa.status)}>
+                        Print QA: {printLayoutQa.statusLabel}
                       </Badge>
                       <Badge variant="muted">
                         Confidence {brief.briefPosture.confidence}/100
@@ -998,6 +1175,7 @@ export function ReportsHubView() {
             </Card>
 
             <ExportFlowQaPanel qa={exportQa} />
+            <PrintLayoutQaPanel qa={printLayoutQa} />
 
             <div className="grid gap-4 xl:grid-cols-3">
               {exportCards.map((card) => (

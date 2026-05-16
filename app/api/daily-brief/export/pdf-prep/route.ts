@@ -4,6 +4,7 @@ import {
   buildDailyBriefPdfPrepHtml,
 } from "@/lib/trends/daily-brief-pdf-prep";
 import { getDailyBrief } from "@/lib/trends/daily-brief";
+import { buildDailyBriefPrintLayoutQa } from "@/lib/trends/daily-brief-print-layout-qa";
 import { normalizeDashboardWindow } from "@/lib/trends/get-dashboard-trends";
 import type { DailyBriefErrorResponse } from "@/lib/trends/types";
 
@@ -18,6 +19,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const window = normalizeDashboardWindow(searchParams.get("window"));
     const brief = await getDailyBrief(window);
+    const printQa = buildDailyBriefPrintLayoutQa(brief.reportDocument);
     const html = buildDailyBriefPdfPrepHtml(brief.reportDocument, {
       autoPrint: truthy(searchParams.get("autoprint")),
     });
@@ -32,6 +34,9 @@ export async function GET(request: Request) {
         "Content-Type": "text/html; charset=utf-8",
         "Content-Disposition": `${dispositionType}; filename="${filename}"`,
         "X-Content-Type-Options": "nosniff",
+        "X-Print-Layout-Status": printQa.status,
+        "X-Print-Layout-Score": String(printQa.score),
+        "X-Estimated-Print-Pages": String(printQa.metrics.estimatedPages),
       },
     });
   } catch (error) {
