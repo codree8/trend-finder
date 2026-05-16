@@ -36,7 +36,15 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { TrendDetailDrawer } from "@/components/dashboard/TrendDetailDrawer";
+import { ProductExperienceBanner } from "@/components/product/ProductExperienceBanner";
 import { WatchlistButton } from "@/components/watchlist/WatchlistButton";
+import {
+  parseDashboardWindow,
+  productPreferencesChangedEvent,
+  readProductPreferences,
+  type DefaultExportFormat,
+  type ProductPreferences,
+} from "@/lib/preferences/product-preferences";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -128,17 +136,13 @@ import type {
 
 const windowOptions: DashboardWindow[] = ["24h", "7d", "30d"];
 
-function parseDashboardWindow(value: string | null): DashboardWindow {
-  return windowOptions.includes(value as DashboardWindow)
-    ? (value as DashboardWindow)
-    : "7d";
-}
-
 function getInitialDashboardWindow(): DashboardWindow {
   if (typeof window === "undefined") return "7d";
 
+  const preferences = readProductPreferences();
   return parseDashboardWindow(
     new URLSearchParams(window.location.search).get("window"),
+    preferences.defaultBriefWindow,
   );
 }
 
@@ -457,6 +461,9 @@ function isTrendSaved(
 }
 
 export function DailyBriefView() {
+  const [preferences, setPreferences] = useState<ProductPreferences>(() =>
+    readProductPreferences(),
+  );
   const [trendWindow, setTrendWindow] = useState<DashboardWindow>(
     getInitialDashboardWindow,
   );
@@ -523,6 +530,23 @@ export function DailyBriefView() {
   }, [trendWindow]);
 
   useEffect(() => {
+    function handlePreferenceChange() {
+      setPreferences(readProductPreferences());
+    }
+
+    window.addEventListener(productPreferencesChangedEvent, handlePreferenceChange);
+    window.addEventListener("storage", handlePreferenceChange);
+
+    return () => {
+      window.removeEventListener(
+        productPreferencesChangedEvent,
+        handlePreferenceChange,
+      );
+      window.removeEventListener("storage", handlePreferenceChange);
+    };
+  }, []);
+
+  useEffect(() => {
     void loadBrief();
   }, [loadBrief]);
 
@@ -542,9 +566,14 @@ export function DailyBriefView() {
     );
   }, [availableTrends, selectedTrendSlug]);
 
+  const reportSections = preferences.reportSections;
+  const isPitchMode = preferences.experienceMode === "pitch";
+
   return (
     <AppShell>
       <div className="space-y-6">
+        <ProductExperienceBanner compact />
+
         <section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.32em] text-secondary">
@@ -554,9 +583,9 @@ export function DailyBriefView() {
               One report for what matters now.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
-              A readable decision brief for trends worth acting on, watching,
-              saving or avoiding. Export the report when you need a file; keep
-              the engineering diagnostics out of the main reading flow.
+              {isPitchMode
+                ? "A pitch-ready decision brief: strongest actions, clean opportunities, topics to avoid and export paths without the admin machinery."
+                : "A readable decision brief for trends worth acting on, watching, saving or avoiding. Export the report when you need a file; keep the engineering diagnostics out of the main reading flow."}
             </p>
           </div>
 
@@ -610,12 +639,15 @@ export function DailyBriefView() {
 
         {brief ? (
           <>
-            <ExecutiveSummaryCard brief={brief} />
+            {reportSections.executiveSummary ? (
+              <ExecutiveSummaryCard brief={brief} />
+            ) : null}
             <DailyBriefExportActionsPanel
               document={brief.reportDocument}
               selectedWindow={trendWindow}
               serverPdfQa={serverPdfQa}
               serverPdfQaError={serverPdfQaError}
+              defaultExport={preferences.defaultExport}
             />
             <IntelligenceNarrativesSection
               narratives={brief.intelligenceNarratives}
@@ -627,52 +659,66 @@ export function DailyBriefView() {
               <WarningsPanel warnings={brief.overallWarnings} />
             ) : null}
 
-            <PriorityActionsSection
-              items={brief.topPriorityActions}
-              savedTrendKeys={savedTrendKeys}
-              selectedWindow={trendWindow}
-              onSavedChange={() => void loadBrief()}
-              onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}
-            />
-
-            <WatchlistMovementSection
-              items={brief.watchlistMovement}
-              onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}
-            />
-
-            <div className="grid gap-5 xl:grid-cols-2">
-              <TrendCollectionSection
-                title="Hidden Gems Worth Watching"
-                description="Only quality-gated early openings. No obvious noise, no lazy hype traps. We are trying to run a radar, not a rumor mill."
-                icon={Sparkles}
-                trends={brief.hiddenGemsWorthWatching}
-                empty="No clean hidden gem in this window. Widen the range or scan again."
+            {reportSections.priorityActions ? (
+              <PriorityActionsSection
+                items={brief.topPriorityActions}
                 savedTrendKeys={savedTrendKeys}
                 selectedWindow={trendWindow}
                 onSavedChange={() => void loadBrief()}
                 onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}
               />
+            ) : null}
 
-              <TrendCollectionSection
-                title="Best Creator Opportunities"
-                description="Topics with usable timing, format fit and acceptable content risk. Basically: what can become a sharp post instead of AI soup."
-                icon={Lightbulb}
-                trends={brief.creatorOpportunities}
-                empty="No creator opportunity has clean timing yet. Better to wait than post lukewarm soup."
-                savedTrendKeys={savedTrendKeys}
-                selectedWindow={trendWindow}
-                onSavedChange={() => void loadBrief()}
+            {reportSections.watchlistMovement ? (
+              <WatchlistMovementSection
+                items={brief.watchlistMovement}
                 onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}
-                creatorMode
               />
-            </div>
+            ) : null}
 
-            <TopicsToAvoidSection
-              items={brief.topicsToAvoid}
-              onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}
-            />
+            {reportSections.hiddenGems || reportSections.creatorOpportunities ? (
+              <div className="grid gap-5 xl:grid-cols-2">
+                {reportSections.hiddenGems ? (
+                  <TrendCollectionSection
+                    title="Hidden Gems Worth Watching"
+                    description="Only quality-gated early openings. No obvious noise, no lazy hype traps. We are trying to run a radar, not a rumor mill."
+                    icon={Sparkles}
+                    trends={brief.hiddenGemsWorthWatching}
+                    empty="No clean hidden gem in this window. Widen the range or scan again."
+                    savedTrendKeys={savedTrendKeys}
+                    selectedWindow={trendWindow}
+                    onSavedChange={() => void loadBrief()}
+                    onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}
+                  />
+                ) : null}
 
-            <RecommendedFocusCard brief={brief} />
+                {reportSections.creatorOpportunities ? (
+                  <TrendCollectionSection
+                    title="Best Creator Opportunities"
+                    description="Topics with usable timing, format fit and acceptable content risk. Basically: what can become a sharp post instead of AI soup."
+                    icon={Lightbulb}
+                    trends={brief.creatorOpportunities}
+                    empty="No creator opportunity has clean timing yet. Better to wait than post lukewarm soup."
+                    savedTrendKeys={savedTrendKeys}
+                    selectedWindow={trendWindow}
+                    onSavedChange={() => void loadBrief()}
+                    onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}
+                    creatorMode
+                  />
+                ) : null}
+              </div>
+            ) : null}
+
+            {reportSections.topicsToAvoid ? (
+              <TopicsToAvoidSection
+                items={brief.topicsToAvoid}
+                onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}
+              />
+            ) : null}
+
+            {reportSections.recommendedFocus ? (
+              <RecommendedFocusCard brief={brief} />
+            ) : null}
           </>
         ) : null}
       </div>
@@ -937,11 +983,13 @@ function DailyBriefExportActionsPanel({
   selectedWindow,
   serverPdfQa,
   serverPdfQaError,
+  defaultExport,
 }: {
   document: DailyBriefReportDocument;
   selectedWindow: DashboardWindow;
   serverPdfQa: DailyBriefServerPdfReliabilityQa | null;
   serverPdfQaError: string | null;
+  defaultExport: DefaultExportFormat;
 }) {
   const validationWarnings = document.integrity.validationWarnings;
   const printQa = useMemo(
@@ -1005,8 +1053,7 @@ function DailyBriefExportActionsPanel({
               </Badge>
             </div>
             <CardDescription className="mt-3 max-w-4xl text-sm leading-6">
-              Open the brief in the format you need: readable HTML, finished PDF,
-              structured JSON, or a print-ready page for layout checks.
+              Open the brief in the format you need. Your current default is {defaultExport.toUpperCase()}, but all manual export paths stay available.
             </CardDescription>
           </div>
           <div className="grid min-w-[260px] grid-cols-2 gap-2 text-center">
@@ -1019,7 +1066,11 @@ function DailyBriefExportActionsPanel({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-2">
-          <Button asChild size="sm" variant="secondary">
+          <Button
+            asChild
+            size="sm"
+            variant={defaultExport === "pdf" ? "secondary" : "outline"}
+          >
             <a
               href={buildDailyBriefPdfExportUrl(selectedWindow, {
                 inline: true,
@@ -1037,7 +1088,11 @@ function DailyBriefExportActionsPanel({
               Download PDF
             </a>
           </Button>
-          <Button asChild size="sm" variant="outline">
+          <Button
+            asChild
+            size="sm"
+            variant={defaultExport === "html" ? "secondary" : "outline"}
+          >
             <a
               href={buildDailyBriefHtmlExportUrl(selectedWindow)}
               target="_blank"
@@ -1047,7 +1102,11 @@ function DailyBriefExportActionsPanel({
               HTML Export
             </a>
           </Button>
-          <Button asChild size="sm" variant="outline">
+          <Button
+            asChild
+            size="sm"
+            variant={defaultExport === "json" ? "secondary" : "outline"}
+          >
             <a
               href={buildDailyBriefJsonExportUrl(selectedWindow, {
                 download: true,

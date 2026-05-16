@@ -29,7 +29,14 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import { ProductExperienceBanner } from "@/components/product/ProductExperienceBanner";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
+import {
+  productPreferencesChangedEvent,
+  readProductPreferences,
+  type DefaultExportFormat,
+  type ProductPreferences,
+} from "@/lib/preferences/product-preferences";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -140,6 +147,7 @@ import type {
   DailyBriefServerPdfReliabilitySeverity,
   DailyBriefServerPdfReliabilityStatus,
 } from "@/lib/trends/daily-brief-server-pdf-qa";
+import { cn } from "@/lib/utils";
 import type {
   DailyBriefReportAudience,
   DailyBriefReportDocument,
@@ -157,6 +165,7 @@ type ExportCardStatus = "live" | "ready" | "planned";
 
 type ExportCard = {
   id: string;
+  exportFormat?: DefaultExportFormat;
   title: string;
   description: string;
   group: "Primary" | "Model" | "Reuse" | "Developer" | "Later";
@@ -592,9 +601,15 @@ function ExportTargetBadge({ target }: { target: DailyBriefReportAudience }) {
   return <Badge variant={variant}>{targetLabels[target]}</Badge>;
 }
 
-function ExportChannelCard({ card }: { card: ExportCard }) {
+function ExportChannelCard({
+  card,
+  isPreferred = false,
+}: {
+  card: ExportCard;
+  isPreferred?: boolean;
+}) {
   return (
-    <Card className="border-border/10 bg-[#160d0d]/62">
+    <Card className={cn("border-border/10 bg-[#160d0d]/62", isPreferred ? "border-secondary/30 signal-glow" : null)}>
       <CardHeader>
         <div className="flex items-start gap-3">
           <div className="rounded-2xl bg-secondary/12 p-3 text-secondary">
@@ -611,6 +626,7 @@ function ExportChannelCard({ card }: { card: ExportCard }) {
                     : "Planned"}
               </Badge>
               <Badge variant="muted">{card.group}</Badge>
+              {isPreferred ? <Badge variant="secondary">Default</Badge> : null}
             </div>
             <CardDescription className="mt-2 leading-6">
               {card.description}
@@ -627,6 +643,56 @@ function ExportChannelCard({ card }: { card: ExportCard }) {
           {card.actions}
         </CardContent>
       ) : null}
+    </Card>
+  );
+}
+
+
+function ReportPreferencesSummaryCard({
+  preferences,
+}: {
+  preferences: ProductPreferences;
+}) {
+  const enabledSections = [
+    preferences.reportSections.executiveSummary ? "Executive summary" : null,
+    preferences.reportSections.priorityActions ? "Priority actions" : null,
+    preferences.reportSections.watchlistMovement ? "Watchlist movement" : null,
+    preferences.reportSections.hiddenGems ? "Hidden gems" : null,
+    preferences.reportSections.creatorOpportunities ? "Creator opportunities" : null,
+    preferences.reportSections.topicsToAvoid ? "Topics to avoid" : null,
+    preferences.reportSections.recommendedFocus ? "Recommended focus" : null,
+  ].filter((section): section is string => section !== null);
+
+  return (
+    <Card className="border-border/10 bg-[#160d0d]/62">
+      <CardHeader>
+        <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+          <Layers3 className="h-4 w-4" />
+          Report preferences
+        </div>
+        <CardTitle>Product reading setup</CardTitle>
+        <CardDescription>
+          Daily Brief uses these local preferences to keep the user-facing flow
+          focused. Export endpoints still return the full canonical report.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="secondary">Default export: {preferences.defaultExport.toUpperCase()}</Badge>
+          <Badge variant="muted">Brief window: {preferences.defaultBriefWindow}</Badge>
+          <Badge variant="muted">Tone: {preferences.briefTone}</Badge>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {enabledSections.map((section) => (
+            <span
+              key={section}
+              className="rounded-full border border-border/15 bg-muted/40 px-3 py-1 text-xs text-muted-foreground"
+            >
+              {section}
+            </span>
+          ))}
+        </div>
+      </CardContent>
     </Card>
   );
 }
@@ -3637,7 +3703,12 @@ export function ReportsHubView({
 }: {
   mode?: ReportsHubMode;
 } = {}) {
-  const [selectedWindow, setSelectedWindow] = useState<DashboardWindow>("7d");
+  const [preferences, setPreferences] = useState<ProductPreferences>(() =>
+    readProductPreferences(),
+  );
+  const [selectedWindow, setSelectedWindow] = useState<DashboardWindow>(
+    () => readProductPreferences().defaultBriefWindow,
+  );
   const [brief, setBrief] = useState<DailyBriefResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -3702,6 +3773,23 @@ export function ReportsHubView({
       );
     }
   }, [selectedWindow]);
+
+  useEffect(() => {
+    function handlePreferenceChange() {
+      setPreferences(readProductPreferences());
+    }
+
+    window.addEventListener(productPreferencesChangedEvent, handlePreferenceChange);
+    window.addEventListener("storage", handlePreferenceChange);
+
+    return () => {
+      window.removeEventListener(
+        productPreferencesChangedEvent,
+        handlePreferenceChange,
+      );
+      window.removeEventListener("storage", handlePreferenceChange);
+    };
+  }, []);
 
   useEffect(() => {
     void loadBrief();
@@ -4051,6 +4139,7 @@ export function ReportsHubView({
     return [
       {
         id: "daily-brief-html",
+        exportFormat: "html",
         title: "HTML Export",
         description:
           "Open or save the Daily Brief as a standalone HTML report.",
@@ -4063,6 +4152,7 @@ export function ReportsHubView({
       },
       {
         id: "daily-brief-pdf",
+        exportFormat: "pdf",
         title: "PDF Export",
         description:
           "Download a finished PDF version of the Daily Brief.",
@@ -4087,6 +4177,7 @@ export function ReportsHubView({
       },
       {
         id: "daily-brief-json",
+        exportFormat: "json",
         title: "JSON Export",
         description:
           "Structured report data for analysis, archive or handoff.",
@@ -4099,6 +4190,7 @@ export function ReportsHubView({
       },
       {
         id: "quick-copy",
+        exportFormat: "markdown",
         title: "Quick Copy",
         description:
           "Reusable summary and markdown payload for notes, posts or handoff without a file export.",
@@ -4146,15 +4238,19 @@ export function ReportsHubView({
     ];
   }, [selectedWindow]);
 
-  const visibleExportCards = useMemo(
-    () =>
-      isAdminMode
-        ? exportCards
-        : exportCards.filter(
-            (card) => card.group !== "Developer" && card.group !== "Later",
-          ),
-    [exportCards, isAdminMode],
-  );
+  const visibleExportCards = useMemo(() => {
+    const cards = isAdminMode
+      ? exportCards
+      : exportCards.filter(
+          (card) => card.group !== "Developer" && card.group !== "Later",
+        );
+
+    return cards.slice().sort((a, b) => {
+      const aPreferred = a.exportFormat === preferences.defaultExport ? 0 : 1;
+      const bPreferred = b.exportFormat === preferences.defaultExport ? 0 : 1;
+      return aPreferred - bPreferred;
+    });
+  }, [exportCards, isAdminMode, preferences.defaultExport]);
 
   const copySummary = useCallback(async () => {
     if (!reportDocument) return;
@@ -4181,6 +4277,8 @@ export function ReportsHubView({
   return (
     <AppShell>
       <div className="space-y-6">
+        {!isAdminMode ? <ProductExperienceBanner compact /> : null}
+
         <section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.32em] text-secondary">
@@ -4194,7 +4292,7 @@ export function ReportsHubView({
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
               {isAdminMode
                 ? "This admin workspace keeps dry-runs, guardrails, config contracts, pre-live checks and internal email prep away from the user-facing report flow."
-                : "Review the Daily Brief, export HTML, PDF or JSON, open the print-ready version, or copy a reusable summary. The scary machine-room panels live in Admin now, where they belong."}
+                : `Review the Daily Brief, export HTML, PDF or JSON, open the print-ready version, or copy a reusable summary. Your default export is ${preferences.defaultExport.toUpperCase()}. The scary machine-room panels live in Admin now, where they belong.`}
             </p>
           </div>
 
@@ -4426,13 +4524,20 @@ export function ReportsHubView({
 
             <div className="grid gap-4 xl:grid-cols-3">
               {visibleExportCards.map((card) => (
-                <ExportChannelCard key={card.id} card={card} />
+                <ExportChannelCard
+                  key={card.id}
+                  card={card}
+                  isPreferred={card.exportFormat === preferences.defaultExport}
+                />
               ))}
             </div>
 
             <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
               <ReportDocumentPanel reportDocument={reportDocument} />
               <div className="space-y-5">
+                {!isAdminMode ? (
+                  <ReportPreferencesSummaryCard preferences={preferences} />
+                ) : null}
                 <QuickCopyPanel
                   reportDocument={reportDocument}
                   copyState={copyState}

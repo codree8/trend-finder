@@ -13,6 +13,13 @@ import { CreatorModePanel } from "@/components/dashboard/CreatorModePanel";
 import { ScanHealthPanel } from "@/components/dashboard/ScanHealthPanel";
 import { TrendDetailDrawer } from "@/components/dashboard/TrendDetailDrawer";
 import { TREND_SCAN_COMPLETED_EVENT } from "@/components/dashboard/ScanButton";
+import { ProductExperienceBanner } from "@/components/product/ProductExperienceBanner";
+import { ProductOnboardingCard } from "@/components/product/ProductOnboardingCard";
+import {
+  productPreferencesChangedEvent,
+  readProductPreferences,
+  type ProductPreferences,
+} from "@/lib/preferences/product-preferences";
 import type {
   DashboardMode,
   DashboardTrend,
@@ -119,8 +126,13 @@ function formatScanDate(value: string | null | undefined) {
 }
 
 export function DashboardView() {
+  const [preferences, setPreferences] = useState<ProductPreferences>(() =>
+    readProductPreferences(),
+  );
   const [mode, setMode] = useState<DashboardMode>("All");
-  const [trendWindow, setTrendWindow] = useState<DashboardWindow>("7d");
+  const [trendWindow, setTrendWindow] = useState<DashboardWindow>(
+    () => readProductPreferences().defaultBriefWindow,
+  );
   const [category, setCategory] = useState("All");
   const [data, setData] = useState<DashboardTrendsResponse>(() =>
     emptyDashboardData("7d"),
@@ -193,6 +205,23 @@ export function DashboardView() {
     },
     [loadSavedTrendKeys, trendWindow],
   );
+
+  useEffect(() => {
+    function handlePreferenceChange() {
+      setPreferences(readProductPreferences());
+    }
+
+    window.addEventListener(productPreferencesChangedEvent, handlePreferenceChange);
+    window.addEventListener("storage", handlePreferenceChange);
+
+    return () => {
+      window.removeEventListener(
+        productPreferencesChangedEvent,
+        handlePreferenceChange,
+      );
+      window.removeEventListener("storage", handlePreferenceChange);
+    };
+  }, []);
 
   useEffect(() => {
     void loadDashboardData(trendWindow);
@@ -281,9 +310,22 @@ export function DashboardView() {
     [savedTrends],
   );
 
+  const showChartsSection =
+    preferences.dashboardSections.charts ||
+    preferences.dashboardSections.sourceBreakdown ||
+    preferences.dashboardSections.trendTimeline;
+  const showHiddenGems = preferences.dashboardSections.hiddenGems;
+  const showCreatorMode = preferences.dashboardSections.creatorMode;
+  const showSignals = preferences.dashboardSections.signals;
+  const showScanHealth = preferences.dashboardSections.scanHealth;
+  const isPitchMode = preferences.experienceMode === "pitch";
+
   return (
     <AppShell>
       <div className="space-y-6">
+        <ProductOnboardingCard />
+        <ProductExperienceBanner compact />
+
         <section
           id="dashboard-overview"
           className="scroll-mt-6 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between"
@@ -296,10 +338,9 @@ export function DashboardView() {
               Find early AI signals before they become obvious.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
-              Trend Finder now reads real snapshots from Postgres: raw signals
-              become topic clusters, clusters become scored trend snapshots, and
-              lifecycle logic separates fresh acceleration from stale stored
-              noise.
+              {isPitchMode
+                ? "A clean product radar for showing what is rising, what is worth acting on, and what should stay out of the content queue."
+                : "Trend Finder reads real snapshots from Postgres: raw signals become topic clusters, clusters become scored trend snapshots, and lifecycle logic separates fresh acceleration from stale stored noise."}
             </p>
             <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground/70">
               <span className="rounded-full border border-border/10 bg-card/60 px-3 py-1.5">
@@ -347,46 +388,65 @@ export function DashboardView() {
 
         <KpiCards kpis={data.kpis} />
 
-        <ScanHealthPanel
-          latestScan={data.latestScan}
-          sourceBreakdown={data.sourceBreakdown}
-        />
-
-        <section
-          id="charts"
-          className="scroll-mt-6 grid gap-5 xl:grid-cols-[1.15fr_0.85fr]"
-        >
-          <TrendRadar data={data.radar} />
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-1">
-            <SourceBreakdown data={data.sourceBreakdown} />
-            <TrendTimeline data={data.timeline} />
-          </div>
-        </section>
-
-        <section id="hidden-gems" className="scroll-mt-6">
-          <TrendCards
-            trends={filteredHiddenGems}
-            savedTrendKeys={savedTrendKeySet}
-            selectedWindow={trendWindow}
-            onSavedChange={handleSavedTrendChange}
-            onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}
+        {showScanHealth ? (
+          <ScanHealthPanel
+            latestScan={data.latestScan}
+            sourceBreakdown={data.sourceBreakdown}
           />
-        </section>
+        ) : null}
 
-        <section id="creator-mode" className="scroll-mt-6">
-          <CreatorModePanel
-            trend={creatorTrend}
-            opportunities={creatorOpportunities}
-            onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}
-          />
-        </section>
+        {showChartsSection ? (
+          <section
+            id="charts"
+            className="scroll-mt-6 grid gap-5 xl:grid-cols-[1.15fr_0.85fr]"
+          >
+            {preferences.dashboardSections.charts ? (
+              <TrendRadar data={data.radar} />
+            ) : null}
+            {preferences.dashboardSections.sourceBreakdown ||
+            preferences.dashboardSections.trendTimeline ? (
+              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-1">
+                {preferences.dashboardSections.sourceBreakdown ? (
+                  <SourceBreakdown data={data.sourceBreakdown} />
+                ) : null}
+                {preferences.dashboardSections.trendTimeline ? (
+                  <TrendTimeline data={data.timeline} />
+                ) : null}
+              </div>
+            ) : null}
+          </section>
+        ) : null}
 
-        <section id="signals" className="scroll-mt-6">
-          <TrendTable
-            trends={filteredTrends}
-            onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}
-          />
-        </section>
+        {showHiddenGems ? (
+          <section id="hidden-gems" className="scroll-mt-6">
+            <TrendCards
+              trends={filteredHiddenGems}
+              savedTrendKeys={savedTrendKeySet}
+              selectedWindow={trendWindow}
+              onSavedChange={handleSavedTrendChange}
+              onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}
+            />
+          </section>
+        ) : null}
+
+        {showCreatorMode ? (
+          <section id="creator-mode" className="scroll-mt-6">
+            <CreatorModePanel
+              trend={creatorTrend}
+              opportunities={creatorOpportunities}
+              onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}
+            />
+          </section>
+        ) : null}
+
+        {showSignals ? (
+          <section id="signals" className="scroll-mt-6">
+            <TrendTable
+              trends={filteredTrends}
+              onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}
+            />
+          </section>
+        ) : null}
       </div>
       <TrendDetailDrawer
         slug={selectedTrendSlug}

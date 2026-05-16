@@ -19,9 +19,15 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  productPreferencesChangedEvent,
+  readPreferredWorkspaceView,
+  readProductPreferences,
+  writePreferredWorkspaceView,
+  type ProductPreferences,
+  type WorkspaceView,
+} from "@/lib/preferences/product-preferences";
 import { cn } from "@/lib/utils";
-
-const workspaceStorageKey = "trend-finder-workspace-view";
 const sectionIds = [
   "dashboard-overview",
   "charts",
@@ -31,8 +37,6 @@ const sectionIds = [
 ] as const;
 
 type DashboardSectionId = (typeof sectionIds)[number];
-type WorkspaceView = "product" | "admin";
-
 type NavItem = {
   id?: DashboardSectionId;
   href: string;
@@ -101,13 +105,7 @@ function getInitialDashboardSection(): DashboardSectionId {
 }
 
 function getInitialWorkspaceView(pathname: string): WorkspaceView {
-  if (pathname.startsWith("/admin")) return "admin";
-  if (typeof window === "undefined") return "product";
-
-  const storedValue = window.localStorage.getItem(workspaceStorageKey);
-  return storedValue === "admin" || storedValue === "product"
-    ? storedValue
-    : "product";
+  return readPreferredWorkspaceView(pathname);
 }
 
 function isSameRoute(pathname: string, href: string) {
@@ -122,14 +120,38 @@ export function Sidebar() {
   );
   const [activeDashboardSection, setActiveDashboardSection] =
     useState<DashboardSectionId>(getInitialDashboardSection);
+  const [preferences, setPreferences] = useState<ProductPreferences>(() =>
+    readProductPreferences(),
+  );
 
   const isDashboard = pathname === "/dashboard" || pathname === "/";
   const isAdminView = workspaceView === "admin";
 
-  const navItems = useMemo(
-    () => (isAdminView ? adminRouteItems : [...dashboardSections, ...productRouteItems]),
-    [isAdminView],
-  );
+  const navItems = useMemo(() => {
+    if (isAdminView) return adminRouteItems;
+
+    const visibleDashboardSections = dashboardSections.filter((item) => {
+      if (item.id === "charts") {
+        return (
+          preferences.dashboardSections.charts ||
+          preferences.dashboardSections.sourceBreakdown ||
+          preferences.dashboardSections.trendTimeline
+        );
+      }
+      if (item.id === "hidden-gems") return preferences.dashboardSections.hiddenGems;
+      if (item.id === "creator-mode") return preferences.dashboardSections.creatorMode;
+      if (item.id === "signals") return preferences.dashboardSections.signals;
+      return true;
+    });
+
+    const visibleProductRoutes = productRouteItems.filter((item) => {
+      if (item.href === "/watchlist") return preferences.dashboardSections.watchlist;
+      if (item.href === "/action-queue") return preferences.dashboardSections.actionQueue;
+      return true;
+    });
+
+    return [...visibleDashboardSections, ...visibleProductRoutes];
+  }, [isAdminView, preferences.dashboardSections]);
 
   useEffect(() => {
     if (pathname.startsWith("/admin")) {
@@ -138,8 +160,23 @@ export function Sidebar() {
   }, [pathname]);
 
   useEffect(() => {
-    window.localStorage.setItem(workspaceStorageKey, workspaceView);
-  }, [workspaceView]);
+    function handlePreferenceChange() {
+      const nextPreferences = readProductPreferences();
+      setPreferences(nextPreferences);
+      setWorkspaceView(readPreferredWorkspaceView(pathname));
+    }
+
+    window.addEventListener(productPreferencesChangedEvent, handlePreferenceChange);
+    window.addEventListener("storage", handlePreferenceChange);
+
+    return () => {
+      window.removeEventListener(
+        productPreferencesChangedEvent,
+        handlePreferenceChange,
+      );
+      window.removeEventListener("storage", handlePreferenceChange);
+    };
+  }, [pathname]);
 
   useEffect(() => {
     if (!isDashboard || isAdminView) return;
@@ -216,7 +253,7 @@ export function Sidebar() {
 
   function handleWorkspaceChange(nextView: WorkspaceView) {
     setWorkspaceView(nextView);
-    window.localStorage.setItem(workspaceStorageKey, nextView);
+    writePreferredWorkspaceView(nextView);
   }
 
   function handleDashboardNavClick(
