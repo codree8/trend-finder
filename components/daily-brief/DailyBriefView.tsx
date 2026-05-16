@@ -15,6 +15,7 @@ import {
   BrainCircuit,
   CheckCircle2,
   Clock3,
+  Download,
   Eye,
   FileText,
   Layers3,
@@ -198,6 +199,16 @@ function confidenceLabel(value: number) {
   return "Low confidence";
 }
 
+function dailyBriefHtmlExportUrl(window: DashboardWindow, download = false) {
+  const params = new URLSearchParams({ window });
+
+  if (download) {
+    params.set("download", "1");
+  }
+
+  return `/api/daily-brief/export/html?${params.toString()}`;
+}
+
 function signalAgeLabel(value: number | null) {
   if (value === null) return "No current signal";
   if (value < 1) return "<1h old";
@@ -364,7 +375,10 @@ export function DailyBriefView() {
           <>
             <ExecutiveSummaryCard brief={brief} />
             <DailyBriefQaPanel qa={brief.qa} />
-            <ExportReadyStructurePanel document={brief.reportDocument} />
+            <ExportReadyStructurePanel
+              document={brief.reportDocument}
+              selectedWindow={trendWindow}
+            />
             <IntelligenceNarrativesSection
               narratives={brief.intelligenceNarratives}
               onSelectTrend={(slug) => setSelectedTrendSlug(slug)}
@@ -682,8 +696,10 @@ function DailyBriefQaPanel({ qa }: { qa: DailyBriefQaSummary }) {
 
 function ExportReadyStructurePanel({
   document,
+  selectedWindow,
 }: {
   document: DailyBriefReportDocument;
+  selectedWindow: DashboardWindow;
 }) {
   const validationWarnings = document.integrity.validationWarnings;
 
@@ -710,11 +726,30 @@ function ExportReadyStructurePanel({
               </Badge>
             </div>
             <CardDescription className="mt-3 max-w-4xl text-sm leading-6">
-              The brief now exposes a stable report document model for later
-              HTML, PDF, email and JSON exports. This is not a download feature
-              yet; it is the contract that prevents future exports from scraping
-              UI cards like a raccoon in a dashboard dumpster.
+              The brief now exposes a stable report document model and a real
+              standalone HTML export. PDF, email and cron are still
+              intentionally out of scope; HTML is the first clean export layer
+              built from reportDocument instead of scraping UI cards like a
+              raccoon in a dashboard dumpster.
             </CardDescription>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button asChild size="sm" variant="secondary">
+                <a
+                  href={dailyBriefHtmlExportUrl(selectedWindow)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Eye className="mr-2 h-4 w-4" />
+                  Preview HTML
+                </a>
+              </Button>
+              <Button asChild size="sm" variant="outline">
+                <a href={dailyBriefHtmlExportUrl(selectedWindow, true)}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Download HTML
+                </a>
+              </Button>
+            </div>
           </div>
           <div className="grid min-w-[280px] grid-cols-3 gap-2 text-center">
             <MiniMetric
@@ -785,7 +820,7 @@ function ExportReadyStructurePanel({
         ) : (
           <div className="rounded-2xl border border-secondary/15 bg-secondary/10 p-4 text-sm leading-6 text-muted-foreground/82">
             Export structure is clean: sections, blocks, trend references and
-            quick-copy payload are present. Future export routes can consume
+            quick-copy payload are present. The HTML route now consumes
             <span className="font-semibold text-secondary">
               {" "}
               reportDocument{" "}
