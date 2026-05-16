@@ -40,3 +40,13 @@ export function buildDailyBriefJsonExportUrl(
 
   return `/api/daily-brief/export/json?${params.toString()}`;
 }
+
+export function buildDailyBriefFullJsonExportUrl(
+  trendWindow: DashboardWindow,
+  options: { download?: boolean } = {},
+) {
+  return buildDailyBriefJsonExportUrl(trendWindow, {
+    ...options,
+    payload: "full-brief",
+  });
+}

@@ -10,9 +10,11 @@ import {
 } from "react";
 import {
   AlertTriangle,
+  ArrowRight,
   CheckCircle2,
   Clipboard,
   Code2,
+  CopyCheck,
   Download,
   Eye,
   FileJson,
@@ -36,10 +38,18 @@ import {
 } from "@/components/ui/card";
 import {
   buildDailyBriefApiUrl,
+  buildDailyBriefFullJsonExportUrl,
   buildDailyBriefHtmlExportUrl,
   buildDailyBriefJsonExportUrl,
   buildDailyBriefPageUrl,
 } from "@/lib/trends/daily-brief-export-links";
+import {
+  buildReportsExportFlowQa,
+  type ReportsExportChannel,
+  type ReportsExportFlowQa,
+  type ReportsExportFlowSeverity,
+  type ReportsExportFlowStatus,
+} from "@/lib/trends/reports-export-flow-qa";
 import type {
   DailyBriefReportAudience,
   DailyBriefReportDocument,
@@ -52,11 +62,15 @@ const windowOptions: DashboardWindow[] = ["24h", "7d", "30d"];
 
 type CopyState = "idle" | "copied" | "failed";
 
+type ExportCardStatus = "live" | "ready" | "planned";
+
 type ExportCard = {
   id: string;
   title: string;
   description: string;
-  status: "live" | "ready" | "planned";
+  group: "Primary" | "Model" | "Reuse" | "Developer" | "Later";
+  status: ExportCardStatus;
+  recommendedUse: string;
   icon: LucideIcon;
   actions?: ReactNode;
 };
@@ -106,6 +120,37 @@ function reportToneVariant(tone: DailyBriefReportTone): BadgeProps["variant"] {
   return "muted";
 }
 
+function exportFlowVariant(
+  status: ReportsExportFlowStatus,
+): BadgeProps["variant"] {
+  if (status === "healthy") return "secondary";
+  if (status === "review") return "accent";
+  return "danger";
+}
+
+function exportCardVariant(status: ExportCardStatus): BadgeProps["variant"] {
+  if (status === "live") return "secondary";
+  if (status === "ready") return "accent";
+  return "muted";
+}
+
+function channelVariant(
+  status: ReportsExportChannel["status"],
+): BadgeProps["variant"] {
+  if (status === "live") return "secondary";
+  if (status === "ready") return "accent";
+  if (status === "attention") return "danger";
+  return "muted";
+}
+
+function severityVariant(
+  severity: ReportsExportFlowSeverity,
+): BadgeProps["variant"] {
+  if (severity === "success") return "secondary";
+  if (severity === "warning") return "accent";
+  return "muted";
+}
+
 function compactSectionDescription(value: string) {
   if (value.length <= 118) return value;
   return `${value.slice(0, 115).trim()}...`;
@@ -119,21 +164,21 @@ async function copyText(value: string) {
   await navigator.clipboard.writeText(value);
 }
 
-function buildQuickCopyText(document: DailyBriefReportDocument) {
-  const bullets = document.quickCopy.bullets
+function buildQuickCopyText(reportDocument: DailyBriefReportDocument) {
+  const bullets = reportDocument.quickCopy.bullets
     .map((item) => `- ${item}`)
     .join("\n");
 
   return [
-    document.quickCopy.headline,
+    reportDocument.quickCopy.headline,
     "",
-    document.quickCopy.summary,
+    reportDocument.quickCopy.summary,
     "",
     bullets,
     "",
-    `Focus today: ${document.quickCopy.focusToday}`,
-    `Monitor: ${document.quickCopy.monitor}`,
-    `Avoid: ${document.quickCopy.avoid}`,
+    `Focus today: ${reportDocument.quickCopy.focusToday}`,
+    `Monitor: ${reportDocument.quickCopy.monitor}`,
+    `Avoid: ${reportDocument.quickCopy.avoid}`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -193,19 +238,6 @@ function ExportTargetBadge({ target }: { target: DailyBriefReportAudience }) {
 }
 
 function ExportChannelCard({ card }: { card: ExportCard }) {
-  const statusVariant: BadgeProps["variant"] =
-    card.status === "live"
-      ? "secondary"
-      : card.status === "ready"
-        ? "accent"
-        : "muted";
-  const statusLabel =
-    card.status === "live"
-      ? "Live"
-      : card.status === "ready"
-        ? "Ready model"
-        : "Planned";
-
   return (
     <Card className="border-border/10 bg-[#160d0d]/62">
       <CardHeader>
@@ -216,11 +248,22 @@ function ExportChannelCard({ card }: { card: ExportCard }) {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <CardTitle className="text-base">{card.title}</CardTitle>
-              <Badge variant={statusVariant}>{statusLabel}</Badge>
+              <Badge variant={exportCardVariant(card.status)}>
+                {card.status === "live"
+                  ? "Live"
+                  : card.status === "ready"
+                    ? "Ready"
+                    : "Planned"}
+              </Badge>
+              <Badge variant="muted">{card.group}</Badge>
             </div>
             <CardDescription className="mt-2 leading-6">
               {card.description}
             </CardDescription>
+            <p className="mt-3 text-xs leading-5 text-muted-foreground/65">
+              <span className="text-secondary">Best use:</span>{" "}
+              {card.recommendedUse}
+            </p>
           </div>
         </div>
       </CardHeader>
@@ -233,10 +276,169 @@ function ExportChannelCard({ card }: { card: ExportCard }) {
   );
 }
 
+function ExportFlowQaPanel({ qa }: { qa: ReportsExportFlowQa }) {
+  return (
+    <Card className="border-secondary/15 bg-[#160d0d]/72 signal-glow">
+      <CardHeader>
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+              <ShieldCheck className="h-4 w-4" />
+              Reports Hub QA & export flow polish
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge variant={exportFlowVariant(qa.status)}>
+                {qa.statusLabel}
+              </Badge>
+              <Badge variant="muted">Flow score {qa.score}/100</Badge>
+              <Badge variant="secondary">
+                {qa.metrics.liveChannels} live export
+                {qa.metrics.liveChannels === 1 ? "" : "s"}
+              </Badge>
+              <Badge
+                variant={qa.metrics.validationWarnings ? "accent" : "muted"}
+              >
+                {qa.metrics.validationWarnings} validation warning
+                {qa.metrics.validationWarnings === 1 ? "" : "s"}
+              </Badge>
+            </div>
+            <CardTitle className="mt-4 text-2xl tracking-[-0.035em]">
+              Export flow is calibrated before adding heavier report features.
+            </CardTitle>
+            <CardDescription className="mt-2 max-w-4xl leading-6">
+              {qa.summary}
+            </CardDescription>
+            <p className="mt-3 max-w-4xl text-sm leading-6 text-muted-foreground/72">
+              {qa.recommendedPath}
+            </p>
+          </div>
+          <div className="grid min-w-[280px] grid-cols-2 gap-2 text-center">
+            <MiniMetric label="Live" value={qa.metrics.liveChannels} />
+            <MiniMetric label="Ready" value={qa.metrics.readyChannels} />
+            <MiniMetric label="Planned" value={qa.metrics.plannedChannels} />
+            <MiniMetric
+              label="Quick copy"
+              value={qa.metrics.quickCopyReady ? "Ready" : "Thin"}
+            />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="grid gap-3 lg:grid-cols-5">
+          {qa.flowSteps.map((step, index) => (
+            <div
+              key={step.id}
+              className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-4"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <Badge variant={step.recommended ? "secondary" : "muted"}>
+                  {index + 1}
+                </Badge>
+                <Badge variant="muted">{step.group}</Badge>
+              </div>
+              <p className="mt-3 text-sm font-semibold text-foreground">
+                {step.label}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground/68">
+                {step.detail}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Export channel health
+            </p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {qa.channels.map((channel) => (
+                <div
+                  key={channel.id}
+                  className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-foreground">
+                      {channel.label}
+                    </p>
+                    <Badge variant={channelVariant(channel.status)}>
+                      {channel.status}
+                    </Badge>
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground/66">
+                    {channel.detail}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              QA checklist
+            </p>
+            <div className="mt-3 space-y-2">
+              {qa.checklist.map((item) => (
+                <div
+                  key={item.id}
+                  className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+                >
+                  <div className="flex items-center gap-2">
+                    {item.complete ? (
+                      <CheckCircle2 className="h-4 w-4 text-secondary" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4 text-accent" />
+                    )}
+                    <p className="text-sm font-semibold text-foreground">
+                      {item.label}
+                    </p>
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground/66">
+                    {item.detail}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {qa.warnings.length > 0 ? (
+          <div className="rounded-2xl border border-accent/25 bg-accent/10 p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-accent-foreground">
+              <AlertTriangle className="h-4 w-4" />
+              Export flow warnings
+            </div>
+            <div className="mt-3 grid gap-2 lg:grid-cols-2">
+              {qa.warnings.map((warning) => (
+                <div
+                  key={warning.id}
+                  className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={severityVariant(warning.severity)}>
+                      {warning.severity}
+                    </Badge>
+                    <p className="text-sm font-semibold text-foreground">
+                      {warning.label}
+                    </p>
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground/70">
+                    {warning.detail}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
 function ReportDocumentPanel({
-  document,
+  reportDocument,
 }: {
-  document: DailyBriefReportDocument;
+  reportDocument: DailyBriefReportDocument;
 }) {
   return (
     <Card className="border-secondary/15 bg-[#160d0d]/72 signal-glow">
@@ -248,19 +450,18 @@ function ReportDocumentPanel({
               Daily Brief report document
             </div>
             <CardTitle className="mt-3 text-2xl tracking-[-0.035em]">
-              {document.title}
+              {reportDocument.title}
             </CardTitle>
             <CardDescription className="mt-2 max-w-3xl leading-6">
-              {document.subtitle} This is the same stable document model used by
-              the HTML export, so Reports is now a real export hub instead of a
-              decorative button graveyard.
+              {reportDocument.subtitle} The same stable model powers HTML, JSON,
+              quick-copy and future export layers.
             </CardDescription>
             <div className="mt-4 flex flex-wrap gap-2">
-              <Badge variant="secondary">{document.schemaVersion}</Badge>
+              <Badge variant="secondary">{reportDocument.schemaVersion}</Badge>
               <Badge variant="muted">
-                Generated {formatDate(document.generatedAt)}
+                Generated {formatDate(reportDocument.generatedAt)}
               </Badge>
-              {document.exportTargets.map((target) => (
+              {reportDocument.exportTargets.map((target) => (
                 <ExportTargetBadge key={target} target={target} />
               ))}
             </div>
@@ -268,25 +469,28 @@ function ReportDocumentPanel({
           <div className="grid min-w-[280px] grid-cols-3 gap-2 text-center">
             <MiniMetric
               label="Sections"
-              value={document.integrity.sectionCount}
+              value={reportDocument.integrity.sectionCount}
             />
-            <MiniMetric label="Blocks" value={document.integrity.blockCount} />
+            <MiniMetric
+              label="Blocks"
+              value={reportDocument.integrity.blockCount}
+            />
             <MiniMetric
               label="Refs"
-              value={document.integrity.trendReferenceCount}
+              value={reportDocument.integrity.trendReferenceCount}
             />
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {document.integrity.validationWarnings.length > 0 ? (
+        {reportDocument.integrity.validationWarnings.length > 0 ? (
           <div className="rounded-2xl border border-accent/25 bg-accent/10 p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-accent-foreground">
               <AlertTriangle className="h-4 w-4" />
               Export cautions
             </div>
             <ul className="mt-3 list-inside list-disc space-y-1 text-sm leading-6 text-muted-foreground/80">
-              {document.integrity.validationWarnings.map((warning) => (
+              {reportDocument.integrity.validationWarnings.map((warning) => (
                 <li key={warning}>{warning}</li>
               ))}
             </ul>
@@ -299,7 +503,7 @@ function ReportDocumentPanel({
         )}
 
         <div className="grid gap-3 lg:grid-cols-2">
-          {document.sections.map((section) => (
+          {reportDocument.sections.map((section) => (
             <div
               key={section.id}
               className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-4"
@@ -325,12 +529,12 @@ function ReportDocumentPanel({
 }
 
 function QuickCopyPanel({
-  document,
+  reportDocument,
   copyState,
   onCopySummary,
   onCopyMarkdown,
 }: {
-  document: DailyBriefReportDocument;
+  reportDocument: DailyBriefReportDocument;
   copyState: CopyState;
   onCopySummary: () => void;
   onCopyMarkdown: () => void;
@@ -354,23 +558,23 @@ function QuickCopyPanel({
       <CardContent className="space-y-4">
         <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
           <p className="text-sm font-semibold text-foreground">
-            {document.quickCopy.headline}
+            {reportDocument.quickCopy.headline}
           </p>
           <p className="mt-2 text-sm leading-6 text-muted-foreground/78">
-            {document.quickCopy.summary}
+            {reportDocument.quickCopy.summary}
           </p>
           <div className="mt-3 grid gap-2 text-xs leading-5 text-muted-foreground/70">
             <p>
               <span className="text-secondary">Focus:</span>{" "}
-              {document.quickCopy.focusToday}
+              {reportDocument.quickCopy.focusToday}
             </p>
             <p>
               <span className="text-secondary">Monitor:</span>{" "}
-              {document.quickCopy.monitor}
+              {reportDocument.quickCopy.monitor}
             </p>
             <p>
               <span className="text-secondary">Avoid:</span>{" "}
-              {document.quickCopy.avoid}
+              {reportDocument.quickCopy.avoid}
             </p>
           </div>
         </div>
@@ -385,7 +589,10 @@ function QuickCopyPanel({
             Copy markdown
           </Button>
           {copyState === "copied" ? (
-            <Badge variant="secondary">Copied</Badge>
+            <Badge variant="secondary">
+              <CopyCheck className="mr-1 h-3 w-3" />
+              Copied
+            </Badge>
           ) : null}
           {copyState === "failed" ? (
             <Badge variant="danger">Clipboard unavailable</Badge>
@@ -435,7 +642,19 @@ export function ReportsHubView() {
     void loadBrief();
   }, [loadBrief]);
 
-  const document = brief?.reportDocument ?? null;
+  useEffect(() => {
+    if (copyState === "idle") return;
+
+    const timeout = window.setTimeout(() => setCopyState("idle"), 2200);
+    return () => window.clearTimeout(timeout);
+  }, [copyState]);
+
+  const reportDocument = brief?.reportDocument ?? null;
+
+  const exportQa = useMemo(
+    () => (reportDocument ? buildReportsExportFlowQa(reportDocument) : null),
+    [reportDocument],
+  );
 
   const exportCards = useMemo<ExportCard[]>(() => {
     const htmlActions = (
@@ -447,7 +666,7 @@ export function ReportsHubView() {
             rel="noreferrer"
           >
             <Eye className="mr-2 h-4 w-4" />
-            Preview HTML
+            Preview
           </a>
         </Button>
         <Button asChild size="sm" variant="outline">
@@ -457,7 +676,7 @@ export function ReportsHubView() {
             })}
           >
             <Download className="mr-2 h-4 w-4" />
-            Download HTML
+            Download
           </a>
         </Button>
       </>
@@ -471,8 +690,8 @@ export function ReportsHubView() {
             target="_blank"
             rel="noreferrer"
           >
-            <FileJson className="mr-2 h-4 w-4" />
-            Preview JSON
+            <Eye className="mr-2 h-4 w-4" />
+            Preview model
           </a>
         </Button>
         <Button asChild size="sm" variant="outline">
@@ -482,16 +701,31 @@ export function ReportsHubView() {
             })}
           >
             <Download className="mr-2 h-4 w-4" />
-            Download JSON
+            Download model
           </a>
         </Button>
-        <Button asChild size="sm" variant="ghost">
+      </>
+    );
+
+    const developerActions = (
+      <>
+        <Button asChild size="sm" variant="outline">
           <a
             href={buildDailyBriefApiUrl(selectedWindow)}
             target="_blank"
             rel="noreferrer"
           >
-            Full API payload
+            <Code2 className="mr-2 h-4 w-4" />
+            Full API
+          </a>
+        </Button>
+        <Button asChild size="sm" variant="ghost">
+          <a
+            href={buildDailyBriefFullJsonExportUrl(selectedWindow)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Full JSON export
           </a>
         </Button>
       </>
@@ -500,28 +734,60 @@ export function ReportsHubView() {
     return [
       {
         id: "daily-brief-html",
-        title: "Daily Brief HTML Export",
+        title: "HTML Export",
         description:
-          "Standalone HTML preview/download powered by the Daily Brief reportDocument model.",
+          "Primary manual report output for previewing and saving the Daily Brief as a standalone page.",
+        group: "Primary",
         status: "live",
+        recommendedUse:
+          "Human review, manual sharing and browser-based saving.",
         icon: FileText,
         actions: htmlActions,
       },
       {
         id: "daily-brief-json",
-        title: "Daily Brief JSON Export",
+        title: "JSON Export",
         description:
-          "Clean JSON preview/download powered by the same reportDocument model as the HTML export.",
+          "Clean reportDocument payload for structured inspection, integration and future automation.",
+        group: "Model",
         status: "live",
+        recommendedUse:
+          "Use when validating the data model, not as the main readable report.",
         icon: FileJson,
         actions: jsonActions,
+      },
+      {
+        id: "quick-copy",
+        title: "Quick Copy",
+        description:
+          "Reusable summary and markdown payload for notes, posts or handoff without a file export.",
+        group: "Reuse",
+        status: "ready",
+        recommendedUse:
+          "Fast manual reuse when a full HTML/JSON file is overkill.",
+        icon: Clipboard,
+      },
+      {
+        id: "developer-payload",
+        title: "Developer Payload",
+        description:
+          "Diagnostics for the complete Daily Brief API and full JSON export envelope.",
+        group: "Developer",
+        status: "ready",
+        recommendedUse:
+          "Debugging only. Keep this away from the main user export path.",
+        icon: Code2,
+        actions: developerActions,
       },
       {
         id: "daily-brief-pdf",
         title: "PDF Export",
         description:
-          "Not implemented yet. It should reuse the same reportDocument sections and HTML layout later.",
+          "Not implemented yet. It should reuse the current reportDocument model and HTML layout later.",
+        group: "Later",
         status: "planned",
+        recommendedUse:
+          "Add only after HTML export stays stable across real scan data.",
         icon: Download,
       },
       {
@@ -529,33 +795,36 @@ export function ReportsHubView() {
         title: "Email Report",
         description:
           "Not implemented yet. No sending, cron or automation has been introduced in this step.",
+        group: "Later",
         status: "planned",
+        recommendedUse:
+          "Add after export model, HTML and JSON paths are boringly reliable.",
         icon: Mail,
       },
     ];
   }, [selectedWindow]);
 
   const copySummary = useCallback(async () => {
-    if (!document) return;
+    if (!reportDocument) return;
 
     try {
-      await copyText(buildQuickCopyText(document));
+      await copyText(buildQuickCopyText(reportDocument));
       setCopyState("copied");
     } catch {
       setCopyState("failed");
     }
-  }, [document]);
+  }, [reportDocument]);
 
   const copyMarkdown = useCallback(async () => {
-    if (!document) return;
+    if (!reportDocument) return;
 
     try {
-      await copyText(document.quickCopy.markdown);
+      await copyText(reportDocument.quickCopy.markdown);
       setCopyState("copied");
     } catch {
       setCopyState("failed");
     }
-  }, [document]);
+  }, [reportDocument]);
 
   return (
     <AppShell>
@@ -566,12 +835,12 @@ export function ReportsHubView() {
               Reports Hub
             </p>
             <h1 className="mt-3 max-w-4xl text-balance text-4xl font-semibold tracking-[-0.04em] text-foreground md:text-5xl">
-              Daily Brief exports, in one place.
+              Daily Brief exports, cleaned up.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
-              Reports now uses the real Daily Intelligence Brief layer: HTML and
-              JSON preview/download, export-readiness checks and quick-copy
-              payloads. No mock weekly report cosplay.
+              Reports now has a clear manual flow: review the brief, preview
+              HTML, download HTML, inspect JSON only when needed. No mock weekly
+              report cosplay, no button soup.
             </p>
           </div>
 
@@ -591,14 +860,13 @@ export function ReportsHubView() {
 
         <div className="grid gap-3 md:grid-cols-4">
           <MiniMetric label="Active window" value={selectedWindow} />
-          <MiniMetric label="Live exports" value="1" />
           <MiniMetric
-            label="Ready model"
-            value={
-              document
-                ? document.schemaVersion.replace("daily-brief-", "")
-                : "..."
-            }
+            label="Live exports"
+            value={exportQa?.metrics.liveChannels ?? "..."}
+          />
+          <MiniMetric
+            label="Flow QA"
+            value={exportQa ? `${exportQa.score}/100` : "..."}
           />
           <MiniMetric
             label="Latest scan"
@@ -617,7 +885,7 @@ export function ReportsHubView() {
 
         {!isLoading && !brief ? <EmptyState error={error} /> : null}
 
-        {brief && document ? (
+        {brief && reportDocument && exportQa ? (
           <>
             <Card className="border-border/10 bg-[#160d0d]/62">
               <CardHeader>
@@ -630,7 +898,10 @@ export function ReportsHubView() {
                         {brief.briefPosture.label}
                       </Badge>
                       <Badge variant={qaStatusVariant(brief.qa.status)}>
-                        QA: {brief.qa.statusLabel}
+                        Brief QA: {brief.qa.statusLabel}
+                      </Badge>
+                      <Badge variant={exportFlowVariant(exportQa.status)}>
+                        Export QA: {exportQa.statusLabel}
                       </Badge>
                       <Badge variant="muted">
                         Confidence {brief.briefPosture.confidence}/100
@@ -660,22 +931,34 @@ export function ReportsHubView() {
                         Preview HTML
                       </a>
                     </Button>
+                    <Button asChild variant="ghost">
+                      <a
+                        href={buildDailyBriefHtmlExportUrl(selectedWindow, {
+                          download: true,
+                        })}
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        Download HTML
+                      </a>
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
             </Card>
 
-            <div className="grid gap-4 xl:grid-cols-2">
+            <ExportFlowQaPanel qa={exportQa} />
+
+            <div className="grid gap-4 xl:grid-cols-3">
               {exportCards.map((card) => (
                 <ExportChannelCard key={card.id} card={card} />
               ))}
             </div>
 
             <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
-              <ReportDocumentPanel document={document} />
+              <ReportDocumentPanel reportDocument={reportDocument} />
               <div className="space-y-5">
                 <QuickCopyPanel
-                  document={document}
+                  reportDocument={reportDocument}
                   copyState={copyState}
                   onCopySummary={copySummary}
                   onCopyMarkdown={copyMarkdown}
@@ -684,28 +967,29 @@ export function ReportsHubView() {
                 <Card className="border-border/10 bg-[#160d0d]/62">
                   <CardHeader>
                     <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
-                      <ShieldCheck className="h-4 w-4" />
-                      Integration boundaries
+                      <ArrowRight className="h-4 w-4" />
+                      What not to add yet
                     </div>
                     <CardDescription className="leading-6">
-                      This step wires Reports to Daily Brief exports. It does
-                      not add PDF generation, email sending, cron scheduling or
-                      a new reports database table.
+                      This polish step keeps the export layer intentionally
+                      boring: clear manual paths first, heavier automation
+                      later.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="grid gap-2 text-sm leading-6 text-muted-foreground/78">
                     <p>
-                      <span className="text-secondary">Live:</span> Daily Brief
-                      HTML preview and download.
+                      <span className="text-secondary">No PDF yet:</span> HTML
+                      should stay stable before rendering complexity arrives.
                     </p>
                     <p>
-                      <span className="text-secondary">Reusable:</span> JSON
-                      response and reportDocument model.
+                      <span className="text-secondary">No email yet:</span> no
+                      sending, cron or report database has been introduced.
                     </p>
                     <p>
-                      <span className="text-secondary">Later:</span> PDF/email
-                      can reuse the current model without reverse-engineering
-                      UI.
+                      <span className="text-secondary">
+                        No duplicate logic:
+                      </span>{" "}
+                      HTML, JSON and Reports all point back to reportDocument.
                     </p>
                   </CardContent>
                 </Card>
