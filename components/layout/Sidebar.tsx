@@ -2,23 +2,51 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import {
   BarChart3,
   BookmarkCheck,
   FileText,
   Gauge,
-  Newspaper,
   ListChecks,
   Lightbulb,
+  Newspaper,
   Radar,
   Settings,
+  ShieldCheck,
   Sparkles,
+  Wrench,
+  type LucideIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-const dashboardSections = [
+const workspaceStorageKey = "trend-finder-workspace-view";
+const sectionIds = [
+  "dashboard-overview",
+  "charts",
+  "hidden-gems",
+  "creator-mode",
+  "signals",
+] as const;
+
+type DashboardSectionId = (typeof sectionIds)[number];
+type WorkspaceView = "product" | "admin";
+
+type NavItem = {
+  id?: DashboardSectionId;
+  href: string;
+  label: string;
+  icon: LucideIcon;
+};
+
+type DisabledNavItem = {
+  label: string;
+  icon: LucideIcon;
+  reason: string;
+};
+
+const dashboardSections: NavItem[] = [
   {
     id: "dashboard-overview",
     href: "/dashboard",
@@ -39,19 +67,29 @@ const dashboardSections = [
     icon: Lightbulb,
   },
   { id: "signals", href: "/dashboard#signals", label: "Signals", icon: Radar },
-] as const;
+];
 
-const routeItems = [
+const productRouteItems: NavItem[] = [
   { href: "/watchlist", label: "Watchlist", icon: BookmarkCheck },
   { href: "/action-queue", label: "Action Queue", icon: ListChecks },
   { href: "/daily-brief", label: "Daily Brief", icon: Newspaper },
   { href: "/reports", label: "Reports", icon: FileText },
   { href: "/settings", label: "Settings", icon: Settings },
-] as const;
+];
 
-const sectionIds = dashboardSections.map((item) => item.id);
+const adminRouteItems: NavItem[] = [
+  { href: "/dashboard", label: "Dashboard", icon: Gauge },
+  { href: "/reports", label: "Reports", icon: FileText },
+  { href: "/daily-brief", label: "Daily Brief", icon: Newspaper },
+  { href: "/admin/automation", label: "Automation", icon: ShieldCheck },
+  { href: "/settings", label: "Settings", icon: Settings },
+];
 
-type DashboardSectionId = (typeof sectionIds)[number];
+const adminComingSoonItems: DisabledNavItem[] = [
+  { label: "Scan Health", icon: Radar, reason: "coming soon" },
+  { label: "Export QA", icon: BarChart3, reason: "coming soon" },
+  { label: "System Diagnostics", icon: Wrench, reason: "coming soon" },
+];
 
 function getInitialDashboardSection(): DashboardSectionId {
   if (typeof window === "undefined") return "dashboard-overview";
@@ -62,15 +100,49 @@ function getInitialDashboardSection(): DashboardSectionId {
     : "dashboard-overview";
 }
 
+function getInitialWorkspaceView(pathname: string): WorkspaceView {
+  if (pathname.startsWith("/admin")) return "admin";
+  if (typeof window === "undefined") return "product";
+
+  const storedValue = window.localStorage.getItem(workspaceStorageKey);
+  return storedValue === "admin" || storedValue === "product"
+    ? storedValue
+    : "product";
+}
+
+function isSameRoute(pathname: string, href: string) {
+  if (href === "/dashboard") return pathname === "/" || pathname === "/dashboard";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function Sidebar() {
   const pathname = usePathname();
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>(() =>
+    getInitialWorkspaceView(pathname),
+  );
   const [activeDashboardSection, setActiveDashboardSection] =
     useState<DashboardSectionId>(getInitialDashboardSection);
 
-  const isDashboard = pathname === "/dashboard";
+  const isDashboard = pathname === "/dashboard" || pathname === "/";
+  const isAdminView = workspaceView === "admin";
+
+  const navItems = useMemo(
+    () => (isAdminView ? adminRouteItems : [...dashboardSections, ...productRouteItems]),
+    [isAdminView],
+  );
 
   useEffect(() => {
-    if (!isDashboard) return;
+    if (pathname.startsWith("/admin")) {
+      setWorkspaceView("admin");
+    }
+  }, [pathname]);
+
+  useEffect(() => {
+    window.localStorage.setItem(workspaceStorageKey, workspaceView);
+  }, [workspaceView]);
+
+  useEffect(() => {
+    if (!isDashboard || isAdminView) return;
 
     const scrollRoot = document.getElementById("dashboard-scroll-area");
     if (!scrollRoot) return;
@@ -140,13 +212,18 @@ export function Sidebar() {
       scrollRoot.removeEventListener("scroll", requestActiveSectionUpdate);
       window.removeEventListener("resize", requestActiveSectionUpdate);
     };
-  }, [isDashboard]);
+  }, [isAdminView, isDashboard]);
+
+  function handleWorkspaceChange(nextView: WorkspaceView) {
+    setWorkspaceView(nextView);
+    window.localStorage.setItem(workspaceStorageKey, nextView);
+  }
 
   function handleDashboardNavClick(
     event: MouseEvent<HTMLAnchorElement>,
     sectionId: DashboardSectionId,
   ) {
-    if (!isDashboard) return;
+    if (!isDashboard || isAdminView) return;
 
     const target = document.getElementById(sectionId);
     if (!target) return;
@@ -171,21 +248,55 @@ export function Sidebar() {
             <p className="text-xs text-muted-foreground/70">AI Signal Radar</p>
           </div>
         </div>
+
         <div className="mt-4 flex items-center justify-between rounded-xl border border-border/10 bg-muted/45 px-3 py-2">
-          <span className="text-xs text-muted-foreground/75">Mode</span>
+          <span className="text-xs text-muted-foreground/75">Lens</span>
           <Badge variant="accent">Creator + Startup</Badge>
+        </div>
+
+        <div className="mt-3 rounded-xl border border-border/10 bg-[#0f0808]/35 p-2">
+          <div className="mb-2 flex items-center justify-between px-1">
+            <span className="text-xs text-muted-foreground/75">View</span>
+            <Badge variant={isAdminView ? "secondary" : "muted"}>
+              {isAdminView ? "Admin" : "Product"}
+            </Badge>
+          </div>
+          <div className="grid grid-cols-2 gap-1">
+            {(["product", "admin"] as const).map((view) => (
+              <button
+                key={view}
+                type="button"
+                onClick={() => handleWorkspaceChange(view)}
+                className={cn(
+                  "rounded-lg px-2 py-1.5 text-xs font-medium transition",
+                  workspaceView === view
+                    ? "bg-primary text-primary-foreground shadow-radar"
+                    : "text-muted-foreground/75 hover:bg-muted hover:text-foreground",
+                )}
+              >
+                {view === "product" ? "Product" : "Admin"}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       <nav className="space-y-1">
-        {dashboardSections.map((item) => {
-          const isActive = isDashboard && activeDashboardSection === item.id;
+        {navItems.map((item) => {
+          const isDashboardSection = !isAdminView && item.id;
+          const isActive = isDashboardSection
+            ? isDashboard && activeDashboardSection === item.id
+            : isSameRoute(pathname, item.href);
 
           return (
             <Link
-              key={item.href}
+              key={`${item.href}-${item.label}`}
               href={item.href}
-              onClick={(event) => handleDashboardNavClick(event, item.id)}
+              onClick={
+                item.id
+                  ? (event) => handleDashboardNavClick(event, item.id as DashboardSectionId)
+                  : undefined
+              }
               aria-current={isActive ? "page" : undefined}
               className={cn(
                 "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition",
@@ -200,26 +311,30 @@ export function Sidebar() {
           );
         })}
 
-        {routeItems.map((item) => {
-          const isActive = pathname === item.href;
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={isActive ? "page" : undefined}
-              className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition",
-                isActive
-                  ? "bg-primary text-primary-foreground shadow-radar"
-                  : "text-muted-foreground/75 hover:bg-muted hover:text-foreground",
-              )}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </Link>
-          );
-        })}
+        {isAdminView ? (
+          <div className="pt-3">
+            <p className="px-3 pb-2 text-[0.66rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground/50">
+              Diagnostics
+            </p>
+            <div className="space-y-1">
+              {adminComingSoonItems.map((item) => (
+                <div
+                  key={item.label}
+                  className="flex cursor-not-allowed items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground/38"
+                  aria-disabled="true"
+                >
+                  <span className="flex items-center gap-3">
+                    <item.icon className="h-4 w-4" />
+                    {item.label}
+                  </span>
+                  <span className="text-[0.65rem] uppercase tracking-[0.16em]">
+                    {item.reason}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </nav>
 
       <div className="mt-8 rounded-2xl border border-secondary/20 bg-secondary/10 p-4">

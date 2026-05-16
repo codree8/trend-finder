@@ -151,6 +151,7 @@ import type {
 const windowOptions: DashboardWindow[] = ["24h", "7d", "30d"];
 
 type CopyState = "idle" | "copied" | "failed";
+type ReportsHubMode = "product" | "automation-admin";
 
 type ExportCardStatus = "live" | "ready" | "planned";
 
@@ -1304,6 +1305,117 @@ function ExportSystemReadinessPanel({
               </p>
             </div>
           ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProductReadinessSummaryPanel({
+  readiness,
+  serverPdfQa,
+  serverPdfQaError,
+  selectedWindow,
+}: {
+  readiness: ExportSystemReadiness;
+  serverPdfQa: DailyBriefServerPdfReliabilityQa | null;
+  serverPdfQaError: string | null;
+  selectedWindow: DashboardWindow;
+}) {
+  const statusLabel =
+    readiness.status === "ready"
+      ? "Ready"
+      : readiness.status === "review"
+        ? "Review"
+        : "Blocked";
+
+  return (
+    <Card className="border-secondary/15 bg-[#160d0d]/72 signal-glow">
+      <CardHeader>
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+              <ShieldCheck className="h-4 w-4" />
+              Report readiness
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge variant={readinessVariant(readiness.status)}>
+                {statusLabel}
+              </Badge>
+              <Badge variant="muted">Score {readiness.score}/100</Badge>
+              {serverPdfQa ? (
+                <Badge variant={serverPdfReliabilityVariant(serverPdfQa.status)}>
+                  PDF {serverPdfQa.statusLabel}
+                </Badge>
+              ) : (
+                <Badge variant={serverPdfQaError ? "accent" : "muted"}>
+                  PDF check {serverPdfQaError ? "needs review" : "loading"}
+                </Badge>
+              )}
+            </div>
+            <CardTitle className="mt-4 text-2xl tracking-[-0.035em]">
+              {readiness.statusLabel}
+            </CardTitle>
+            <CardDescription className="mt-2 max-w-4xl leading-6">
+              {readiness.summary}
+            </CardDescription>
+            <p className="mt-3 max-w-4xl text-sm leading-6 text-muted-foreground/72">
+              {readiness.recommendedNextStep}
+            </p>
+          </div>
+          <div className="grid min-w-[280px] grid-cols-2 gap-2 text-center">
+            <MiniMetric label="Manual export" value={readiness.manualExportScore} />
+            <MiniMetric label="Print layout" value={readiness.metrics.printLayoutScore} />
+            <MiniMetric label="PDF" value={readiness.metrics.serverPdfScore} />
+            <MiniMetric label="Warnings" value={readiness.metrics.warnings} />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 md:grid-cols-3">
+          {readiness.recommendations.slice(0, 3).map((recommendation) => (
+            <div
+              key={recommendation.id}
+              className="rounded-2xl border border-border/10 bg-muted/25 p-4"
+            >
+              <Badge
+                variant={
+                  recommendation.priority === "now"
+                    ? "secondary"
+                    : recommendation.priority === "next"
+                      ? "accent"
+                      : "muted"
+                }
+              >
+                {recommendation.priority}
+              </Badge>
+              <p className="mt-3 text-sm font-semibold text-foreground">
+                {recommendation.label}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground/70">
+                {recommendation.detail}
+              </p>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm" variant="outline">
+            <a
+              href={buildDailyBriefExportReadinessUrl(selectedWindow)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              Open readiness details
+            </a>
+          </Button>
+          <Link
+            href="/admin/automation"
+            className="inline-flex items-center rounded-xl px-3 py-2 text-xs font-medium text-muted-foreground/70 transition hover:bg-muted hover:text-foreground"
+          >
+            Admin diagnostics
+            <ArrowRight className="ml-2 h-3.5 w-3.5" />
+          </Link>
         </div>
       </CardContent>
     </Card>
@@ -2912,15 +3024,13 @@ function QuickCopyPanel({
       <CardHeader>
         <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
           <Clipboard className="h-4 w-4" />
-          Quick-copy payload
+          Quick Copy
         </div>
         <CardTitle className="text-xl tracking-[-0.035em]">
           Reuse the brief without opening the dashboard
         </CardTitle>
         <CardDescription>
-          Pulls from{" "}
-          <code className="text-secondary">reportDocument.quickCopy</code>, not
-          from rendered UI cards.
+          Ready-to-share summary text for notes, posts or a fast handoff.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -3522,7 +3632,11 @@ function InternalEmailTestPrepPanel({
   );
 }
 
-export function ReportsHubView() {
+export function ReportsHubView({
+  mode = "product",
+}: {
+  mode?: ReportsHubMode;
+} = {}) {
   const [selectedWindow, setSelectedWindow] = useState<DashboardWindow>("7d");
   const [brief, setBrief] = useState<DailyBriefResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -3531,6 +3645,7 @@ export function ReportsHubView() {
     useState<DailyBriefServerPdfReliabilityQa | null>(null);
   const [serverPdfQaError, setServerPdfQaError] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<CopyState>("idle");
+  const isAdminMode = mode === "automation-admin";
 
   const loadBrief = useCallback(async () => {
     setIsLoading(true);
@@ -3792,7 +3907,7 @@ export function ReportsHubView() {
             rel="noreferrer"
           >
             <Eye className="mr-2 h-4 w-4" />
-            Preview model
+            Open JSON
           </a>
         </Button>
         <Button asChild size="sm" variant="outline">
@@ -3802,7 +3917,7 @@ export function ReportsHubView() {
             })}
           >
             <Download className="mr-2 h-4 w-4" />
-            Download model
+            Download JSON
           </a>
         </Button>
       </>
@@ -3938,35 +4053,35 @@ export function ReportsHubView() {
         id: "daily-brief-html",
         title: "HTML Export",
         description:
-          "Primary manual report output for previewing and saving the Daily Brief as a standalone page.",
+          "Open or save the Daily Brief as a standalone HTML report.",
         group: "Primary",
         status: "live",
         recommendedUse:
-          "Human review, manual sharing and browser-based saving.",
+          "Review in browser or save as a page.",
         icon: FileText,
         actions: htmlActions,
       },
       {
         id: "daily-brief-pdf",
-        title: "Server PDF Export",
+        title: "PDF Export",
         description:
-          "Live application/pdf endpoint generated from the Daily Brief reportDocument model. v1 is compact and dependency-free.",
+          "Download a finished PDF version of the Daily Brief.",
         group: "Primary",
         status: "live",
         recommendedUse:
-          "Use when you need an actual PDF file without going through browser print.",
+          "Best when you need a ready-to-share file.",
         icon: Download,
         actions: pdfActions,
       },
       {
         id: "daily-brief-pdf-prep",
-        title: "PDF Prep Layout",
+        title: "Print-ready Preview",
         description:
-          "Print-safe A4 HTML layout for visual QA and browser Print → Save as PDF fallback.",
+          "A4-friendly version for checking layout before sharing or printing.",
         group: "Primary",
         status: "ready",
         recommendedUse:
-          "Use when you want to inspect page breaks before trusting the binary PDF export.",
+          "Use when layout and page breaks matter.",
         icon: Printer,
         actions: pdfPrepActions,
       },
@@ -3974,11 +4089,11 @@ export function ReportsHubView() {
         id: "daily-brief-json",
         title: "JSON Export",
         description:
-          "Clean reportDocument payload for structured inspection, integration and future automation.",
+          "Structured report data for analysis, archive or handoff.",
         group: "Model",
         status: "live",
         recommendedUse:
-          "Use when validating the data model, not as the main readable report.",
+          "Use when you need structured data for analysis or handoff.",
         icon: FileJson,
         actions: jsonActions,
       },
@@ -4031,6 +4146,16 @@ export function ReportsHubView() {
     ];
   }, [selectedWindow]);
 
+  const visibleExportCards = useMemo(
+    () =>
+      isAdminMode
+        ? exportCards
+        : exportCards.filter(
+            (card) => card.group !== "Developer" && card.group !== "Later",
+          ),
+    [exportCards, isAdminMode],
+  );
+
   const copySummary = useCallback(async () => {
     if (!reportDocument) return;
 
@@ -4059,16 +4184,17 @@ export function ReportsHubView() {
         <section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.32em] text-secondary">
-              Reports Hub
+              {isAdminMode ? "Automation Admin" : "Reports Hub"}
             </p>
             <h1 className="mt-3 max-w-4xl text-balance text-4xl font-semibold tracking-[-0.04em] text-foreground md:text-5xl">
-              Daily Brief exports, cleaned up.
+              {isAdminMode
+                ? "Automation diagnostics, safely isolated."
+                : "Export the brief without the control-room clutter."}
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
-              Reports now has a clear manual flow: review the brief, preview
-              HTML, download the server PDF when you need a real file, use PDF
-              prep for layout QA, then inspect JSON only when needed. No mock
-              weekly report cosplay, no button soup.
+              {isAdminMode
+                ? "This admin workspace keeps dry-runs, guardrails, config contracts, pre-live checks and internal email prep away from the user-facing report flow."
+                : "Review the Daily Brief, export HTML, PDF or JSON, open the print-ready version, or copy a reusable summary. The scary machine-room panels live in Admin now, where they belong."}
             </p>
           </div>
 
@@ -4089,19 +4215,19 @@ export function ReportsHubView() {
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
           <MiniMetric label="Active window" value={selectedWindow} />
           <MiniMetric
-            label="Live exports"
+            label="Export options"
             value={exportQa?.metrics.liveChannels ?? "..."}
           />
           <MiniMetric
-            label="Flow QA"
+            label={isAdminMode ? "Flow QA" : "Report flow"}
             value={exportQa ? `${exportQa.score}/100` : "..."}
           />
           <MiniMetric
-            label="Print QA"
+            label={isAdminMode ? "Print QA" : "Print layout"}
             value={printLayoutQa ? `${printLayoutQa.score}/100` : "..."}
           />
           <MiniMetric
-            label="PDF QA"
+            label={isAdminMode ? "PDF QA" : "PDF"}
             value={serverPdfQa ? `${serverPdfQa.score}/100` : "..."}
           />
           <MiniMetric
@@ -4109,8 +4235,8 @@ export function ReportsHubView() {
             value={exportReadiness ? `${exportReadiness.score}/100` : "..."}
           />
           <MiniMetric
-            label="Dry-run"
-            value={automationDryRun ? automationDryRun.status : "..."}
+            label={isAdminMode ? "Dry-run" : "Status"}
+            value={isAdminMode && automationDryRun ? automationDryRun.status : "Manual"}
           />
           <MiniMetric
             label="Latest scan"
@@ -4142,13 +4268,7 @@ export function ReportsHubView() {
                         {brief.briefPosture.label}
                       </Badge>
                       <Badge variant={qaStatusVariant(brief.qa.status)}>
-                        Brief QA: {brief.qa.statusLabel}
-                      </Badge>
-                      <Badge variant={exportFlowVariant(exportQa.status)}>
-                        Export QA: {exportQa.statusLabel}
-                      </Badge>
-                      <Badge variant={printLayoutVariant(printLayoutQa.status)}>
-                        Print QA: {printLayoutQa.statusLabel}
+                        Brief: {brief.qa.statusLabel}
                       </Badge>
                       {serverPdfQa ? (
                         <Badge
@@ -4156,22 +4276,22 @@ export function ReportsHubView() {
                             serverPdfQa.status,
                           )}
                         >
-                          PDF QA: {serverPdfQa.statusLabel}
+                          PDF: {serverPdfQa.statusLabel}
                         </Badge>
                       ) : null}
                       {exportReadiness ? (
                         <Badge
                           variant={readinessVariant(exportReadiness.status)}
                         >
-                          Readiness: {exportReadiness.statusLabel}
+                          Report readiness: {exportReadiness.statusLabel}
                         </Badge>
                       ) : null}
-                      {automationDryRun ? (
+                      {isAdminMode && automationDryRun ? (
                         <Badge variant={dryRunVariant(automationDryRun.status)}>
                           Dry-run: {automationDryRun.statusLabel}
                         </Badge>
                       ) : null}
-                      {automationPreview ? (
+                      {isAdminMode && automationPreview ? (
                         <Badge
                           variant={previewStatusVariant(
                             automationPreview.previewStatus,
@@ -4180,12 +4300,14 @@ export function ReportsHubView() {
                           Preview: {automationPreview.previewStatus}
                         </Badge>
                       ) : null}
-                      <Badge
-                        variant={safetyModeVariant(automationConfig.safetyMode)}
-                      >
-                        Config: {automationConfig.safetyMode}
-                      </Badge>
-                      {automationPreLiveChecklist ? (
+                      {isAdminMode ? (
+                        <Badge
+                          variant={safetyModeVariant(automationConfig.safetyMode)}
+                        >
+                          Config: {automationConfig.safetyMode}
+                        </Badge>
+                      ) : null}
+                      {isAdminMode && automationPreLiveChecklist ? (
                         <Badge
                           variant={preLiveStatusVariant(
                             automationPreLiveChecklist.checklistStatus,
@@ -4237,62 +4359,73 @@ export function ReportsHubView() {
               </CardHeader>
             </Card>
 
-            <ExportFlowQaPanel qa={exportQa} />
-            <PrintLayoutQaPanel qa={printLayoutQa} />
-            <ServerPdfReliabilityPanel
-              qa={serverPdfQa}
-              error={serverPdfQaError}
-              selectedWindow={selectedWindow}
-            />
-            {exportReadiness ? (
-              <ExportSystemReadinessPanel
+            {isAdminMode ? (
+              <>
+                <ExportFlowQaPanel qa={exportQa} />
+                <PrintLayoutQaPanel qa={printLayoutQa} />
+                <ServerPdfReliabilityPanel
+                  qa={serverPdfQa}
+                  error={serverPdfQaError}
+                  selectedWindow={selectedWindow}
+                />
+                {exportReadiness ? (
+                  <ExportSystemReadinessPanel
+                    readiness={exportReadiness}
+                    selectedWindow={selectedWindow}
+                  />
+                ) : null}
+                {automationDryRun ? (
+                  <AutomationDryRunManifestPanel
+                    manifest={automationDryRun}
+                    selectedWindow={selectedWindow}
+                  />
+                ) : null}
+                {automationGuardrails ? (
+                  <AutomationDryRunGuardrailsPanel
+                    guardrails={automationGuardrails}
+                    selectedWindow={selectedWindow}
+                  />
+                ) : null}
+                {automationPreview ? (
+                  <AutomationPreviewConsolePanel
+                    preview={automationPreview}
+                    selectedWindow={selectedWindow}
+                  />
+                ) : null}
+                <AutomationConfigContractPanel
+                  config={automationConfig}
+                  selectedWindow={selectedWindow}
+                />
+                {automationPreLiveChecklist ? (
+                  <AutomationPreLiveChecklistPanel
+                    checklist={automationPreLiveChecklist}
+                    selectedWindow={selectedWindow}
+                  />
+                ) : null}
+                {automationManualApproval ? (
+                  <AutomationManualApprovalPanel
+                    approval={automationManualApproval}
+                    selectedWindow={selectedWindow}
+                  />
+                ) : null}
+                {automationInternalEmailTestPrep ? (
+                  <InternalEmailTestPrepPanel
+                    prep={automationInternalEmailTestPrep}
+                    selectedWindow={selectedWindow}
+                  />
+                ) : null}
+              </>
+            ) : exportReadiness ? (
+              <ProductReadinessSummaryPanel
                 readiness={exportReadiness}
-                selectedWindow={selectedWindow}
-              />
-            ) : null}
-            {automationDryRun ? (
-              <AutomationDryRunManifestPanel
-                manifest={automationDryRun}
-                selectedWindow={selectedWindow}
-              />
-            ) : null}
-            {automationGuardrails ? (
-              <AutomationDryRunGuardrailsPanel
-                guardrails={automationGuardrails}
-                selectedWindow={selectedWindow}
-              />
-            ) : null}
-            {automationPreview ? (
-              <AutomationPreviewConsolePanel
-                preview={automationPreview}
-                selectedWindow={selectedWindow}
-              />
-            ) : null}
-            <AutomationConfigContractPanel
-              config={automationConfig}
-              selectedWindow={selectedWindow}
-            />
-            {automationPreLiveChecklist ? (
-              <AutomationPreLiveChecklistPanel
-                checklist={automationPreLiveChecklist}
-                selectedWindow={selectedWindow}
-              />
-            ) : null}
-            {automationManualApproval ? (
-              <AutomationManualApprovalPanel
-                approval={automationManualApproval}
-                selectedWindow={selectedWindow}
-              />
-            ) : null}
-            {automationInternalEmailTestPrep ? (
-              <InternalEmailTestPrepPanel
-                prep={automationInternalEmailTestPrep}
+                serverPdfQa={serverPdfQa}
+                serverPdfQaError={serverPdfQaError}
                 selectedWindow={selectedWindow}
               />
             ) : null}
 
             <div className="grid gap-4 xl:grid-cols-3">
-              {exportCards.map((card) => (
+              {visibleExportCards.map((card) => (
                 <ExportChannelCard key={card.id} card={card} />
               ))}
             </div>
@@ -4311,29 +4444,26 @@ export function ReportsHubView() {
                   <CardHeader>
                     <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
                       <ArrowRight className="h-4 w-4" />
-                      What not to add yet
+                      {isAdminMode ? "What not to add yet" : "Export path"}
                     </div>
                     <CardDescription className="leading-6">
-                      This polish step keeps the export layer intentionally
-                      boring: clear manual paths first, heavier automation
-                      later.
+                      {isAdminMode
+                        ? "This polish step keeps the export layer intentionally boring: clear manual paths first, heavier automation later."
+                        : "Keep the user flow simple: open the brief, export the report, copy the summary, move on."}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="grid gap-2 text-sm leading-6 text-muted-foreground/78">
                     <p>
-                      <span className="text-secondary">Server PDF live:</span>{" "}
-                      keep the binary PDF compact; use PDF prep when visual
-                      page-break QA matters.
+                      <span className="text-secondary">Open PDF:</span>{" "}
+                      use the server PDF when you need a finished file.
                     </p>
                     <p>
-                      <span className="text-secondary">No email yet:</span> no
-                      sending, cron or report database has been introduced.
+                      <span className="text-secondary">Print-ready version:</span>{" "}
+                      use it when layout matters before sharing.
                     </p>
                     <p>
-                      <span className="text-secondary">
-                        No duplicate logic:
-                      </span>{" "}
-                      HTML, JSON and Reports all point back to reportDocument.
+                      <span className="text-secondary">Copy summary:</span>{" "}
+                      use quick copy when a full export would be overkill.
                     </p>
                   </CardContent>
                 </Card>

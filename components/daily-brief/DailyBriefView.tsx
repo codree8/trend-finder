@@ -554,10 +554,9 @@ export function DailyBriefView() {
               One report for what matters now.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
-              Manual daily brief built from the existing radar, action queue,
-              watchlist delta, creator timing and noise suppression layers. PDF
-              export exists, but email and cron automation stay out until the
-              export path is boringly reliable.
+              A readable decision brief for trends worth acting on, watching,
+              saving or avoiding. Export the report when you need a file; keep
+              the engineering diagnostics out of the main reading flow.
             </p>
           </div>
 
@@ -612,9 +611,7 @@ export function DailyBriefView() {
         {brief ? (
           <>
             <ExecutiveSummaryCard brief={brief} />
-            <DailyBriefQaPanel qa={brief.qa} />
-            <ExportReadyStructurePanel
-              brief={brief}
+            <DailyBriefExportActionsPanel
               document={brief.reportDocument}
               selectedWindow={trendWindow}
               serverPdfQa={serverPdfQa}
@@ -930,6 +927,161 @@ function DailyBriefQaPanel({ qa }: { qa: DailyBriefQaSummary }) {
           items={qa.tuningNotes}
           empty="No tuning notes available."
         />
+      </CardContent>
+    </Card>
+  );
+}
+
+function DailyBriefExportActionsPanel({
+  document,
+  selectedWindow,
+  serverPdfQa,
+  serverPdfQaError,
+}: {
+  document: DailyBriefReportDocument;
+  selectedWindow: DashboardWindow;
+  serverPdfQa: DailyBriefServerPdfReliabilityQa | null;
+  serverPdfQaError: string | null;
+}) {
+  const validationWarnings = document.integrity.validationWarnings;
+  const printQa = useMemo(
+    () => buildDailyBriefPrintLayoutQa(document),
+    [document],
+  );
+  const exportQa = useMemo(
+    () => buildReportsExportFlowQa(document),
+    [document],
+  );
+  const exportReadiness = useMemo(
+    () =>
+      buildExportSystemReadiness({
+        document,
+        exportQa,
+        printQa,
+        serverPdfQa,
+      }),
+    [document, exportQa, printQa, serverPdfQa],
+  );
+
+  const readinessLabel =
+    exportReadiness.status === "ready"
+      ? "Ready"
+      : exportReadiness.status === "review"
+        ? "Review"
+        : "Blocked";
+
+  return (
+    <Card className="border-secondary/15 bg-[#160d0d]/62">
+      <CardHeader>
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+              <Download className="h-4 w-4" />
+              Export report
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Badge variant={readinessVariant(exportReadiness.status)}>
+                Report readiness: {readinessLabel}
+              </Badge>
+              <Badge variant="muted">Score {exportReadiness.score}/100</Badge>
+              <Badge variant={reportToneVariant(printLayoutStatusTone(printQa.status))}>
+                Print-ready: {printQa.statusLabel}
+              </Badge>
+              {serverPdfQa ? (
+                <Badge variant={serverPdfReliabilityVariant(serverPdfQa.status)}>
+                  PDF: {serverPdfQa.statusLabel}
+                </Badge>
+              ) : (
+                <Badge variant={serverPdfQaError ? "accent" : "muted"}>
+                  PDF check {serverPdfQaError ? "needs review" : "loading"}
+                </Badge>
+              )}
+              <Badge
+                variant={validationWarnings.length > 0 ? "accent" : "secondary"}
+              >
+                {validationWarnings.length > 0
+                  ? `${validationWarnings.length} report caution${validationWarnings.length === 1 ? "" : "s"}`
+                  : "Report clean"}
+              </Badge>
+            </div>
+            <CardDescription className="mt-3 max-w-4xl text-sm leading-6">
+              Open the brief in the format you need: readable HTML, finished PDF,
+              structured JSON, or a print-ready page for layout checks.
+            </CardDescription>
+          </div>
+          <div className="grid min-w-[260px] grid-cols-2 gap-2 text-center">
+            <MiniMetric label="Sections" value={document.integrity.sectionCount} />
+            <MiniMetric label="Blocks" value={document.integrity.blockCount} />
+            <MiniMetric label="Print" value={printQa.score} />
+            <MiniMetric label="PDF" value={serverPdfQa?.score ?? 0} />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm" variant="secondary">
+            <a
+              href={buildDailyBriefPdfExportUrl(selectedWindow, {
+                inline: true,
+              })}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              Open PDF
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <a href={buildDailyBriefPdfExportUrl(selectedWindow)}>
+              <Download className="mr-2 h-4 w-4" />
+              Download PDF
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <a
+              href={buildDailyBriefHtmlExportUrl(selectedWindow)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              HTML Export
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <a
+              href={buildDailyBriefJsonExportUrl(selectedWindow, {
+                download: true,
+              })}
+            >
+              <FileJson className="mr-2 h-4 w-4" />
+              Download JSON
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="ghost">
+            <a
+              href={buildDailyBriefPdfPrepUrl(selectedWindow)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Printer className="mr-2 h-4 w-4" />
+              Print-ready version
+            </a>
+          </Button>
+        </div>
+
+        <div className="rounded-2xl border border-border/10 bg-muted/25 p-4 text-sm leading-6 text-muted-foreground/78">
+          <span className="font-semibold text-secondary">Recommended path:</span>{" "}
+          {exportReadiness.recommendedNextStep}
+        </div>
+
+        {validationWarnings.length > 0 ? (
+          <SignalList
+            title="Report cautions"
+            items={validationWarnings}
+            empty="No report cautions."
+            danger
+          />
+        ) : null}
       </CardContent>
     </Card>
   );
