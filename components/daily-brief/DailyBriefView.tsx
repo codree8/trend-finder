@@ -41,6 +41,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { buildDailyBriefHtmlExportUrl } from "@/lib/trends/daily-brief-export-links";
 import type {
   ActionQueueItem,
   DailyBriefAvoidSeverity,
@@ -58,6 +59,20 @@ import type {
 } from "@/lib/trends/types";
 
 const windowOptions: DashboardWindow[] = ["24h", "7d", "30d"];
+
+function parseDashboardWindow(value: string | null): DashboardWindow {
+  return windowOptions.includes(value as DashboardWindow)
+    ? (value as DashboardWindow)
+    : "7d";
+}
+
+function getInitialDashboardWindow(): DashboardWindow {
+  if (typeof window === "undefined") return "7d";
+
+  return parseDashboardWindow(
+    new URLSearchParams(window.location.search).get("window"),
+  );
+}
 
 const avoidLabels: Record<DailyBriefAvoidSeverity, string> = {
   noise: "Noise",
@@ -199,16 +214,6 @@ function confidenceLabel(value: number) {
   return "Low confidence";
 }
 
-function dailyBriefHtmlExportUrl(window: DashboardWindow, download = false) {
-  const params = new URLSearchParams({ window });
-
-  if (download) {
-    params.set("download", "1");
-  }
-
-  return `/api/daily-brief/export/html?${params.toString()}`;
-}
-
 function signalAgeLabel(value: number | null) {
   if (value === null) return "No current signal";
   if (value < 1) return "<1h old";
@@ -253,7 +258,9 @@ function isTrendSaved(
 }
 
 export function DailyBriefView() {
-  const [trendWindow, setTrendWindow] = useState<DashboardWindow>("7d");
+  const [trendWindow, setTrendWindow] = useState<DashboardWindow>(
+    getInitialDashboardWindow,
+  );
   const [brief, setBrief] = useState<DailyBriefResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -735,7 +742,7 @@ function ExportReadyStructurePanel({
             <div className="mt-4 flex flex-wrap gap-2">
               <Button asChild size="sm" variant="secondary">
                 <a
-                  href={dailyBriefHtmlExportUrl(selectedWindow)}
+                  href={buildDailyBriefHtmlExportUrl(selectedWindow)}
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -744,7 +751,11 @@ function ExportReadyStructurePanel({
                 </a>
               </Button>
               <Button asChild size="sm" variant="outline">
-                <a href={dailyBriefHtmlExportUrl(selectedWindow, true)}>
+                <a
+                  href={buildDailyBriefHtmlExportUrl(selectedWindow, {
+                    download: true,
+                  })}
+                >
                   <Download className="mr-2 h-4 w-4" />
                   Download HTML
                 </a>
