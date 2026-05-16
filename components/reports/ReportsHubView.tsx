@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/card";
 import {
   buildDailyBriefApiUrl,
+  buildDailyBriefExportReadinessUrl,
   buildDailyBriefFullJsonExportUrl,
   buildDailyBriefHtmlExportUrl,
   buildDailyBriefJsonExportUrl,
@@ -62,6 +63,13 @@ import {
   type ReportsExportFlowSeverity,
   type ReportsExportFlowStatus,
 } from "@/lib/trends/reports-export-flow-qa";
+import {
+  buildExportSystemReadiness,
+  type ExportSystemReadiness,
+  type ExportSystemReadinessGateStatus,
+  type ExportSystemReadinessSeverity,
+  type ExportSystemReadinessStatus,
+} from "@/lib/trends/export-system-readiness";
 import type {
   DailyBriefServerPdfReliabilityQa,
   DailyBriefServerPdfReliabilitySeverity,
@@ -196,6 +204,32 @@ function severityVariant(
 ): BadgeProps["variant"] {
   if (severity === "success") return "secondary";
   if (severity === "warning") return "accent";
+  return "muted";
+}
+
+function readinessVariant(
+  status: ExportSystemReadinessStatus,
+): BadgeProps["variant"] {
+  if (status === "ready") return "secondary";
+  if (status === "review") return "accent";
+  return "danger";
+}
+
+function readinessGateVariant(
+  status: ExportSystemReadinessGateStatus,
+): BadgeProps["variant"] {
+  if (status === "pass") return "secondary";
+  if (status === "watch") return "accent";
+  if (status === "fail") return "danger";
+  return "muted";
+}
+
+function readinessSeverityVariant(
+  severity: ExportSystemReadinessSeverity,
+): BadgeProps["variant"] {
+  if (severity === "success") return "secondary";
+  if (severity === "warning") return "accent";
+  if (severity === "danger") return "danger";
   return "muted";
 }
 
@@ -823,6 +857,187 @@ function ServerPdfReliabilityPanel({
   );
 }
 
+function ExportSystemReadinessPanel({
+  readiness,
+  selectedWindow,
+}: {
+  readiness: ExportSystemReadiness;
+  selectedWindow: DashboardWindow;
+}) {
+  const visibleGates = readiness.gates.filter(
+    (gateItem) => gateItem.status !== "pass" || gateItem.automationBlocking,
+  );
+
+  const topGates = visibleGates.length > 0 ? visibleGates : readiness.gates;
+
+  return (
+    <Card className="border-secondary/15 bg-[#160d0d]/72 signal-glow">
+      <CardHeader>
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+              <ShieldCheck className="h-4 w-4" />
+              Export System Final QA + pre-automation readiness
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge variant={readinessVariant(readiness.status)}>
+                {readiness.statusLabel}
+              </Badge>
+              <Badge variant={readinessVariant(readiness.status)}>
+                {readiness.automationStatusLabel}
+              </Badge>
+              <Badge variant="muted">Readiness {readiness.score}/100</Badge>
+              <Badge variant="muted">
+                Manual {readiness.manualExportScore}/100
+              </Badge>
+              <Badge
+                variant={
+                  readiness.metrics.criticalBlockers > 0
+                    ? "danger"
+                    : "secondary"
+                }
+              >
+                {readiness.metrics.criticalBlockers} blocker
+                {readiness.metrics.criticalBlockers === 1 ? "" : "s"}
+              </Badge>
+            </div>
+            <CardTitle className="mt-4 text-2xl tracking-[-0.035em]">
+              Final export QA is now one system, not five scattered buttons.
+            </CardTitle>
+            <CardDescription className="mt-2 max-w-4xl leading-6">
+              {readiness.summary}
+            </CardDescription>
+            <p className="mt-3 max-w-4xl text-sm leading-6 text-muted-foreground/72">
+              {readiness.recommendedNextStep}
+            </p>
+          </div>
+          <div className="grid min-w-[280px] grid-cols-2 gap-2 text-center">
+            <MiniMetric
+              label="Flow"
+              value={readiness.metrics.exportFlowScore}
+            />
+            <MiniMetric
+              label="Print"
+              value={readiness.metrics.printLayoutScore}
+            />
+            <MiniMetric label="PDF" value={readiness.metrics.serverPdfScore} />
+            <MiniMetric
+              label="Automation"
+              value={readiness.automationReadinessScore}
+            />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+          <MiniMetric
+            label="Live exports"
+            value={readiness.metrics.liveExportChannels}
+          />
+          <MiniMetric
+            label="Ready support"
+            value={readiness.metrics.readySupportChannels}
+          />
+          <MiniMetric
+            label="Planned"
+            value={readiness.metrics.plannedChannels}
+          />
+          <MiniMetric label="Warnings" value={readiness.metrics.warnings} />
+          <MiniMetric
+            label="Boundaries"
+            value={readiness.metrics.plannedBoundaries}
+          />
+          <MiniMetric
+            label="Validations"
+            value={readiness.metrics.validationWarnings}
+          />
+        </div>
+
+        <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+                Readiness gates
+              </p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground/72">
+                Pass means safe for manual export, watch means review before
+                automation, fail means do not automate. Planned means the
+                feature is intentionally not built yet.
+              </p>
+            </div>
+            <Button asChild size="sm" variant="outline">
+              <a
+                href={buildDailyBriefExportReadinessUrl(selectedWindow)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <Code2 className="mr-2 h-4 w-4" />
+                Readiness JSON
+              </a>
+            </Button>
+          </div>
+          <div className="mt-4 grid gap-2 lg:grid-cols-2">
+            {topGates.map((gateItem) => (
+              <div
+                key={gateItem.id}
+                className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={readinessGateVariant(gateItem.status)}>
+                    {gateItem.status}
+                  </Badge>
+                  <Badge variant={readinessSeverityVariant(gateItem.severity)}>
+                    {gateItem.category.replace("_", " ")}
+                  </Badge>
+                  {gateItem.automationBlocking ? (
+                    <Badge variant="danger">automation blocker</Badge>
+                  ) : null}
+                </div>
+                <p className="mt-3 text-sm font-semibold text-foreground">
+                  {gateItem.label}
+                </p>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground/68">
+                  {gateItem.detail}
+                </p>
+                <p className="mt-2 text-xs leading-5 text-secondary/85">
+                  {gateItem.recommendedAction}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-3">
+          {readiness.recommendations.map((recommendation) => (
+            <div
+              key={recommendation.id}
+              className="rounded-2xl border border-border/10 bg-muted/25 p-4"
+            >
+              <Badge
+                variant={
+                  recommendation.priority === "now"
+                    ? "secondary"
+                    : recommendation.priority === "next"
+                      ? "accent"
+                      : "muted"
+                }
+              >
+                {recommendation.priority}
+              </Badge>
+              <p className="mt-3 text-sm font-semibold text-foreground">
+                {recommendation.label}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground/70">
+                {recommendation.detail}
+              </p>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ReportDocumentPanel({
   reportDocument,
 }: {
@@ -1083,6 +1298,19 @@ export function ReportsHubView() {
     () =>
       reportDocument ? buildDailyBriefPrintLayoutQa(reportDocument) : null,
     [reportDocument],
+  );
+
+  const exportReadiness = useMemo(
+    () =>
+      reportDocument && exportQa && printLayoutQa
+        ? buildExportSystemReadiness({
+            document: reportDocument,
+            exportQa,
+            printQa: printLayoutQa,
+            serverPdfQa,
+          })
+        : null,
+    [exportQa, printLayoutQa, reportDocument, serverPdfQa],
   );
 
   const exportCards = useMemo<ExportCard[]>(() => {
@@ -1371,7 +1599,7 @@ export function ReportsHubView() {
           </div>
         </section>
 
-        <div className="grid gap-3 md:grid-cols-6">
+        <div className="grid gap-3 md:grid-cols-7">
           <MiniMetric label="Active window" value={selectedWindow} />
           <MiniMetric
             label="Live exports"
@@ -1388,6 +1616,10 @@ export function ReportsHubView() {
           <MiniMetric
             label="PDF QA"
             value={serverPdfQa ? `${serverPdfQa.score}/100` : "..."}
+          />
+          <MiniMetric
+            label="Readiness"
+            value={exportReadiness ? `${exportReadiness.score}/100` : "..."}
           />
           <MiniMetric
             label="Latest scan"
@@ -1434,6 +1666,13 @@ export function ReportsHubView() {
                           )}
                         >
                           PDF QA: {serverPdfQa.statusLabel}
+                        </Badge>
+                      ) : null}
+                      {exportReadiness ? (
+                        <Badge
+                          variant={readinessVariant(exportReadiness.status)}
+                        >
+                          Readiness: {exportReadiness.statusLabel}
                         </Badge>
                       ) : null}
                       <Badge variant="muted">
@@ -1486,6 +1725,12 @@ export function ReportsHubView() {
               error={serverPdfQaError}
               selectedWindow={selectedWindow}
             />
+            {exportReadiness ? (
+              <ExportSystemReadinessPanel
+                readiness={exportReadiness}
+                selectedWindow={selectedWindow}
+              />
+            ) : null}
 
             <div className="grid gap-4 xl:grid-cols-3">
               {exportCards.map((card) => (

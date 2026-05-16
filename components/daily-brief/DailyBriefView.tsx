@@ -44,6 +44,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  buildDailyBriefExportReadinessUrl,
   buildDailyBriefHtmlExportUrl,
   buildDailyBriefJsonExportUrl,
   buildDailyBriefPdfExportUrl,
@@ -54,6 +55,11 @@ import {
   buildDailyBriefPrintLayoutQa,
   printLayoutStatusTone,
 } from "@/lib/trends/daily-brief-print-layout-qa";
+import { buildReportsExportFlowQa } from "@/lib/trends/reports-export-flow-qa";
+import {
+  buildExportSystemReadiness,
+  type ExportSystemReadinessStatus,
+} from "@/lib/trends/export-system-readiness";
 import type {
   DailyBriefServerPdfReliabilityQa,
   DailyBriefServerPdfReliabilitySeverity,
@@ -222,6 +228,14 @@ function serverPdfIssueVariant(
   if (severity === "warning") return "accent";
   if (severity === "success") return "secondary";
   return "muted";
+}
+
+function readinessVariant(
+  status: ExportSystemReadinessStatus,
+): BadgeProps["variant"] {
+  if (status === "ready") return "secondary";
+  if (status === "review") return "accent";
+  return "danger";
 }
 
 function qaWarningVariant(
@@ -795,6 +809,21 @@ function ExportReadyStructurePanel({
     [document],
   );
 
+  const exportQa = useMemo(
+    () => buildReportsExportFlowQa(document),
+    [document],
+  );
+  const exportReadiness = useMemo(
+    () =>
+      buildExportSystemReadiness({
+        document,
+        exportQa,
+        printQa,
+        serverPdfQa,
+      }),
+    [document, exportQa, printQa, serverPdfQa],
+  );
+
   return (
     <Card className="border-secondary/15 bg-[#160d0d]/62">
       <CardHeader>
@@ -834,6 +863,9 @@ function ExportReadyStructurePanel({
                   Server PDF {serverPdfQa.score}/100
                 </Badge>
               ) : null}
+              <Badge variant={readinessVariant(exportReadiness.status)}>
+                Readiness {exportReadiness.score}/100
+              </Badge>
             </div>
             <CardDescription className="mt-3 max-w-4xl text-sm leading-6">
               The brief now exposes a stable report document model plus real
@@ -921,6 +953,16 @@ function ExportReadyStructurePanel({
                   Download JSON
                 </a>
               </Button>
+              <Button asChild size="sm" variant="ghost">
+                <a
+                  href={buildDailyBriefExportReadinessUrl(selectedWindow)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <ShieldAlert className="mr-2 h-4 w-4" />
+                  Readiness JSON
+                </a>
+              </Button>
             </div>
           </div>
           <div className="grid min-w-[280px] grid-cols-2 gap-2 text-center">
@@ -935,6 +977,7 @@ function ExportReadyStructurePanel({
             />
             <MiniMetric label="Print QA" value={printQa.score} />
             <MiniMetric label="PDF QA" value={serverPdfQa?.score ?? 0} />
+            <MiniMetric label="Ready" value={exportReadiness.score} />
           </div>
         </div>
       </CardHeader>
@@ -1120,6 +1163,83 @@ function ExportReadyStructurePanel({
               ) : null}
             </div>
           ) : null}
+        </div>
+
+        <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+                Final export readiness
+              </p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground/78">
+                {exportReadiness.summary}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-secondary/85">
+                {exportReadiness.recommendedNextStep}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant={readinessVariant(exportReadiness.status)}>
+                {exportReadiness.statusLabel}
+              </Badge>
+              <Badge variant="muted">
+                {exportReadiness.automationStatusLabel}
+              </Badge>
+              <Badge
+                variant={
+                  exportReadiness.metrics.criticalBlockers > 0
+                    ? "danger"
+                    : "secondary"
+                }
+              >
+                {exportReadiness.metrics.criticalBlockers} blocker
+                {exportReadiness.metrics.criticalBlockers === 1 ? "" : "s"}
+              </Badge>
+            </div>
+          </div>
+          <div className="mt-3 grid gap-2 md:grid-cols-3">
+            {exportReadiness.gates
+              .filter((gateItem) => gateItem.status !== "pass")
+              .slice(0, 3)
+              .map((gateItem) => (
+                <div
+                  key={gateItem.id}
+                  className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge
+                      variant={
+                        gateItem.status === "fail"
+                          ? "danger"
+                          : gateItem.status === "watch"
+                            ? "accent"
+                            : "muted"
+                      }
+                    >
+                      {gateItem.status}
+                    </Badge>
+                    {gateItem.automationBlocking ? (
+                      <Badge variant="danger">blocker</Badge>
+                    ) : null}
+                  </div>
+                  <p className="mt-2 text-xs font-semibold text-foreground">
+                    {gateItem.label}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                    {gateItem.recommendedAction}
+                  </p>
+                </div>
+              ))}
+            {exportReadiness.gates.filter(
+              (gateItem) => gateItem.status !== "pass",
+            ).length === 0 ? (
+              <div className="rounded-2xl border border-secondary/15 bg-secondary/10 p-3 text-xs leading-5 text-muted-foreground/76 md:col-span-3">
+                All required readiness gates are clean for manual export. The
+                next step should still be a dry-run manifest, not real email or
+                cron sending.
+              </div>
+            ) : null}
+          </div>
         </div>
 
         {validationWarnings.length > 0 ? (

@@ -86,3 +86,11 @@ export function buildDailyBriefFullJsonExportUrl(
     payload: "full-brief",
   });
 }
+
+export function buildDailyBriefExportReadinessUrl(
+  trendWindow: DashboardWindow,
+) {
+  const params = new URLSearchParams({ window: trendWindow });
+
+  return `/api/daily-brief/export/readiness?${params.toString()}`;
+}
