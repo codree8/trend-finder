@@ -48,6 +48,7 @@ import {
   buildDailyBriefAutomationConfigUrl,
   buildDailyBriefAutomationDryRunUrl,
   buildDailyBriefAutomationGuardrailsUrl,
+  buildDailyBriefAutomationPreLiveChecklistUrl,
   buildDailyBriefAutomationPreviewUrl,
   buildDailyBriefExportReadinessUrl,
   buildDailyBriefHtmlExportUrl,
@@ -81,6 +82,11 @@ import {
   buildAutomationPreviewConsole,
   type AutomationPreviewStatus,
 } from "@/lib/trends/automation-preview-console";
+import {
+  buildAutomationPreLiveChecklist,
+  preLiveChecklistStatusTone,
+  type AutomationPreLiveChecklistStatus,
+} from "@/lib/trends/automation-pre-live-checklist";
 import {
   buildExportSystemReadiness,
   type ExportSystemReadinessStatus,
@@ -287,6 +293,22 @@ function safetyModeVariant(
   mode: AutomationConfigSafetyMode,
 ): BadgeProps["variant"] {
   return reportToneVariant(safetyModeTone(mode));
+}
+
+function preLiveStatusVariant(
+  status: AutomationPreLiveChecklistStatus,
+): BadgeProps["variant"] {
+  return reportToneVariant(preLiveChecklistStatusTone(status));
+}
+
+function preLiveStatusLabel(status: AutomationPreLiveChecklistStatus) {
+  const labels: Record<AutomationPreLiveChecklistStatus, string> = {
+    ready_for_manual_design: "manual design ready",
+    review: "needs review",
+    blocked: "blocked",
+  };
+
+  return labels[status];
 }
 
 function liveAutomationVariant(
@@ -936,6 +958,26 @@ function ExportReadyStructurePanel({
     [],
   );
 
+  const automationPreLiveChecklist = useMemo(
+    () =>
+      buildAutomationPreLiveChecklist({
+        config: automationConfig,
+        manifest: automationDryRun,
+        guardrails: automationGuardrails,
+        preview: automationPreview,
+        readiness: exportReadiness,
+        serverPdfQa,
+      }),
+    [
+      automationConfig,
+      automationDryRun,
+      automationGuardrails,
+      automationPreview,
+      exportReadiness,
+      serverPdfQa,
+    ],
+  );
+
   const topGuardrailBlockers = automationGuardrails.blockerPolicy.blockedBy.slice(
     0,
     3,
@@ -988,6 +1030,13 @@ function ExportReadyStructurePanel({
               </Badge>
               <Badge variant={safetyModeVariant(automationConfig.safetyMode)}>
                 Config {automationConfig.safetyMode}
+              </Badge>
+              <Badge
+                variant={preLiveStatusVariant(
+                  automationPreLiveChecklist.checklistStatus,
+                )}
+              >
+                Pre-live {preLiveStatusLabel(automationPreLiveChecklist.checklistStatus)}
               </Badge>
             </div>
             <CardDescription className="mt-3 max-w-4xl text-sm leading-6">
@@ -1631,6 +1680,81 @@ function ExportReadyStructurePanel({
               </p>
               <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
                 {automationConfig.requiredBeforeLive[0]}
+              </p>
+            </div>
+          </div>
+        </div>
+
+
+        <div className="rounded-2xl border border-accent/15 bg-accent/10 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+                <ShieldAlert className="h-3.5 w-3.5" />
+                Automation Pre-Live Checklist
+              </div>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground/78">
+                Final go/no-go diagnostic before manual approval and limited
+                internal test planning. Live automation remains blocked.
+              </p>
+              <p className="mt-2 text-xs leading-5 text-secondary/85">
+                {automationPreLiveChecklist.recommendedNextStep}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Badge
+                variant={preLiveStatusVariant(
+                  automationPreLiveChecklist.checklistStatus,
+                )}
+              >
+                {preLiveStatusLabel(automationPreLiveChecklist.checklistStatus)}
+              </Badge>
+              <Badge variant="danger">canGoLive: false</Badge>
+              <Badge variant="muted">
+                {automationPreLiveChecklist.overallScore}/100
+              </Badge>
+              <Badge
+                variant={
+                  automationPreLiveChecklist.goNoGo.canAddManualApprovalMode
+                    ? "secondary"
+                    : "accent"
+                }
+              >
+                approval mode: {automationPreLiveChecklist.goNoGo.canAddManualApprovalMode ? "next" : "review"}
+              </Badge>
+              <Button asChild size="sm" variant="ghost">
+                <a
+                  href={buildDailyBriefAutomationPreLiveChecklistUrl(selectedWindow)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Checklist JSON
+                </a>
+              </Button>
+            </div>
+          </div>
+          <div className="mt-3 grid gap-2 md:grid-cols-3">
+            <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3">
+              <p className="text-xs font-semibold text-foreground">Top blocker</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                {automationPreLiveChecklist.hardBlockers[0] ??
+                  "No active blocker in dry-run; live remains disabled by design."}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3">
+              <p className="text-xs font-semibold text-foreground">
+                Critical missing
+              </p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                {automationPreLiveChecklist.criticalMissingItems[0] ??
+                  "No critical missing item for current dry-run phase."}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3">
+              <p className="text-xs font-semibold text-foreground">Next allowed</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                {automationPreLiveChecklist.allowedNextSteps[1] ??
+                  automationPreLiveChecklist.allowedNextSteps[0]}
               </p>
             </div>
           </div>

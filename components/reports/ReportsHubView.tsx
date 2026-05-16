@@ -43,6 +43,7 @@ import {
   buildDailyBriefAutomationConfigUrl,
   buildDailyBriefAutomationDryRunUrl,
   buildDailyBriefAutomationGuardrailsUrl,
+  buildDailyBriefAutomationPreLiveChecklistUrl,
   buildDailyBriefAutomationPreviewUrl,
   buildDailyBriefExportReadinessUrl,
   buildDailyBriefFullJsonExportUrl,
@@ -97,6 +98,16 @@ import {
   type AutomationPreviewRiskSeverity,
   type AutomationPreviewStatus,
 } from "@/lib/trends/automation-preview-console";
+import {
+  buildAutomationPreLiveChecklist,
+  preLiveChecklistItemTone,
+  preLiveChecklistStatusTone,
+  type AutomationPreLiveChecklist,
+  type AutomationPreLiveChecklistItemStatus,
+  type AutomationPreLiveChecklistSeverity,
+  type AutomationPreLiveChecklistStatus,
+  type AutomationPreLiveLiveStatus,
+} from "@/lib/trends/automation-pre-live-checklist";
 import {
   buildExportSystemReadiness,
   type ExportSystemReadiness,
@@ -339,6 +350,47 @@ function configIntegrityVariant(
   status: AutomationConfigIntegrityStatus,
 ): BadgeProps["variant"] {
   return status === "pass" ? "secondary" : "danger";
+}
+
+function preLiveStatusVariant(
+  status: AutomationPreLiveChecklistStatus,
+): BadgeProps["variant"] {
+  return reportToneVariant(preLiveChecklistStatusTone(status));
+}
+
+function preLiveItemVariant(
+  status: AutomationPreLiveChecklistItemStatus,
+): BadgeProps["variant"] {
+  return reportToneVariant(preLiveChecklistItemTone(status));
+}
+
+function preLiveSeverityVariant(
+  severity: AutomationPreLiveChecklistSeverity,
+): BadgeProps["variant"] {
+  if (severity === "danger") return "danger";
+  if (severity === "warning") return "accent";
+  if (severity === "success") return "secondary";
+  return "muted";
+}
+
+function preLiveStatusLabel(status: AutomationPreLiveChecklistStatus) {
+  const labels: Record<AutomationPreLiveChecklistStatus, string> = {
+    ready_for_manual_design: "Ready for manual design",
+    review: "Needs review",
+    blocked: "Blocked",
+  };
+
+  return labels[status];
+}
+
+function liveReadinessStatusLabel(status: AutomationPreLiveLiveStatus) {
+  const labels: Record<AutomationPreLiveLiveStatus, string> = {
+    live_blocked: "Live blocked",
+    test_prep_blocked: "Test prep blocked",
+    ready_for_limited_test_prep: "Limited test prep ready",
+  };
+
+  return labels[status];
 }
 
 function compactSectionDescription(value: string) {
@@ -2393,6 +2445,345 @@ function AutomationConfigContractPanel({
   );
 }
 
+
+function AutomationPreLiveChecklistPanel({
+  checklist,
+  selectedWindow,
+}: {
+  checklist: AutomationPreLiveChecklist;
+  selectedWindow: DashboardWindow;
+}) {
+  const topBlockers = checklist.hardBlockers.slice(0, 6);
+  const topCriticalMissing = checklist.criticalMissingItems.slice(0, 6);
+  const visibleItems = checklist.checklistItems
+    .filter((item) => item.status !== "pass" || item.liveBlocking)
+    .slice(0, 8);
+
+  return (
+    <Card className="border-accent/15 bg-[#160d0d]/72 signal-glow">
+      <CardHeader>
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+              <ShieldAlert className="h-4 w-4" />
+              Automation Pre-Live Checklist
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge variant={preLiveStatusVariant(checklist.checklistStatus)}>
+                {preLiveStatusLabel(checklist.checklistStatus)}
+              </Badge>
+              <Badge variant="danger">canGoLive: false</Badge>
+              <Badge
+                variant={
+                  checklist.goNoGo.canAddManualApprovalMode
+                    ? "secondary"
+                    : "accent"
+                }
+              >
+                Manual approval design: {checklist.goNoGo.canAddManualApprovalMode ? "allowed" : "review"}
+              </Badge>
+              <Badge variant="muted">
+                {liveReadinessStatusLabel(checklist.liveReadinessStatus)}
+              </Badge>
+              <Badge variant="muted">Score {checklist.overallScore}/100</Badge>
+            </div>
+            <CardTitle className="mt-4 text-2xl tracking-[-0.035em]">
+              Final gate before manual approval and test-send planning.
+            </CardTitle>
+            <CardDescription className="mt-2 max-w-4xl leading-6">
+              This checklist aggregates config, dry-run, guardrails, preview,
+              export readiness and PDF health. It is a go/no-go diagnostic only:
+              no email, no cron, no recipients, no database write.
+            </CardDescription>
+            <p className="mt-3 max-w-4xl text-sm leading-6 text-secondary/85">
+              {checklist.recommendedNextStep}
+            </p>
+          </div>
+          <div className="grid min-w-[280px] grid-cols-2 gap-2 text-center">
+            <MiniMetric label="Score" value={`${checklist.overallScore}/100`} />
+            <MiniMetric label="Blockers" value={checklist.hardBlockers.length} />
+            <MiniMetric
+              label="Missing"
+              value={checklist.criticalMissingItems.length}
+            />
+            <MiniMetric
+              label="Categories"
+              value={checklist.categorySummaries.length}
+            />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm" variant="secondary">
+            <a
+              href={buildDailyBriefAutomationPreLiveChecklistUrl(selectedWindow)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Code2 className="mr-2 h-4 w-4" />
+              Checklist JSON
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <a
+              href={buildDailyBriefAutomationPreviewUrl(selectedWindow)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Layers3 className="mr-2 h-4 w-4" />
+              Preview console
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="ghost">
+            <a
+              href={buildDailyBriefAutomationConfigUrl()}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ShieldCheck className="mr-2 h-4 w-4" />
+              Config JSON
+            </a>
+          </Button>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-3">
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Go / no-go
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Badge variant="danger">Live: no-go</Badge>
+              <Badge
+                variant={
+                  checklist.goNoGo.canStartLimitedInternalTestPrep
+                    ? "secondary"
+                    : "accent"
+                }
+              >
+                Test prep: {checklist.goNoGo.canStartLimitedInternalTestPrep ? "possible" : "blocked"}
+              </Badge>
+              <Badge
+                variant={
+                  checklist.goNoGo.canAddManualApprovalMode
+                    ? "secondary"
+                    : "accent"
+                }
+              >
+                Approval mode: {checklist.goNoGo.canAddManualApprovalMode ? "next" : "wait"}
+              </Badge>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground/72">
+              {checklist.goNoGo.reason}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Source summary
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Badge variant="muted">config {checklist.sourceSummary.configSafetyMode}</Badge>
+              <Badge variant={previewStatusVariant(checklist.sourceSummary.previewStatus)}>
+                preview {checklist.sourceSummary.previewStatus}
+              </Badge>
+              <Badge variant={guardrailVariant(checklist.sourceSummary.guardrailStatus)}>
+                guardrails {checklist.sourceSummary.guardrailStatus}
+              </Badge>
+              <Badge variant={readinessVariant(checklist.sourceSummary.exportReadinessStatus)}>
+                export {checklist.sourceSummary.exportReadinessStatus}
+              </Badge>
+              <Badge variant="muted">PDF {checklist.sourceSummary.pdfHealthStatus}</Badge>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Cross-window requirement
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {checklist.crossWindowSummary.windowsToValidate.map((window) => (
+                <a
+                  key={window}
+                  href={buildDailyBriefAutomationPreLiveChecklistUrl(window)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Badge
+                    variant={
+                      window === checklist.crossWindowSummary.currentWindow
+                        ? "secondary"
+                        : "muted"
+                    }
+                  >
+                    {window}
+                  </Badge>
+                </a>
+              ))}
+            </div>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground/72">
+              {checklist.crossWindowSummary.detail}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-2">
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+                Live blockers
+              </p>
+              <Badge variant="danger">
+                {checklist.hardBlockers.length} blocker
+                {checklist.hardBlockers.length === 1 ? "" : "s"}
+              </Badge>
+            </div>
+            <div className="mt-4 grid gap-2">
+              {(topBlockers.length > 0
+                ? topBlockers
+                : ["No current live blocker detected, but canGoLive remains false by design."]
+              ).map((blocker) => (
+                <div
+                  key={blocker}
+                  className="rounded-xl border border-border/10 bg-[#0f0808]/35 p-3 text-xs leading-5 text-muted-foreground/72"
+                >
+                  {blocker}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+                Critical missing before live
+              </p>
+              <Badge variant="accent">
+                {checklist.criticalMissingItems.length} missing
+              </Badge>
+            </div>
+            <div className="mt-4 grid gap-2">
+              {(topCriticalMissing.length > 0
+                ? topCriticalMissing
+                : ["No critical missing item detected for the current dry-run phase."]
+              ).map((missing) => (
+                <div
+                  key={missing}
+                  className="rounded-xl border border-border/10 bg-[#0f0808]/35 p-3 text-xs leading-5 text-muted-foreground/72"
+                >
+                  {missing}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Category readiness
+            </p>
+            <Badge variant="muted">pre-live matrix</Badge>
+          </div>
+          <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+            {checklist.categorySummaries.map((category) => (
+              <div
+                key={category.category}
+                className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={preLiveItemVariant(category.status)}>
+                    {category.status}
+                  </Badge>
+                  <Badge variant="muted">{category.score}/100</Badge>
+                </div>
+                <p className="mt-2 text-xs font-semibold text-foreground">
+                  {category.label}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                  {category.detail}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Checklist items needing attention
+            </p>
+            <Badge variant="muted">{checklist.checklistItems.length} total</Badge>
+          </div>
+          <div className="mt-4 grid gap-2 lg:grid-cols-2">
+            {(visibleItems.length > 0 ? visibleItems : checklist.checklistItems.slice(0, 4)).map(
+              (item) => (
+                <div
+                  key={item.id}
+                  className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={preLiveItemVariant(item.status)}>
+                      {item.status}
+                    </Badge>
+                    <Badge variant={preLiveSeverityVariant(item.severity)}>
+                      {item.severity}
+                    </Badge>
+                    {item.liveBlocking ? <Badge variant="danger">live blocker</Badge> : null}
+                  </div>
+                  <p className="mt-2 text-sm font-semibold text-foreground">
+                    {item.label}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                    {item.detail}
+                  </p>
+                  <p className="mt-2 text-xs leading-5 text-secondary/80">
+                    {item.requiredAction}
+                  </p>
+                </div>
+              ),
+            )}
+          </div>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-2">
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Allowed next steps
+            </p>
+            <div className="mt-3 space-y-2">
+              {checklist.allowedNextSteps.map((step) => (
+                <div
+                  key={step}
+                  className="rounded-xl border border-border/10 bg-[#0f0808]/35 p-3 text-xs leading-5 text-muted-foreground/72"
+                >
+                  {step}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Disallowed actions
+            </p>
+            <div className="mt-3 space-y-2">
+              {checklist.disallowedActions.slice(0, 6).map((action) => (
+                <div
+                  key={action}
+                  className="rounded-xl border border-danger/20 bg-danger/8 p-3 text-xs leading-5 text-muted-foreground/72"
+                >
+                  {action}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+
 function QuickCopyPanel({
   reportDocument,
   copyState,
@@ -2622,6 +3013,28 @@ export function ReportsHubView() {
   );
 
   const automationConfig = useMemo(() => buildAutomationConfigContract(), []);
+
+  const automationPreLiveChecklist = useMemo(
+    () =>
+      automationDryRun && automationGuardrails && automationPreview && exportReadiness
+        ? buildAutomationPreLiveChecklist({
+            config: automationConfig,
+            manifest: automationDryRun,
+            guardrails: automationGuardrails,
+            preview: automationPreview,
+            readiness: exportReadiness,
+            serverPdfQa,
+          })
+        : null,
+    [
+      automationConfig,
+      automationDryRun,
+      automationGuardrails,
+      automationPreview,
+      exportReadiness,
+      serverPdfQa,
+    ],
+  );
 
   const exportCards = useMemo<ExportCard[]>(() => {
     const htmlActions = (
@@ -3051,6 +3464,15 @@ export function ReportsHubView() {
                       >
                         Config: {automationConfig.safetyMode}
                       </Badge>
+                      {automationPreLiveChecklist ? (
+                        <Badge
+                          variant={preLiveStatusVariant(
+                            automationPreLiveChecklist.checklistStatus,
+                          )}
+                        >
+                          Pre-live: {preLiveStatusLabel(automationPreLiveChecklist.checklistStatus)}
+                        </Badge>
+                      ) : null}
                       <Badge variant="muted">
                         Confidence {brief.briefPosture.confidence}/100
                       </Badge>
@@ -3129,6 +3551,12 @@ export function ReportsHubView() {
               config={automationConfig}
               selectedWindow={selectedWindow}
             />
+            {automationPreLiveChecklist ? (
+              <AutomationPreLiveChecklistPanel
+                checklist={automationPreLiveChecklist}
+                selectedWindow={selectedWindow}
+              />
+            ) : null}
 
             <div className="grid gap-4 xl:grid-cols-3">
               {exportCards.map((card) => (

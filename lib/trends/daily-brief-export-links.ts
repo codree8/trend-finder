@@ -120,3 +120,11 @@ export function buildDailyBriefAutomationPreviewUrl(
 export function buildDailyBriefAutomationConfigUrl() {
   return "/api/daily-brief/automation/config";
 }
+
+export function buildDailyBriefAutomationPreLiveChecklistUrl(
+  trendWindow: DashboardWindow,
+) {
+  const params = new URLSearchParams({ window: trendWindow });
+
+  return `/api/daily-brief/automation/pre-live-checklist?${params.toString()}`;
+}
