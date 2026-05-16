@@ -310,6 +310,24 @@ export type TrendActionPriority = "act_now" | "monitor" | "review" | "ignore";
 
 export type TrendActionUrgencyLevel = "high" | "medium" | "low";
 
+export type TrendActionConfidence = "high" | "medium" | "low";
+
+export type TrendActionScoreBand =
+  | "strong"
+  | "qualified"
+  | "borderline"
+  | "weak";
+
+export type TrendActionCalibration = {
+  scoreBand: TrendActionScoreBand;
+  decisionConfidence: TrendActionConfidence;
+  isBlockedFromActNow: boolean;
+  actNowBlockers: string[];
+  promotionSignals: string[];
+  demotionSignals: string[];
+  tuningNotes: string[];
+};
+
 export type TrendActionRecommendation = {
   actionPriority: TrendActionPriority;
   actionPriorityLabel: string;
@@ -319,6 +337,7 @@ export type TrendActionRecommendation = {
   recommendedNextStep: string;
   reasons: string[];
   warnings: string[];
+  calibration: TrendActionCalibration;
 };
 
 export type ActionQueueItem = TrendActionRecommendation & {
@@ -335,11 +354,40 @@ export type ActionQueueSummary = {
   highUrgency: number;
 };
 
+export type ActionQueueQaStatus = "healthy" | "review" | "too_aggressive";
+
+export type ActionQueueQaWarning = {
+  severity: "info" | "warning" | "danger";
+  title: string;
+  detail: string;
+};
+
+export type ActionQueueQaSummary = {
+  status: ActionQueueQaStatus;
+  statusLabel: string;
+  generatedAt: string;
+  totalItems: number;
+  actNowShare: number;
+  reviewShare: number;
+  ignoreShare: number;
+  averageActionScore: number;
+  averageConfidenceScore: number;
+  highConfidenceCount: number;
+  blockedActNowCandidates: number;
+  highRiskActNowCount: number;
+  singleSourceActNowCount: number;
+  savedItemsCount: number;
+  risingSavedItemsCount: number;
+  warnings: ActionQueueQaWarning[];
+  tuningNotes: string[];
+};
+
 export type ActionQueueResponse = {
   ok: true;
   window: DashboardWindow;
   generatedAt: string;
   summary: ActionQueueSummary;
+  qa: ActionQueueQaSummary;
   items: ActionQueueItem[];
 };
 

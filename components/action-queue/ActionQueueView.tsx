@@ -32,11 +32,15 @@ import {
 } from "@/components/ui/card";
 import type {
   ActionQueueItem,
+  ActionQueueQaStatus,
+  ActionQueueQaSummary,
   ActionQueueResponse,
   DashboardTrend,
   DashboardWindow,
   SavedTrendWithCurrent,
+  TrendActionConfidence,
   TrendActionPriority,
+  TrendActionScoreBand,
   TrendActionUrgencyLevel,
 } from "@/lib/trends/types";
 
@@ -113,6 +117,31 @@ function qualityVariant(trend: DashboardTrend): BadgeProps["variant"] {
   return "danger";
 }
 
+function qaVariant(status: ActionQueueQaStatus): BadgeProps["variant"] {
+  if (status === "healthy") return "secondary";
+  if (status === "review") return "accent";
+  return "danger";
+}
+
+function confidenceVariant(
+  confidence: TrendActionConfidence,
+): BadgeProps["variant"] {
+  if (confidence === "high") return "secondary";
+  if (confidence === "medium") return "accent";
+  return "danger";
+}
+
+function scoreBandLabel(band: TrendActionScoreBand) {
+  const labels: Record<TrendActionScoreBand, string> = {
+    strong: "Strong band",
+    qualified: "Qualified band",
+    borderline: "Borderline band",
+    weak: "Weak band",
+  };
+
+  return labels[band];
+}
+
 function signalAgeLabel(value: number | null) {
   if (value === null) return "No current signal age";
   if (value < 1) return "<1h old";
@@ -156,6 +185,7 @@ function emptyGroups(): Record<TrendActionPriority, ActionQueueItem[]> {
 export function ActionQueueView() {
   const [trendWindow, setTrendWindow] = useState<DashboardWindow>("7d");
   const [items, setItems] = useState<ActionQueueItem[]>([]);
+  const [qaSummary, setQaSummary] = useState<ActionQueueQaSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTrendSlug, setSelectedTrendSlug] = useState<string | null>(
@@ -176,7 +206,9 @@ export function ActionQueueView() {
         throw new Error(payload.message ?? "Failed to load action queue.");
       }
 
-      setItems((payload as ActionQueueResponse).items);
+      const queuePayload = payload as ActionQueueResponse;
+      setItems(queuePayload.items);
+      setQaSummary(queuePayload.qa);
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -184,6 +216,7 @@ export function ActionQueueView() {
           : "Failed to load action queue.",
       );
       setItems([]);
+      setQaSummary(null);
     } finally {
       setIsLoading(false);
     }
@@ -275,6 +308,8 @@ export function ActionQueueView() {
           />
         </section>
 
+        {qaSummary ? <PriorityQaPanel qa={qaSummary} /> : null}
+
         {error ? (
           <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm leading-6 text-red-100">
             {error}
@@ -337,6 +372,94 @@ export function ActionQueueView() {
         onSelectSlug={setSelectedTrendSlug}
       />
     </AppShell>
+  );
+}
+
+function PriorityQaPanel({ qa }: { qa: ActionQueueQaSummary }) {
+  return (
+    <Card className="border-border/10 bg-card/70 shadow-card">
+      <CardHeader>
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+              <ShieldAlert className="h-4 w-4" />
+              Priority QA & tuning
+            </div>
+            <CardTitle className="mt-3 text-xl">{qa.statusLabel}</CardTitle>
+            <CardDescription className="mt-2 max-w-3xl">
+              Calibration checks whether Act Now is rare enough, whether risky
+              candidates are being held back and whether review pressure is
+              getting too heavy.
+            </CardDescription>
+          </div>
+          <Badge variant={qaVariant(qa.status)}>{qa.statusLabel}</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 md:grid-cols-4">
+          <QaMetric label="Act Now share" value={`${qa.actNowShare}%`} />
+          <QaMetric
+            label="Blocked candidates"
+            value={String(qa.blockedActNowCandidates)}
+          />
+          <QaMetric
+            label="Avg action score"
+            value={String(qa.averageActionScore)}
+          />
+          <QaMetric
+            label="Avg confidence"
+            value={`${qa.averageConfidenceScore}/100`}
+          />
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-2">
+          <div className="rounded-2xl border border-border/10 bg-muted/30 p-4">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-secondary">
+              Tuning notes
+            </div>
+            <ul className="space-y-1.5 text-sm leading-6 text-muted-foreground/76">
+              {qa.tuningNotes.map((note) => (
+                <li key={note}>{note}</li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="rounded-2xl border border-primary/15 bg-primary/10 p-4">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+              QA warnings
+            </div>
+            {qa.warnings.length > 0 ? (
+              <ul className="space-y-2 text-sm leading-6 text-red-100/82">
+                {qa.warnings.map((warning) => (
+                  <li key={`${warning.title}-${warning.detail}`}>
+                    <span className="font-semibold text-foreground">
+                      {warning.title}:
+                    </span>{" "}
+                    {warning.detail}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm leading-6 text-muted-foreground/72">
+                No calibration warnings. The queue is conservative enough for
+                now.
+              </p>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function QaMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-border/10 bg-[#0f0808]/45 p-3">
+      <p className="text-lg font-semibold text-foreground">{value}</p>
+      <p className="mt-1 text-[11px] uppercase tracking-wider text-muted-foreground/60">
+        {label}
+      </p>
+    </div>
   );
 }
 
@@ -452,6 +575,17 @@ function ActionCard({
               <Badge variant={qualityVariant(trend)}>
                 Quality {trend.topicQuality.score}
               </Badge>
+              <Badge
+                variant={confidenceVariant(item.calibration.decisionConfidence)}
+              >
+                {item.calibration.decisionConfidence} confidence
+              </Badge>
+              <Badge variant="muted">
+                {scoreBandLabel(item.calibration.scoreBand)}
+              </Badge>
+              {item.calibration.isBlockedFromActNow ? (
+                <Badge variant="accent">Act Now blocked</Badge>
+              ) : null}
               {item.isSaved ? (
                 <Badge variant="secondary">
                   <BookmarkCheck className="mr-1.5 h-3.5 w-3.5" />
@@ -487,6 +621,11 @@ function ActionCard({
         <div className="rounded-2xl border border-border/10 bg-muted/30 p-4 text-sm leading-6 text-muted-foreground/82">
           <span className="font-semibold text-foreground">Next step:</span>{" "}
           {item.recommendedNextStep}
+          {item.calibration.tuningNotes.length > 0 ? (
+            <p className="mt-2 text-xs leading-5 text-muted-foreground/65">
+              Calibration: {item.calibration.tuningNotes[0]}
+            </p>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap gap-2 text-xs text-muted-foreground/70">

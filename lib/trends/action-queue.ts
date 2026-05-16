@@ -3,6 +3,7 @@ import {
   normalizeDashboardWindow,
 } from "@/lib/trends/get-dashboard-trends";
 import { buildTrendActionRecommendation } from "@/lib/trends/action-priority";
+import { buildActionQueueQa } from "@/lib/trends/action-queue-qa";
 import {
   listSavedTrends,
   savedTrendKeyFromTrend,
@@ -128,6 +129,7 @@ export async function getActionQueue(
     window,
     generatedAt: new Date().toISOString(),
     summary: buildSummary(items),
+    qa: buildActionQueueQa(items),
     items,
   };
 }

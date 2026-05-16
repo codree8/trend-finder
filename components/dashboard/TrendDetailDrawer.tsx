@@ -46,8 +46,10 @@ import type {
   RelatedTrend,
   SavedTrendWithCurrent,
   TopicQuality,
+  TrendActionConfidence,
   TrendActionPriority,
   TrendActionRecommendation,
+  TrendActionScoreBand,
   TrendActionUrgencyLevel,
   TrendDetailResponse,
   TrendDetailSignal,
@@ -178,6 +180,23 @@ function actionUrgencyVariant(urgency: TrendActionUrgencyLevel) {
   if (urgency === "high") return "danger" as const;
   if (urgency === "medium") return "accent" as const;
   return "muted" as const;
+}
+
+function actionConfidenceVariant(confidence: TrendActionConfidence) {
+  if (confidence === "high") return "secondary" as const;
+  if (confidence === "medium") return "accent" as const;
+  return "danger" as const;
+}
+
+function actionScoreBandLabel(band: TrendActionScoreBand) {
+  const labels: Record<TrendActionScoreBand, string> = {
+    strong: "Strong band",
+    qualified: "Qualified band",
+    borderline: "Borderline band",
+    weak: "Weak band",
+  };
+
+  return labels[band];
 }
 
 function actionPriorityIcon(priority: TrendActionPriority) {
@@ -892,6 +911,19 @@ function ActionPrioritySection({
           <Badge variant={actionUrgencyVariant(recommendation.urgencyLevel)}>
             {recommendation.urgencyLevel} urgency
           </Badge>
+          <Badge
+            variant={actionConfidenceVariant(
+              recommendation.calibration.decisionConfidence,
+            )}
+          >
+            {recommendation.calibration.decisionConfidence} confidence
+          </Badge>
+          <Badge variant="muted">
+            {actionScoreBandLabel(recommendation.calibration.scoreBand)}
+          </Badge>
+          {recommendation.calibration.isBlockedFromActNow ? (
+            <Badge variant="accent">Act Now blocked</Badge>
+          ) : null}
         </div>
       </div>
 
@@ -931,9 +963,16 @@ function ActionPrioritySection({
         />
       </div>
 
-      <p className="mt-4 rounded-2xl border border-border/10 bg-muted/30 p-4 text-sm leading-6 text-muted-foreground/78">
-        {recommendation.summary} {recommendation.recommendedNextStep}
-      </p>
+      <div className="mt-4 rounded-2xl border border-border/10 bg-muted/30 p-4 text-sm leading-6 text-muted-foreground/78">
+        <p>
+          {recommendation.summary} {recommendation.recommendedNextStep}
+        </p>
+        {recommendation.calibration.tuningNotes.length > 0 ? (
+          <p className="mt-2 text-xs leading-5 text-muted-foreground/65">
+            Calibration: {recommendation.calibration.tuningNotes[0]}
+          </p>
+        ) : null}
+      </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-secondary/15 bg-secondary/10 p-4">
@@ -972,6 +1011,20 @@ function ActionPrioritySection({
           )}
         </div>
       </div>
+
+      {recommendation.calibration.actNowBlockers.length > 0 ? (
+        <div className="mt-4 rounded-2xl border border-accent/20 bg-accent/10 p-4">
+          <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-accent">
+            <ShieldAlert className="h-4 w-4" />
+            Act Now blockers
+          </div>
+          <ul className="space-y-2 text-sm leading-6 text-muted-foreground/78">
+            {recommendation.calibration.actNowBlockers.map((blocker) => (
+              <li key={blocker}>{blocker}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </section>
   );
 }
