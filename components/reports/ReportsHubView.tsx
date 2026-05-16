@@ -23,6 +23,7 @@ import {
   Loader2,
   Mail,
   Newspaper,
+  Printer,
   ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
@@ -42,6 +43,7 @@ import {
   buildDailyBriefHtmlExportUrl,
   buildDailyBriefJsonExportUrl,
   buildDailyBriefPageUrl,
+  buildDailyBriefPdfPrepUrl,
 } from "@/lib/trends/daily-brief-export-links";
 import {
   buildReportsExportFlowQa,
@@ -707,6 +709,43 @@ export function ReportsHubView() {
       </>
     );
 
+    const pdfPrepActions = (
+      <>
+        <Button asChild size="sm" variant="secondary">
+          <a
+            href={buildDailyBriefPdfPrepUrl(selectedWindow)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Printer className="mr-2 h-4 w-4" />
+            Print layout
+          </a>
+        </Button>
+        <Button asChild size="sm" variant="outline">
+          <a
+            href={buildDailyBriefPdfPrepUrl(selectedWindow, {
+              autoPrint: true,
+            })}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Eye className="mr-2 h-4 w-4" />
+            Auto print
+          </a>
+        </Button>
+        <Button asChild size="sm" variant="ghost">
+          <a
+            href={buildDailyBriefPdfPrepUrl(selectedWindow, {
+              download: true,
+            })}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Download prep HTML
+          </a>
+        </Button>
+      </>
+    );
+
     const developerActions = (
       <>
         <Button asChild size="sm" variant="outline">
@@ -745,6 +784,18 @@ export function ReportsHubView() {
         actions: htmlActions,
       },
       {
+        id: "daily-brief-pdf-prep",
+        title: "PDF Prep Layout",
+        description:
+          "Print-safe A4 HTML layout for browser Print → Save as PDF, without adding a server PDF generator yet.",
+        group: "Primary",
+        status: "ready",
+        recommendedUse:
+          "Use when you need a clean PDF manually, after reviewing the HTML export.",
+        icon: Printer,
+        actions: pdfPrepActions,
+      },
+      {
         id: "daily-brief-json",
         title: "JSON Export",
         description:
@@ -781,13 +832,13 @@ export function ReportsHubView() {
       },
       {
         id: "daily-brief-pdf",
-        title: "PDF Export",
+        title: "Server PDF Export",
         description:
-          "Not implemented yet. It should reuse the current reportDocument model and HTML layout later.",
+          "Not implemented yet. The new PDF prep layout is ready, but no server-side PDF binary generation has been added.",
         group: "Later",
         status: "planned",
         recommendedUse:
-          "Add only after HTML export stays stable across real scan data.",
+          "Add only after the print-safe layout stays stable across real scan data.",
         icon: Download,
       },
       {
@@ -839,8 +890,8 @@ export function ReportsHubView() {
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
               Reports now has a clear manual flow: review the brief, preview
-              HTML, download HTML, inspect JSON only when needed. No mock weekly
-              report cosplay, no button soup.
+              HTML, open the print-safe PDF prep layout, then inspect JSON only
+              when needed. No mock weekly report cosplay, no button soup.
             </p>
           </div>
 

@@ -31,7 +31,7 @@ export type ReportsExportFlowStep = {
 };
 
 export type ReportsExportChannel = {
-  id: DailyBriefReportAudience | "full_api" | "quick_copy";
+  id: DailyBriefReportAudience | "full_api" | "quick_copy" | "pdf_prep";
   label: string;
   status: "live" | "ready" | "planned" | "attention";
   tone: DailyBriefReportTone;
@@ -118,6 +118,13 @@ export function buildReportsExportFlowQa(
       complete: hasHtml,
       detail:
         "The live HTML channel is available for manual preview and file download.",
+    },
+    {
+      id: "pdf-prep-layout",
+      label: "PDF prep layout",
+      complete: hasHtml && hasSections && hasBlocks,
+      detail:
+        "A print-safe A4 HTML layout is available for browser Print → Save as PDF without server PDF generation.",
     },
     {
       id: "json-export",
@@ -233,6 +240,14 @@ export function buildReportsExportFlowQa(
         "Best manual-facing export for previewing and sharing a clean standalone report.",
     },
     {
+      id: "pdf_prep",
+      label: "PDF Prep Layout",
+      status: hasHtml && hasSections && hasBlocks ? "ready" : "attention",
+      tone: hasHtml && hasSections && hasBlocks ? "positive" : "warning",
+      detail:
+        "Print-safe A4 HTML route for manual browser Print → Save as PDF. Not a server PDF binary yet.",
+    },
+    {
       id: "json",
       label: "JSON Export",
       status: channelStatusForTarget(document, "json"),
@@ -258,11 +273,11 @@ export function buildReportsExportFlowQa(
     },
     {
       id: "pdf",
-      label: "PDF Export",
+      label: "Server PDF Export",
       status: "planned",
       tone: "neutral",
       detail:
-        "Planned later. It should reuse the current reportDocument model and HTML layout.",
+        "Planned later. The print-safe prep layout exists, but no server-side PDF generator has been added.",
     },
     {
       id: "email",
@@ -281,7 +296,9 @@ export function buildReportsExportFlowQa(
   ).length;
   const readyChannels = channels.filter(
     (channel) =>
-      (channel.id === "quick_copy" || channel.id === "full_api") &&
+      (channel.id === "quick_copy" ||
+        channel.id === "full_api" ||
+        channel.id === "pdf_prep") &&
       channel.status === "ready",
   ).length;
   const plannedChannels = channels.filter(
@@ -294,10 +311,10 @@ export function buildReportsExportFlowQa(
     score,
     summary:
       status === "healthy"
-        ? "Reports is wired to the real Daily Brief model with clear manual export paths. Keep PDF/email out until the current flow stays boringly reliable. Boring is good here."
-        : "Reports can export, but the flow has at least one clarity or integrity issue that should be fixed before adding PDF/email complexity.",
+        ? "Reports is wired to the real Daily Brief model with clear manual export paths and a print-safe PDF prep layer. Keep server PDF/email out until this flow stays boringly reliable. Boring is good here."
+        : "Reports can export, but the flow has at least one clarity or integrity issue that should be fixed before adding server PDF/email complexity.",
     recommendedPath:
-      "Recommended order: open Daily Brief for context, preview HTML for human review, download HTML when needed, use JSON only for model inspection or integrations.",
+      "Recommended order: open Daily Brief for context, preview HTML for human review, open PDF prep only when you need browser Save as PDF, and use JSON only for model inspection or integrations.",
     metrics: {
       liveChannels,
       readyChannels,
@@ -322,6 +339,14 @@ export function buildReportsExportFlowQa(
         label: "Preview HTML",
         detail:
           "Use this as the primary manual report preview before sharing or saving.",
+        group: "preview",
+        recommended: true,
+      },
+      {
+        id: "pdf-prep",
+        label: "Open PDF prep",
+        detail:
+          "Use the print-safe A4 layout when you need browser Print → Save as PDF.",
         group: "preview",
         recommended: true,
       },

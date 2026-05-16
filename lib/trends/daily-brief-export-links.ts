@@ -21,6 +21,23 @@ export function buildDailyBriefHtmlExportUrl(
   return `/api/daily-brief/export/html?${params.toString()}`;
 }
 
+export function buildDailyBriefPdfPrepUrl(
+  trendWindow: DashboardWindow,
+  options: { autoPrint?: boolean; download?: boolean } = {},
+) {
+  const params = new URLSearchParams({ window: trendWindow });
+
+  if (options.autoPrint) {
+    params.set("autoprint", "1");
+  }
+
+  if (options.download) {
+    params.set("download", "1");
+  }
+
+  return `/api/daily-brief/export/pdf-prep?${params.toString()}`;
+}
+
 export function buildDailyBriefJsonExportUrl(
   trendWindow: DashboardWindow,
   options: {

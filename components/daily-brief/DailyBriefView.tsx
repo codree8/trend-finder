@@ -22,6 +22,7 @@ import {
   Layers3,
   Lightbulb,
   Loader2,
+  Printer,
   Radar,
   ShieldAlert,
   Sparkles,
@@ -45,6 +46,7 @@ import {
 import {
   buildDailyBriefHtmlExportUrl,
   buildDailyBriefJsonExportUrl,
+  buildDailyBriefPdfPrepUrl,
 } from "@/lib/trends/daily-brief-export-links";
 import type {
   ActionQueueItem,
@@ -738,10 +740,10 @@ function ExportReadyStructurePanel({
             </div>
             <CardDescription className="mt-3 max-w-4xl text-sm leading-6">
               The brief now exposes a stable report document model plus real
-              standalone HTML and JSON exports. PDF, email and cron are still
-              intentionally out of scope; export routes consume reportDocument
-              instead of scraping UI cards like a raccoon in a dashboard
-              dumpster.
+              standalone HTML, JSON and print-safe PDF prep exports. Server PDF,
+              email and cron are still intentionally out of scope; export routes
+              consume reportDocument instead of scraping UI cards like a raccoon
+              in a dashboard dumpster.
             </CardDescription>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button asChild size="sm" variant="secondary">
@@ -762,6 +764,16 @@ function ExportReadyStructurePanel({
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Download HTML
+                </a>
+              </Button>
+              <Button asChild size="sm" variant="outline">
+                <a
+                  href={buildDailyBriefPdfPrepUrl(selectedWindow)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Printer className="mr-2 h-4 w-4" />
+                  PDF prep
                 </a>
               </Button>
               <Button asChild size="sm" variant="outline">
