@@ -43,6 +43,7 @@ import {
   buildDailyBriefHtmlExportUrl,
   buildDailyBriefJsonExportUrl,
   buildDailyBriefPageUrl,
+  buildDailyBriefPdfExportUrl,
   buildDailyBriefPdfPrepUrl,
 } from "@/lib/trends/daily-brief-export-links";
 import {
@@ -88,7 +89,7 @@ type ExportCard = {
 const targetLabels: Record<DailyBriefReportAudience, string> = {
   ui: "UI",
   html: "HTML",
-  pdf: "PDF later",
+  pdf: "PDF",
   email: "Email later",
   json: "JSON model",
 };
@@ -879,6 +880,29 @@ export function ReportsHubView() {
       </>
     );
 
+    const pdfActions = (
+      <>
+        <Button asChild size="sm" variant="secondary">
+          <a href={buildDailyBriefPdfExportUrl(selectedWindow)}>
+            <Download className="mr-2 h-4 w-4" />
+            Download PDF
+          </a>
+        </Button>
+        <Button asChild size="sm" variant="outline">
+          <a
+            href={buildDailyBriefPdfExportUrl(selectedWindow, {
+              inline: true,
+            })}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Eye className="mr-2 h-4 w-4" />
+            Preview PDF
+          </a>
+        </Button>
+      </>
+    );
+
     const pdfPrepActions = (
       <>
         <Button asChild size="sm" variant="secondary">
@@ -954,14 +978,26 @@ export function ReportsHubView() {
         actions: htmlActions,
       },
       {
+        id: "daily-brief-pdf",
+        title: "Server PDF Export",
+        description:
+          "Live application/pdf endpoint generated from the Daily Brief reportDocument model. v1 is compact and dependency-free.",
+        group: "Primary",
+        status: "live",
+        recommendedUse:
+          "Use when you need an actual PDF file without going through browser print.",
+        icon: Download,
+        actions: pdfActions,
+      },
+      {
         id: "daily-brief-pdf-prep",
         title: "PDF Prep Layout",
         description:
-          "Print-safe A4 HTML layout for browser Print → Save as PDF, without adding a server PDF generator yet.",
+          "Print-safe A4 HTML layout for visual QA and browser Print → Save as PDF fallback.",
         group: "Primary",
         status: "ready",
         recommendedUse:
-          "Use when you need a clean PDF manually, after reviewing the HTML export.",
+          "Use when you want to inspect page breaks before trusting the binary PDF export.",
         icon: Printer,
         actions: pdfPrepActions,
       },
@@ -999,17 +1035,6 @@ export function ReportsHubView() {
           "Debugging only. Keep this away from the main user export path.",
         icon: Code2,
         actions: developerActions,
-      },
-      {
-        id: "daily-brief-pdf",
-        title: "Server PDF Export",
-        description:
-          "Not implemented yet. The new PDF prep layout is ready, but no server-side PDF binary generation has been added.",
-        group: "Later",
-        status: "planned",
-        recommendedUse:
-          "Add only after the print-safe layout stays stable across real scan data.",
-        icon: Download,
       },
       {
         id: "daily-brief-email",
@@ -1060,8 +1085,9 @@ export function ReportsHubView() {
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
               Reports now has a clear manual flow: review the brief, preview
-              HTML, open the print-safe PDF prep layout, then inspect JSON only
-              when needed. No mock weekly report cosplay, no button soup.
+              HTML, download the server PDF when you need a real file, use PDF
+              prep for layout QA, then inspect JSON only when needed. No mock
+              weekly report cosplay, no button soup.
             </p>
           </div>
 
@@ -1207,8 +1233,9 @@ export function ReportsHubView() {
                   </CardHeader>
                   <CardContent className="grid gap-2 text-sm leading-6 text-muted-foreground/78">
                     <p>
-                      <span className="text-secondary">No PDF yet:</span> HTML
-                      should stay stable before rendering complexity arrives.
+                      <span className="text-secondary">Server PDF live:</span>{" "}
+                      keep the binary PDF compact; use PDF prep when visual
+                      page-break QA matters.
                     </p>
                     <p>
                       <span className="text-secondary">No email yet:</span> no

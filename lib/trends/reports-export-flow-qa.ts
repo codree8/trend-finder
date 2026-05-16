@@ -76,7 +76,7 @@ function channelStatusForTarget(
   document: DailyBriefReportDocument,
   target: DailyBriefReportAudience,
 ): ReportsExportChannel["status"] {
-  if (target === "pdf" || target === "email") return "planned";
+  if (target === "email") return "planned";
   return hasTarget(document, target) ? "live" : "attention";
 }
 
@@ -124,7 +124,14 @@ export function buildReportsExportFlowQa(
       label: "PDF prep layout",
       complete: hasHtml && hasSections && hasBlocks,
       detail:
-        "A print-safe A4 HTML layout is available for browser Print → Save as PDF without server PDF generation.",
+        "A print-safe A4 HTML layout is available for browser Print → Save as PDF and as the QA baseline for server PDF output.",
+    },
+    {
+      id: "server-pdf-export",
+      label: "Server PDF binary",
+      complete: hasTarget(document, "pdf") && hasSections && hasBlocks,
+      detail:
+        "A real application/pdf endpoint is available and generated from the same reportDocument model.",
     },
     {
       id: "json-export",
@@ -245,7 +252,7 @@ export function buildReportsExportFlowQa(
       status: hasHtml && hasSections && hasBlocks ? "ready" : "attention",
       tone: hasHtml && hasSections && hasBlocks ? "positive" : "warning",
       detail:
-        "Print-safe A4 HTML route for manual browser Print → Save as PDF. Not a server PDF binary yet.",
+        "Print-safe A4 HTML route for browser Print → Save as PDF and for layout QA before binary export.",
     },
     {
       id: "json",
@@ -274,10 +281,10 @@ export function buildReportsExportFlowQa(
     {
       id: "pdf",
       label: "Server PDF Export",
-      status: "planned",
-      tone: "neutral",
+      status: channelStatusForTarget(document, "pdf"),
+      tone: hasTarget(document, "pdf") ? "positive" : "warning",
       detail:
-        "Planned later. The print-safe prep layout exists, but no server-side PDF generator has been added.",
+        "Live application/pdf endpoint generated server-side from the reportDocument model. v1 intentionally stays compact and dependency-free.",
     },
     {
       id: "email",
@@ -291,7 +298,9 @@ export function buildReportsExportFlowQa(
 
   const liveChannels = channels.filter(
     (channel) =>
-      (channel.id === "html" || channel.id === "json") &&
+      (channel.id === "html" ||
+        channel.id === "json" ||
+        channel.id === "pdf") &&
       channel.status === "live",
   ).length;
   const readyChannels = channels.filter(
@@ -311,10 +320,10 @@ export function buildReportsExportFlowQa(
     score,
     summary:
       status === "healthy"
-        ? "Reports is wired to the real Daily Brief model with clear manual export paths and a print-safe PDF prep layer. Keep server PDF/email out until this flow stays boringly reliable. Boring is good here."
-        : "Reports can export, but the flow has at least one clarity or integrity issue that should be fixed before adding server PDF/email complexity.",
+        ? "Reports is wired to the real Daily Brief model with HTML, JSON, print-safe PDF prep and a live server PDF endpoint. Email/cron still stay out until this flow stays boringly reliable. Boring is good here."
+        : "Reports can export, but the flow has at least one clarity or integrity issue that should be fixed before adding email or cron complexity.",
     recommendedPath:
-      "Recommended order: open Daily Brief for context, preview HTML for human review, open PDF prep only when you need browser Save as PDF, and use JSON only for model inspection or integrations.",
+      "Recommended order: open Daily Brief for context, preview HTML for human review, use Server PDF when you need a binary file, keep PDF prep for print/layout QA, and use JSON only for model inspection or integrations.",
     metrics: {
       liveChannels,
       readyChannels,
@@ -343,10 +352,18 @@ export function buildReportsExportFlowQa(
         recommended: true,
       },
       {
+        id: "server-pdf",
+        label: "Download server PDF",
+        detail:
+          "Use the binary PDF endpoint when you need an actual .pdf file from the server.",
+        group: "download",
+        recommended: true,
+      },
+      {
         id: "pdf-prep",
         label: "Open PDF prep",
         detail:
-          "Use the print-safe A4 layout when you need browser Print → Save as PDF.",
+          "Use the print-safe A4 layout for visual QA and browser Print → Save as PDF fallback.",
         group: "preview",
         recommended: true,
       },

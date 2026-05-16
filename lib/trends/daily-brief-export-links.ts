@@ -38,6 +38,19 @@ export function buildDailyBriefPdfPrepUrl(
   return `/api/daily-brief/export/pdf-prep?${params.toString()}`;
 }
 
+export function buildDailyBriefPdfExportUrl(
+  trendWindow: DashboardWindow,
+  options: { inline?: boolean } = {},
+) {
+  const params = new URLSearchParams({ window: trendWindow });
+
+  if (options.inline) {
+    params.set("inline", "1");
+  }
+
+  return `/api/daily-brief/export/pdf?${params.toString()}`;
+}
+
 export function buildDailyBriefJsonExportUrl(
   trendWindow: DashboardWindow,
   options: {

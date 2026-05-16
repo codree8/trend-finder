@@ -46,6 +46,7 @@ import {
 import {
   buildDailyBriefHtmlExportUrl,
   buildDailyBriefJsonExportUrl,
+  buildDailyBriefPdfExportUrl,
   buildDailyBriefPdfPrepUrl,
 } from "@/lib/trends/daily-brief-export-links";
 import {
@@ -768,10 +769,10 @@ function ExportReadyStructurePanel({
             </div>
             <CardDescription className="mt-3 max-w-4xl text-sm leading-6">
               The brief now exposes a stable report document model plus real
-              standalone HTML, JSON and print-safe PDF prep exports. Server PDF,
-              email and cron are still intentionally out of scope; export routes
-              consume reportDocument instead of scraping UI cards like a raccoon
-              in a dashboard dumpster.
+              standalone HTML, JSON, print-safe PDF prep and server-generated
+              PDF exports. Email and cron are still intentionally out of scope;
+              export routes consume reportDocument instead of scraping UI cards
+              like a raccoon in a dashboard dumpster.
             </CardDescription>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button asChild size="sm" variant="secondary">
@@ -792,6 +793,24 @@ function ExportReadyStructurePanel({
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Download HTML
+                </a>
+              </Button>
+              <Button asChild size="sm" variant="outline">
+                <a href={buildDailyBriefPdfExportUrl(selectedWindow)}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Download PDF
+                </a>
+              </Button>
+              <Button asChild size="sm" variant="outline">
+                <a
+                  href={buildDailyBriefPdfExportUrl(selectedWindow, {
+                    inline: true,
+                  })}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Eye className="mr-2 h-4 w-4" />
+                  Preview PDF
                 </a>
               </Button>
               <Button asChild size="sm" variant="outline">
