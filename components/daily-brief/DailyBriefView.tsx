@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   ArrowUpRight,
   BookmarkCheck,
+  BrainCircuit,
   CheckCircle2,
   Clock3,
   Eye,
@@ -41,6 +42,7 @@ import {
 import type {
   ActionQueueItem,
   DailyBriefAvoidSeverity,
+  DailyBriefNarrative,
   DailyBriefResponse,
   DailyBriefTopicToAvoid,
   DashboardTrend,
@@ -131,6 +133,29 @@ function avoidVariant(
   if (severity === "noise" || severity === "generic") return "danger";
   if (severity === "stale" || severity === "saturated") return "accent";
   return "muted";
+}
+
+function postureVariant(
+  posture: DailyBriefResponse["briefPosture"]["posture"],
+): BadgeProps["variant"] {
+  if (posture === "offensive") return "secondary";
+  if (posture === "selective") return "accent";
+  return "danger";
+}
+
+function narrativeVariant(
+  tone: DailyBriefNarrative["tone"],
+): BadgeProps["variant"] {
+  if (tone === "opportunity") return "secondary";
+  if (tone === "monitor") return "accent";
+  if (tone === "risk") return "danger";
+  return "muted";
+}
+
+function confidenceLabel(value: number) {
+  if (value >= 78) return "High confidence";
+  if (value >= 58) return "Medium confidence";
+  return "Low confidence";
 }
 
 function signalAgeLabel(value: number | null) {
@@ -298,6 +323,10 @@ export function DailyBriefView() {
         {brief ? (
           <>
             <ExecutiveSummaryCard brief={brief} />
+            <IntelligenceNarrativesSection
+              narratives={brief.intelligenceNarratives}
+              onSelectTrend={(slug) => setSelectedTrendSlug(slug)}
+            />
             <RadarStatsGrid brief={brief} />
 
             {brief.overallWarnings.length > 0 ? (
@@ -372,11 +401,19 @@ function ExecutiveSummaryCard({ brief }: { brief: DailyBriefResponse }) {
   return (
     <Card className="overflow-hidden border-secondary/15 bg-[#160d0d]/72 signal-glow">
       <CardHeader>
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
               <FileText className="h-4 w-4" />
               Executive summary
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge variant={postureVariant(brief.briefPosture.posture)}>
+                {brief.briefPosture.label}
+              </Badge>
+              <Badge variant="muted">
+                {brief.briefPosture.confidence}/100 confidence
+              </Badge>
             </div>
             <CardTitle className="mt-3 text-2xl leading-8">
               {brief.executiveSummary.headline}
@@ -385,13 +422,18 @@ function ExecutiveSummaryCard({ brief }: { brief: DailyBriefResponse }) {
               {brief.executiveSummary.narrative}
             </CardDescription>
           </div>
-          <div className="rounded-2xl border border-border/10 bg-muted/35 px-4 py-3 text-sm text-muted-foreground/75">
-            Generated {formatDate(brief.generatedAt)} · {brief.window}
+          <div className="min-w-[250px] rounded-2xl border border-border/10 bg-muted/35 px-4 py-3 text-sm text-muted-foreground/75">
+            <p>
+              Generated {formatDate(brief.generatedAt)} · {brief.window}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground/62">
+              {brief.briefPosture.summary}
+            </p>
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           {brief.executiveSummary.bullets.map((bullet) => (
             <div
               key={bullet}
@@ -401,6 +443,11 @@ function ExecutiveSummaryCard({ brief }: { brief: DailyBriefResponse }) {
             </div>
           ))}
         </div>
+        <SignalList
+          title="Posture drivers"
+          items={brief.briefPosture.reasons}
+          empty="No posture drivers available."
+        />
       </CardContent>
     </Card>
   );
@@ -470,6 +517,107 @@ function StatCard({
         {label}
       </p>
     </div>
+  );
+}
+
+function IntelligenceNarrativesSection({
+  narratives,
+  onSelectTrend,
+}: {
+  narratives: DailyBriefNarrative[];
+  onSelectTrend: (slug: string) => void;
+}) {
+  return (
+    <section className="rounded-3xl border border-secondary/15 bg-secondary/5 p-4 shadow-card">
+      <SectionTitle
+        icon={BrainCircuit}
+        title="Intelligence Narratives"
+        description="A written readout of what the radar thinks is happening: posture, priority thesis, creator lane, watchlist movement and the strongest reason to say no."
+      />
+      {narratives.length > 0 ? (
+        <div className="mt-4 grid gap-3 xl:grid-cols-2">
+          {narratives.map((narrative) => (
+            <NarrativeCard
+              key={narrative.id}
+              narrative={narrative}
+              onSelectTrend={onSelectTrend}
+            />
+          ))}
+        </div>
+      ) : (
+        <EmptyState text="No narrative could be generated from the current radar state." />
+      )}
+    </section>
+  );
+}
+
+function NarrativeCard({
+  narrative,
+  onSelectTrend,
+}: {
+  narrative: DailyBriefNarrative;
+  onSelectTrend: (slug: string) => void;
+}) {
+  return (
+    <Card className="border-border/10 bg-[#160d0d]/58">
+      <CardHeader>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="mb-3 flex flex-wrap gap-2">
+              <Badge variant={narrativeVariant(narrative.tone)}>
+                {narrative.eyebrow}
+              </Badge>
+              <Badge variant="muted">
+                {confidenceLabel(narrative.confidence)} · {narrative.confidence}
+                /100
+              </Badge>
+            </div>
+            <CardTitle className="text-lg leading-6">
+              {narrative.title}
+            </CardTitle>
+            <CardDescription className="mt-2">
+              {narrative.verdict}
+            </CardDescription>
+          </div>
+          <div className="rounded-2xl border border-border/10 bg-[#0f0808]/45 px-4 py-3 text-center">
+            <p
+              className={`text-2xl font-semibold ${scoreTone(narrative.confidence)}`}
+            >
+              {narrative.confidence}
+            </p>
+            <p className="mt-1 text-[11px] uppercase tracking-wider text-muted-foreground/60">
+              Confidence
+            </p>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="rounded-2xl border border-border/10 bg-muted/30 p-4 text-sm leading-6 text-muted-foreground/82">
+          {narrative.narrative}
+        </p>
+        <SignalList
+          title="Evidence behind the read"
+          items={narrative.evidence}
+          empty="No supporting evidence available."
+          danger={narrative.tone === "risk"}
+        />
+        <div className="rounded-2xl border border-secondary/15 bg-secondary/10 p-4 text-sm leading-6 text-muted-foreground/82">
+          <span className="font-semibold text-secondary">
+            Recommended move:
+          </span>{" "}
+          {narrative.recommendedMove}
+        </div>
+        {narrative.relatedTrendSlug ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onSelectTrend(narrative.relatedTrendSlug!)}
+          >
+            Open intelligence <ArrowUpRight className="ml-2 h-4 w-4" />
+          </Button>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 

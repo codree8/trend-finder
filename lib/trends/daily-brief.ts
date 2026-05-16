@@ -8,6 +8,8 @@ import type {
   ActionQueueItem,
   DailyBriefAvoidSeverity,
   DailyBriefExecutiveSummary,
+  DailyBriefNarrative,
+  DailyBriefPosture,
   DailyBriefRadarStats,
   DailyBriefRecommendedFocus,
   DailyBriefResponse,
@@ -40,12 +42,33 @@ const avoidSeverityRank: Record<DailyBriefAvoidSeverity, number> = {
   weak_signal: 1,
 };
 
+const confidenceBase = {
+  high: 92,
+  medium: 72,
+  low: 50,
+} as const;
+
 function normalizeKey(value: string) {
   return value.trim().toLowerCase();
 }
 
+function clampScore(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function average(values: number[]) {
+  const usable = values.filter(Number.isFinite);
+  if (usable.length === 0) return 0;
+  return usable.reduce((sum, value) => sum + value, 0) / usable.length;
+}
+
 function formatSigned(value: number) {
   return value > 0 ? `+${value}` : String(value);
+}
+
+function pluralize(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
 }
 
 function formatTrendList(
@@ -76,6 +99,27 @@ function uniqueByTrendKey<T>(items: T[], keyForItem: (item: T) => string) {
   }
 
   return output;
+}
+
+function compactUnique(items: string[], maxItems = 4) {
+  return uniqueByTrendKey(
+    items.filter((item) => item.trim().length > 0),
+    (item) => item,
+  ).slice(0, maxItems);
+}
+
+function trendIdentity(trend: DashboardTrend | null) {
+  if (!trend) {
+    return {
+      relatedTrendSlug: null,
+      relatedTrendKey: null,
+    };
+  }
+
+  return {
+    relatedTrendSlug: trend.slug,
+    relatedTrendKey: trend.canonicalKey || trend.id || trend.slug,
+  };
 }
 
 function isUsableOpportunity(trend: DashboardTrend) {
@@ -228,14 +272,14 @@ function avoidReasonForTrend(
 }
 
 function warningsForAvoidTrend(trend: DashboardTrend) {
-  return uniqueByTrendKey(
+  return compactUnique(
     [
       ...trend.topicQuality.warnings,
       ...trend.creatorOpportunity.warnings,
       trend.lifecycle.summary,
     ].filter(Boolean),
-    (warning) => warning,
-  ).slice(0, 3);
+    3,
+  );
 }
 
 function shouldAvoidTrend(trend: DashboardTrend) {
@@ -319,7 +363,7 @@ function buildOverallWarnings(args: {
     );
   }
 
-  return uniqueByTrendKey(warnings, (warning) => warning).slice(0, 8);
+  return compactUnique(warnings, 8);
 }
 
 function buildRadarStats(args: {
@@ -348,6 +392,147 @@ function buildRadarStats(args: {
   };
 }
 
+function actionItemConfidence(item: ActionQueueItem | null) {
+  if (!item) return 0;
+
+  const calibration = confidenceBase[item.calibration.decisionConfidence];
+  const blockerPenalty = Math.min(
+    18,
+    item.calibration.actNowBlockers.length * 3,
+  );
+
+  return clampScore(
+    item.actionScore * 0.46 +
+      item.trend.topicQuality.score * 0.18 +
+      item.trend.creatorOpportunity.score * 0.14 +
+      calibration * 0.22 -
+      blockerPenalty,
+  );
+}
+
+function trendNarrativeConfidence(trend: DashboardTrend | null) {
+  if (!trend) return 0;
+
+  const evidenceScore = Math.min(
+    100,
+    trend.sourceCount * 24 + trend.mentionCount * 7,
+  );
+
+  return clampScore(
+    trend.trendScore * 0.24 +
+      trend.topicQuality.score * 0.24 +
+      trend.creatorOpportunity.score * 0.2 +
+      trend.lifecycle.freshnessScore * 0.16 +
+      evidenceScore * 0.16,
+  );
+}
+
+function movementConfidence(item: SavedTrendWithCurrent | null) {
+  if (!item) return 0;
+
+  const statusScore: Record<WatchlistStatus, number> = {
+    rising: 88,
+    attention: 68,
+    cooling: 58,
+    stable: 45,
+    stale: 36,
+  };
+
+  return clampScore(
+    statusScore[item.delta.watchStatus] * 0.52 +
+      Math.min(100, Math.abs(item.delta.scoreDelta) * 8) * 0.16 +
+      Math.min(100, Math.abs(item.delta.creatorOpportunityDelta) * 6) * 0.12 +
+      Math.min(100, item.delta.newSignalsCount * 22) * 0.12 +
+      (item.delta.lifecycleChanged ? 82 : 50) * 0.08,
+  );
+}
+
+function buildBriefPosture(args: {
+  topPriorityActions: ActionQueueItem[];
+  watchlistMovement: SavedTrendWithCurrent[];
+  hiddenGems: DashboardTrend[];
+  creatorOpportunities: DashboardTrend[];
+  topicsToAvoid: DailyBriefTopicToAvoid[];
+  overallWarnings: string[];
+}): DailyBriefPosture {
+  const actNowCount = args.topPriorityActions.filter(
+    (item) => item.actionPriority === "act_now",
+  ).length;
+  const topAction = args.topPriorityActions[0] ?? null;
+  const risingSaved = args.watchlistMovement.filter(
+    (item) => item.delta.watchStatus === "rising",
+  ).length;
+  const attentionSaved = args.watchlistMovement.filter(
+    (item) => item.delta.watchStatus === "attention",
+  ).length;
+  const hardAvoidCount = args.topicsToAvoid.filter(
+    (item) => item.severity === "noise" || item.severity === "generic",
+  ).length;
+  const opportunityCount =
+    args.hiddenGems.length + args.creatorOpportunities.length;
+  const topConfidence = actionItemConfidence(topAction);
+
+  const posture =
+    actNowCount > 0 && topConfidence >= 74 && hardAvoidCount <= 3
+      ? "offensive"
+      : args.topPriorityActions.length > 0 ||
+          opportunityCount > 0 ||
+          risingSaved > 0
+        ? "selective"
+        : "defensive";
+
+  const labels: Record<DailyBriefPosture["posture"], string> = {
+    offensive: "Offensive posture",
+    selective: "Selective posture",
+    defensive: "Defensive posture",
+  };
+
+  const summaries: Record<DailyBriefPosture["posture"], string> = {
+    offensive:
+      "There is enough quality, timing and freshness to justify a focused move today.",
+    selective:
+      "There are usable openings, but the radar is asking for judgment rather than volume.",
+    defensive:
+      "The radar is thin or noisy; protect attention and wait for stronger evidence.",
+  };
+
+  const confidence = clampScore(
+    average([
+      topConfidence || 55,
+      args.creatorOpportunities[0]
+        ? trendNarrativeConfidence(args.creatorOpportunities[0])
+        : 55,
+      args.hiddenGems[0] ? trendNarrativeConfidence(args.hiddenGems[0]) : 55,
+    ]) -
+      Math.min(18, hardAvoidCount * 3) -
+      Math.min(10, attentionSaved * 2) -
+      Math.min(8, args.overallWarnings.length),
+  );
+
+  const reasons = compactUnique([
+    actNowCount > 0
+      ? `${pluralize(actNowCount, "Act Now candidate")} cleared priority tuning.`
+      : "No Act Now candidate cleared the priority tuning layer.",
+    opportunityCount > 0
+      ? `${pluralize(opportunityCount, "quality opportunity")} remain usable after noise suppression.`
+      : "No strong creator or hidden-gem opportunity is clean enough yet.",
+    risingSaved > 0
+      ? `${pluralize(risingSaved, "saved trend")} is rising in the watchlist.`
+      : `${pluralize(args.watchlistMovement.length, "saved trend")} has movement or inspection value.`,
+    hardAvoidCount > 0
+      ? `${pluralize(hardAvoidCount, "hard avoid")} detected in the current radar.`
+      : "No major hard-avoid cluster is dominating the brief.",
+  ]);
+
+  return {
+    posture,
+    label: labels[posture],
+    summary: summaries[posture],
+    confidence,
+    reasons,
+  };
+}
+
 function buildExecutiveSummary(args: {
   window: DashboardWindow;
   topPriorityActions: ActionQueueItem[];
@@ -355,11 +540,13 @@ function buildExecutiveSummary(args: {
   hiddenGems: DashboardTrend[];
   creatorOpportunities: DashboardTrend[];
   topicsToAvoid: DailyBriefTopicToAvoid[];
+  briefPosture: DailyBriefPosture;
 }): DailyBriefExecutiveSummary {
   const actNow = args.topPriorityActions.filter(
     (item) => item.actionPriority === "act_now",
   );
-  const topAction = args.topPriorityActions[0]?.trend ?? null;
+  const topActionItem = args.topPriorityActions[0] ?? null;
+  const topAction = topActionItem?.trend ?? null;
   const topGem = args.hiddenGems[0] ?? null;
   const topCreator = args.creatorOpportunities[0] ?? null;
   const topAvoid = args.topicsToAvoid[0]?.trend ?? null;
@@ -368,26 +555,33 @@ function buildExecutiveSummary(args: {
   );
 
   const headline = topAction
-    ? `${topAction.topic} leads today's actionable signal.`
+    ? `${topAction.topic} leads the ${args.briefPosture.label.toLowerCase()}.`
     : topGem
-      ? `${topGem.topic} is the cleanest opening in the current radar.`
-      : "No clear Act Now winner in the selected window.";
+      ? `${topGem.topic} is the cleanest opening, but not a full-force signal yet.`
+      : `${args.briefPosture.label}: no clear Act Now winner.`;
+
+  const strongestLane = formatTrendList(
+    [topAction, topCreator, topGem],
+    "the current monitored opportunity pool",
+  );
+  const avoidTarget = topAvoid?.topic ?? "generic AI noise";
 
   const narrative =
     args.topPriorityActions.length > 0
-      ? `In the ${args.window} window, the brief finds ${actNow.length} Act Now candidate(s) and ${args.topPriorityActions.length - actNow.length} Monitor candidate(s). The strongest usable lane is ${formatTrendList([topAction, topCreator], "the current creator opportunity pool")}, while ${topAvoid?.topic ?? "low-quality broad topics"} should stay out of today's focus.`
-      : `In the ${args.window} window, the radar is conservative: no priority candidate is strong enough to force action. Use this brief for monitoring, hidden-gem discovery and noise suppression rather than aggressive publishing.`;
+      ? `In the ${args.window} window, the radar finds ${pluralize(actNow.length, "Act Now candidate")} and ${pluralize(args.topPriorityActions.length - actNow.length, "Monitor candidate")}. The strongest usable lane is ${strongestLane}. Keep ${avoidTarget} out of today's priority path unless evidence improves.`
+      : `In the ${args.window} window, the radar is conservative. Use the brief for monitoring, watchlist inspection and noise suppression rather than aggressive publishing.`;
 
   const bullets = [
-    topAction
-      ? `Priority: ${topAction.topic} has action score ${args.topPriorityActions[0]?.actionScore}/100 with ${args.topPriorityActions[0]?.urgencyLevel} urgency.`
-      : "Priority: no Act Now topic cleared the tuning layer.",
+    `Posture: ${args.briefPosture.label} with ${args.briefPosture.confidence}/100 confidence.`,
+    topActionItem
+      ? `Priority: ${topActionItem.trend.topic} has action score ${topActionItem.actionScore}/100 and ${topActionItem.urgencyLevel} urgency.`
+      : "Priority: no topic deserves immediate execution yet.",
     topGem
       ? `Hidden gem: ${topGem.topic} combines hidden-gem score ${topGem.hiddenGemScore}/100 with saturation ${topGem.saturation}/100.`
       : "Hidden gem: no quality-gated hidden gem stands out yet.",
     watchlistHot?.currentTrend
       ? `Watchlist: ${watchlistHot.currentTrend.topic} is rising with trend delta ${formatSigned(watchlistHot.delta.scoreDelta)}.`
-      : `Watchlist: ${args.watchlistMovement.length} saved trend(s) have movement or inspection value.`,
+      : `Watchlist: ${pluralize(args.watchlistMovement.length, "saved trend")} have movement or inspection value.`,
     topAvoid
       ? `Avoid: ${topAvoid.topic} is flagged as ${args.topicsToAvoid[0].severity}.`
       : "Avoid: no major noise cluster is currently dominating the radar.",
@@ -396,12 +590,220 @@ function buildExecutiveSummary(args: {
   return { headline, narrative, bullets };
 }
 
+function actionEvidence(item: ActionQueueItem) {
+  const trend = item.trend;
+
+  return compactUnique([
+    `Action score ${item.actionScore}/100, ${item.urgencyLevel} urgency, ${item.calibration.decisionConfidence} decision confidence.`,
+    `Quality ${trend.topicQuality.score}/100 with gate ${trend.topicQuality.gateStatus} and ${trend.topicQuality.noiseRisk} noise risk.`,
+    `${pluralize(trend.mentionCount, "mention")} across ${pluralize(trend.sourceCount, "source")}; lifecycle is ${trend.lifecycle.status}.`,
+    item.watchlistItem
+      ? `Watchlist status: ${item.watchlistItem.delta.watchStatusLabel}.`
+      : "Not saved yet; save it if this is part of your content radar.",
+  ]);
+}
+
+function trendEvidence(trend: DashboardTrend) {
+  return compactUnique([
+    `Trend ${trend.trendScore}/100, creator opportunity ${trend.creatorOpportunity.score}/100, quality ${trend.topicQuality.score}/100.`,
+    `${pluralize(trend.mentionCount, "mention")} across ${pluralize(trend.sourceCount, "source")}; latest signal ${trend.lifecycle.latestSignalAgeHours ?? "unknown"}h old.`,
+    `Lifecycle ${trend.lifecycle.status}; freshness ${trend.lifecycle.freshnessScore}/100; saturation ${trend.saturation}/100.`,
+    `Recommended format: ${trend.creatorOpportunity.recommendedFormat}; timing: ${trend.creatorOpportunity.recommendedTiming}.`,
+  ]);
+}
+
+function avoidEvidence(item: DailyBriefTopicToAvoid) {
+  return compactUnique([
+    `Severity: ${item.severity}.`,
+    `Quality ${item.trend.topicQuality.score}/100, gate ${item.trend.topicQuality.gateStatus}, noise risk ${item.trend.topicQuality.noiseRisk}.`,
+    `Lifecycle ${item.trend.lifecycle.status}; saturation ${item.trend.saturation}/100.`,
+    ...item.warnings,
+  ]);
+}
+
+function buildIntelligenceNarratives(args: {
+  window: DashboardWindow;
+  briefPosture: DailyBriefPosture;
+  topPriorityActions: ActionQueueItem[];
+  watchlistMovement: SavedTrendWithCurrent[];
+  hiddenGems: DashboardTrend[];
+  creatorOpportunities: DashboardTrend[];
+  topicsToAvoid: DailyBriefTopicToAvoid[];
+  overallWarnings: string[];
+}): DailyBriefNarrative[] {
+  const primaryAction =
+    args.topPriorityActions.find((item) => item.actionPriority === "act_now") ??
+    args.topPriorityActions[0] ??
+    null;
+  const creatorCandidate = args.creatorOpportunities[0] ?? null;
+  const hiddenGem = args.hiddenGems[0] ?? null;
+  const watchCandidate =
+    args.watchlistMovement.find(
+      (item) => item.delta.watchStatus === "rising",
+    ) ??
+    args.watchlistMovement[0] ??
+    null;
+  const avoidCandidate = args.topicsToAvoid[0] ?? null;
+
+  const narratives: DailyBriefNarrative[] = [
+    {
+      id: "market-posture",
+      eyebrow: "Radar read",
+      title: args.briefPosture.label,
+      verdict: args.briefPosture.summary,
+      narrative:
+        args.briefPosture.posture === "offensive"
+          ? `The ${args.window} radar is giving you a narrow permission slip to act. Not on everything — on the cleanest lane only.`
+          : args.briefPosture.posture === "selective"
+            ? `The ${args.window} radar has signal, but not enough to reward a spray-and-pray content day. Pick the strongest lane and ignore the rest.`
+            : `The ${args.window} radar is not paying rent today. The smart move is to protect attention, inspect evidence and wait for stronger confirmation.`,
+      confidence: args.briefPosture.confidence,
+      tone:
+        args.briefPosture.posture === "offensive"
+          ? "opportunity"
+          : args.briefPosture.posture === "defensive"
+            ? "risk"
+            : "monitor",
+      evidence: args.briefPosture.reasons,
+      recommendedMove:
+        args.briefPosture.posture === "offensive"
+          ? "Turn the top priority into one concrete content or product-research action today."
+          : args.briefPosture.posture === "selective"
+            ? "Choose one lane, validate it in the drawer, then decide whether to save or execute."
+            : "Do not force a trend. Use the brief to prune noise and wait for cleaner movement.",
+      relatedTrendSlug: null,
+      relatedTrendKey: null,
+    },
+  ];
+
+  if (primaryAction) {
+    narratives.push({
+      id: "priority-thesis",
+      eyebrow: "Priority thesis",
+      title: primaryAction.trend.topic,
+      verdict: primaryAction.summary,
+      narrative: `${primaryAction.trend.topic} is the strongest execution candidate because the action layer combines timing, quality, lifecycle and evidence instead of ranking by raw hype alone. The next move is specific: ${primaryAction.recommendedNextStep}`,
+      confidence: actionItemConfidence(primaryAction),
+      tone:
+        primaryAction.actionPriority === "act_now" ? "opportunity" : "monitor",
+      evidence: actionEvidence(primaryAction),
+      recommendedMove: primaryAction.recommendedNextStep,
+      ...trendIdentity(primaryAction.trend),
+    });
+  } else if (hiddenGem) {
+    narratives.push({
+      id: "priority-thesis",
+      eyebrow: "Fallback thesis",
+      title: hiddenGem.topic,
+      verdict: "No Act Now winner, but this is the cleanest early opening.",
+      narrative: `${hiddenGem.topic} is not promoted as a hard action yet, but it is the best candidate to inspect because the hidden-gem layer sees early upside without obvious noise pressure.`,
+      confidence: trendNarrativeConfidence(hiddenGem),
+      tone: "monitor",
+      evidence: trendEvidence(hiddenGem),
+      recommendedMove:
+        "Open the drawer, inspect evidence quality, then save it if the supporting signals look credible.",
+      ...trendIdentity(hiddenGem),
+    });
+  }
+
+  if (creatorCandidate) {
+    narratives.push({
+      id: "creator-lane",
+      eyebrow: "Creator lane",
+      title: creatorCandidate.topic,
+      verdict: creatorCandidate.creatorOpportunity.bestAngle,
+      narrative: `${creatorCandidate.topic} has the best creator timing in this brief. The angle is already shaped enough to become content, and the recommended format is ${creatorCandidate.creatorOpportunity.recommendedFormat}.`,
+      confidence: trendNarrativeConfidence(creatorCandidate),
+      tone:
+        creatorCandidate.creatorOpportunity.recommendedTiming === "Act now"
+          ? "opportunity"
+          : "monitor",
+      evidence: trendEvidence(creatorCandidate),
+      recommendedMove: `Draft a ${creatorCandidate.creatorOpportunity.recommendedFormat.toLowerCase()} around: ${creatorCandidate.creatorOpportunity.bestAngle}`,
+      ...trendIdentity(creatorCandidate),
+    });
+  }
+
+  if (watchCandidate) {
+    narratives.push({
+      id: "watchlist-movement",
+      eyebrow: "Watchlist movement",
+      title: watchCandidate.currentTrend?.topic ?? watchCandidate.topic,
+      verdict: watchCandidate.delta.summary,
+      narrative: watchCandidate.currentTrend
+        ? `${watchCandidate.currentTrend.topic} moved inside your saved radar. Treat this as a personal signal, not a global ranking: it matters because you already chose to track it.`
+        : `${watchCandidate.topic} is saved, but it is missing a current snapshot. That is useful as a warning: the item may be stale, renamed or outside the selected window.`,
+      confidence: movementConfidence(watchCandidate),
+      tone:
+        watchCandidate.delta.watchStatus === "rising"
+          ? "opportunity"
+          : watchCandidate.delta.watchStatus === "attention" ||
+              watchCandidate.delta.watchStatus === "stale"
+            ? "risk"
+            : "monitor",
+      evidence: compactUnique([
+        `Watch status: ${watchCandidate.delta.watchStatusLabel}.`,
+        `Trend delta ${formatSigned(watchCandidate.delta.scoreDelta)}, creator delta ${formatSigned(watchCandidate.delta.creatorOpportunityDelta)}, quality delta ${formatSigned(watchCandidate.delta.qualityDelta)}.`,
+        `${pluralize(watchCandidate.delta.newSignalsCount, "new signal")} since baseline.`,
+        watchCandidate.delta.lifecycleChanged
+          ? `Lifecycle changed from ${watchCandidate.delta.previousLifecycleStatus ?? "unknown"} to ${watchCandidate.delta.currentLifecycleStatus ?? "unknown"}.`
+          : "Lifecycle did not materially change.",
+      ]),
+      recommendedMove: watchCandidate.delta.recommendedAction,
+      ...trendIdentity(watchCandidate.currentTrend),
+    });
+  }
+
+  if (avoidCandidate) {
+    narratives.push({
+      id: "avoidance-read",
+      eyebrow: "Noise filter",
+      title: avoidCandidate.trend.topic,
+      verdict: avoidCandidate.reason,
+      narrative: `${avoidCandidate.trend.topic} is the main topic to keep out of today's focus. This is not a ban; it is a demand for better evidence before attention gets spent.`,
+      confidence: clampScore(
+        avoidSeverityRank[avoidCandidate.severity] * 16 +
+          (100 - avoidCandidate.trend.topicQuality.score) * 0.22 +
+          Math.min(20, avoidCandidate.warnings.length * 5),
+      ),
+      tone: "risk",
+      evidence: avoidEvidence(avoidCandidate),
+      recommendedMove:
+        "Do not execute from this topic today unless the detail drawer shows a very specific, fresh and source-backed angle.",
+      ...trendIdentity(avoidCandidate.trend),
+    });
+  }
+
+  if (args.overallWarnings.length > 0) {
+    narratives.push({
+      id: "brief-caveat",
+      eyebrow: "Calibration caveat",
+      title: "Read the brief with tuning context",
+      verdict: args.overallWarnings[0],
+      narrative:
+        "The daily brief is computed from current intelligence layers, so warnings matter. They explain why a topic may look interesting but still fail the execution bar.",
+      confidence: clampScore(
+        62 + Math.min(24, args.overallWarnings.length * 4),
+      ),
+      tone: "neutral",
+      evidence: args.overallWarnings.slice(0, 4),
+      recommendedMove:
+        "Use warnings as a final checklist before saving, publishing or turning any trend into action.",
+      relatedTrendSlug: null,
+      relatedTrendKey: null,
+    });
+  }
+
+  return narratives.slice(0, 6);
+}
+
 function buildRecommendedFocus(args: {
   topPriorityActions: ActionQueueItem[];
   watchlistMovement: SavedTrendWithCurrent[];
   hiddenGems: DashboardTrend[];
   creatorOpportunities: DashboardTrend[];
   topicsToAvoid: DailyBriefTopicToAvoid[];
+  briefPosture: DailyBriefPosture;
 }): DailyBriefRecommendedFocus {
   const primaryAction =
     args.topPriorityActions.find((item) => item.actionPriority === "act_now") ??
@@ -431,7 +833,8 @@ function buildRecommendedFocus(args: {
     avoid: avoidCandidate
       ? `Avoid ${avoidCandidate.trend.topic}: ${avoidCandidate.reason}`
       : "Avoid forcing content from weak or generic topics just to fill the calendar.",
-    rationale: [
+    rationale: compactUnique([
+      `Brief posture is ${args.briefPosture.label.toLowerCase()} with ${args.briefPosture.confidence}/100 confidence.`,
       primaryAction
         ? `Action layer selected ${primaryAction.trend.topic} with ${primaryAction.actionScore}/100 action score.`
         : "Action layer did not find a strong Act Now candidate.",
@@ -441,7 +844,7 @@ function buildRecommendedFocus(args: {
       avoidCandidate
         ? `Noise suppression protects the brief from ${avoidCandidate.severity} topics.`
         : "No major suppressed trend needs a hard warning today.",
-    ],
+    ]),
   };
 }
 
@@ -465,6 +868,20 @@ export async function getDailyBrief(
     dashboardData.trends,
     actionQueue.items,
   );
+  const overallWarnings = buildOverallWarnings({
+    actionQueue,
+    topicsToAvoid,
+    watchlistMovement,
+    latestScanWarnings: dashboardData.latestScan?.warnings ?? [],
+  });
+  const briefPosture = buildBriefPosture({
+    topPriorityActions,
+    watchlistMovement,
+    hiddenGems: hiddenGemsWorthWatching,
+    creatorOpportunities,
+    topicsToAvoid,
+    overallWarnings,
+  });
   const executiveSummary = buildExecutiveSummary({
     window,
     topPriorityActions,
@@ -472,6 +889,7 @@ export async function getDailyBrief(
     hiddenGems: hiddenGemsWorthWatching,
     creatorOpportunities,
     topicsToAvoid,
+    briefPosture,
   });
   const radarStats = buildRadarStats({
     totalTrends: dashboardData.trends.length,
@@ -484,11 +902,15 @@ export async function getDailyBrief(
       dashboardData.latestScan?.sourceCoverage.label ?? "No scan coverage yet",
     latestScanAt: dashboardData.latestScan?.createdAt ?? null,
   });
-  const overallWarnings = buildOverallWarnings({
-    actionQueue,
-    topicsToAvoid,
+  const intelligenceNarratives = buildIntelligenceNarratives({
+    window,
+    briefPosture,
+    topPriorityActions,
     watchlistMovement,
-    latestScanWarnings: dashboardData.latestScan?.warnings ?? [],
+    hiddenGems: hiddenGemsWorthWatching,
+    creatorOpportunities,
+    topicsToAvoid,
+    overallWarnings,
   });
   const recommendedFocus = buildRecommendedFocus({
     topPriorityActions,
@@ -496,6 +918,7 @@ export async function getDailyBrief(
     hiddenGems: hiddenGemsWorthWatching,
     creatorOpportunities,
     topicsToAvoid,
+    briefPosture,
   });
   const savedTrendKeys = watchlistData.items.map((item) =>
     normalizeKey(item.trendKey),
@@ -507,6 +930,8 @@ export async function getDailyBrief(
     generatedAt: new Date().toISOString(),
     executiveSummary,
     radarStats,
+    briefPosture,
+    intelligenceNarratives,
     topPriorityActions,
     watchlistMovement,
     hiddenGemsWorthWatching,

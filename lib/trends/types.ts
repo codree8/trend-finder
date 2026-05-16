@@ -437,12 +437,42 @@ export type DailyBriefRecommendedFocus = {
   rationale: string[];
 };
 
+export type DailyBriefPosture = {
+  posture: "offensive" | "selective" | "defensive";
+  label: string;
+  summary: string;
+  confidence: number;
+  reasons: string[];
+};
+
+export type DailyBriefNarrativeTone =
+  | "opportunity"
+  | "monitor"
+  | "risk"
+  | "neutral";
+
+export type DailyBriefNarrative = {
+  id: string;
+  eyebrow: string;
+  title: string;
+  verdict: string;
+  narrative: string;
+  confidence: number;
+  tone: DailyBriefNarrativeTone;
+  evidence: string[];
+  recommendedMove: string;
+  relatedTrendSlug: string | null;
+  relatedTrendKey: string | null;
+};
+
 export type DailyBriefResponse = {
   ok: true;
   window: DashboardWindow;
   generatedAt: string;
   executiveSummary: DailyBriefExecutiveSummary;
   radarStats: DailyBriefRadarStats;
+  briefPosture: DailyBriefPosture;
+  intelligenceNarratives: DailyBriefNarrative[];
   topPriorityActions: ActionQueueItem[];
   watchlistMovement: SavedTrendWithCurrent[];
   hiddenGemsWorthWatching: DashboardTrend[];
