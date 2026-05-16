@@ -37,6 +37,7 @@ import {
 import {
   buildDailyBriefApiUrl,
   buildDailyBriefHtmlExportUrl,
+  buildDailyBriefJsonExportUrl,
   buildDailyBriefPageUrl,
 } from "@/lib/trends/daily-brief-export-links";
 import type {
@@ -463,16 +464,37 @@ export function ReportsHubView() {
     );
 
     const jsonActions = (
-      <Button asChild size="sm" variant="outline">
-        <a
-          href={buildDailyBriefApiUrl(selectedWindow)}
-          target="_blank"
-          rel="noreferrer"
-        >
-          <FileJson className="mr-2 h-4 w-4" />
-          Open JSON
-        </a>
-      </Button>
+      <>
+        <Button asChild size="sm" variant="secondary">
+          <a
+            href={buildDailyBriefJsonExportUrl(selectedWindow)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <FileJson className="mr-2 h-4 w-4" />
+            Preview JSON
+          </a>
+        </Button>
+        <Button asChild size="sm" variant="outline">
+          <a
+            href={buildDailyBriefJsonExportUrl(selectedWindow, {
+              download: true,
+            })}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Download JSON
+          </a>
+        </Button>
+        <Button asChild size="sm" variant="ghost">
+          <a
+            href={buildDailyBriefApiUrl(selectedWindow)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Full API payload
+          </a>
+        </Button>
+      </>
     );
 
     return [
@@ -487,10 +509,10 @@ export function ReportsHubView() {
       },
       {
         id: "daily-brief-json",
-        title: "Daily Brief JSON Model",
+        title: "Daily Brief JSON Export",
         description:
-          "The structured API payload is already available for future integrations and debugging.",
-        status: "ready",
+          "Clean JSON preview/download powered by the same reportDocument model as the HTML export.",
+        status: "live",
         icon: FileJson,
         actions: jsonActions,
       },
@@ -547,9 +569,9 @@ export function ReportsHubView() {
               Daily Brief exports, in one place.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
-              Reports now uses the real Daily Intelligence Brief layer: HTML
-              preview/download, JSON model access, export-readiness checks and
-              quick-copy payloads. No mock weekly report cosplay.
+              Reports now uses the real Daily Intelligence Brief layer: HTML and
+              JSON preview/download, export-readiness checks and quick-copy
+              payloads. No mock weekly report cosplay.
             </p>
           </div>
 

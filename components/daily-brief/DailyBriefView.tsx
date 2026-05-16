@@ -17,6 +17,7 @@ import {
   Clock3,
   Download,
   Eye,
+  FileJson,
   FileText,
   Layers3,
   Lightbulb,
@@ -41,7 +42,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { buildDailyBriefHtmlExportUrl } from "@/lib/trends/daily-brief-export-links";
+import {
+  buildDailyBriefHtmlExportUrl,
+  buildDailyBriefJsonExportUrl,
+} from "@/lib/trends/daily-brief-export-links";
 import type {
   ActionQueueItem,
   DailyBriefAvoidSeverity,
@@ -733,11 +737,11 @@ function ExportReadyStructurePanel({
               </Badge>
             </div>
             <CardDescription className="mt-3 max-w-4xl text-sm leading-6">
-              The brief now exposes a stable report document model and a real
-              standalone HTML export. PDF, email and cron are still
-              intentionally out of scope; HTML is the first clean export layer
-              built from reportDocument instead of scraping UI cards like a
-              raccoon in a dashboard dumpster.
+              The brief now exposes a stable report document model plus real
+              standalone HTML and JSON exports. PDF, email and cron are still
+              intentionally out of scope; export routes consume reportDocument
+              instead of scraping UI cards like a raccoon in a dashboard
+              dumpster.
             </CardDescription>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button asChild size="sm" variant="secondary">
@@ -758,6 +762,26 @@ function ExportReadyStructurePanel({
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Download HTML
+                </a>
+              </Button>
+              <Button asChild size="sm" variant="outline">
+                <a
+                  href={buildDailyBriefJsonExportUrl(selectedWindow)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <FileJson className="mr-2 h-4 w-4" />
+                  Preview JSON
+                </a>
+              </Button>
+              <Button asChild size="sm" variant="ghost">
+                <a
+                  href={buildDailyBriefJsonExportUrl(selectedWindow, {
+                    download: true,
+                  })}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download JSON
                 </a>
               </Button>
             </div>
@@ -831,7 +855,7 @@ function ExportReadyStructurePanel({
         ) : (
           <div className="rounded-2xl border border-secondary/15 bg-secondary/10 p-4 text-sm leading-6 text-muted-foreground/82">
             Export structure is clean: sections, blocks, trend references and
-            quick-copy payload are present. The HTML route now consumes
+            quick-copy payload are present. The HTML and JSON routes now consume
             <span className="font-semibold text-secondary">
               {" "}
               reportDocument{" "}
