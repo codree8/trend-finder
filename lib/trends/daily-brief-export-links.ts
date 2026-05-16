@@ -128,3 +128,11 @@ export function buildDailyBriefAutomationPreLiveChecklistUrl(
 
   return `/api/daily-brief/automation/pre-live-checklist?${params.toString()}`;
 }
+
+export function buildDailyBriefAutomationManualApprovalUrl(
+  trendWindow: DashboardWindow,
+) {
+  const params = new URLSearchParams({ window: trendWindow });
+
+  return `/api/daily-brief/automation/manual-approval?${params.toString()}`;
+}

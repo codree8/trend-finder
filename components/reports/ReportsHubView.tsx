@@ -43,6 +43,7 @@ import {
   buildDailyBriefAutomationConfigUrl,
   buildDailyBriefAutomationDryRunUrl,
   buildDailyBriefAutomationGuardrailsUrl,
+  buildDailyBriefAutomationManualApprovalUrl,
   buildDailyBriefAutomationPreLiveChecklistUrl,
   buildDailyBriefAutomationPreviewUrl,
   buildDailyBriefExportReadinessUrl,
@@ -108,6 +109,15 @@ import {
   type AutomationPreLiveChecklistStatus,
   type AutomationPreLiveLiveStatus,
 } from "@/lib/trends/automation-pre-live-checklist";
+import {
+  buildAutomationManualApproval,
+  manualApprovalGateTone,
+  manualApprovalStatusTone,
+  type AutomationManualApproval,
+  type AutomationManualApprovalGateStatus,
+  type AutomationManualApprovalSeverity,
+  type AutomationManualApprovalStatus,
+} from "@/lib/trends/automation-manual-approval";
 import {
   buildExportSystemReadiness,
   type ExportSystemReadiness,
@@ -393,6 +403,38 @@ function liveReadinessStatusLabel(status: AutomationPreLiveLiveStatus) {
   return labels[status];
 }
 
+
+function manualApprovalStatusVariant(
+  status: AutomationManualApprovalStatus,
+): BadgeProps["variant"] {
+  return reportToneVariant(manualApprovalStatusTone(status));
+}
+
+function manualApprovalGateVariant(
+  status: AutomationManualApprovalGateStatus,
+): BadgeProps["variant"] {
+  return reportToneVariant(manualApprovalGateTone(status));
+}
+
+function manualApprovalSeverityVariant(
+  severity: AutomationManualApprovalSeverity,
+): BadgeProps["variant"] {
+  if (severity === "danger") return "danger";
+  if (severity === "warning") return "accent";
+  if (severity === "success") return "secondary";
+  return "muted";
+}
+
+function manualApprovalStatusLabel(status: AutomationManualApprovalStatus) {
+  const labels: Record<AutomationManualApprovalStatus, string> = {
+    ready_for_review: "Ready for review",
+    review_required: "Review required",
+    blocked: "Blocked",
+  };
+
+  return labels[status];
+}
+
 function compactSectionDescription(value: string) {
   if (value.length <= 118) return value;
   return `${value.slice(0, 115).trim()}...`;
@@ -440,6 +482,33 @@ function MiniMetric({
       </p>
       <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground/60">
         {label}
+      </p>
+    </div>
+  );
+}
+
+
+function StatusTile({
+  label,
+  value,
+  helper,
+  variant,
+}: {
+  label: string;
+  value: string;
+  helper: string;
+  variant: BadgeProps["variant"];
+}) {
+  return (
+    <div className="rounded-2xl border border-border/10 bg-muted/20 p-4">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground/60">
+          {label}
+        </p>
+        <Badge variant={variant}>{value}</Badge>
+      </div>
+      <p className="mt-3 text-xs leading-5 text-muted-foreground/70">
+        {helper}
       </p>
     </div>
   );
@@ -2859,6 +2928,299 @@ function QuickCopyPanel({
   );
 }
 
+function AutomationManualApprovalPanel({
+  approval,
+  selectedWindow,
+}: {
+  approval: AutomationManualApproval;
+  selectedWindow: DashboardWindow;
+}) {
+  const blockingReasons = approval.blockingReasons.slice(0, 6);
+  const cannotApproveUntil = approval.cannotApproveUntil.slice(0, 6);
+  const visibleGates = approval.approvalGates
+    .filter((gate) => gate.status !== "pass" || gate.approvalBlocking)
+    .slice(0, 8);
+
+  return (
+    <Card className="border-secondary/15 bg-[#160d0d]/72 signal-glow">
+      <CardHeader>
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+              <Clipboard className="h-4 w-4" />
+              Manual Approval Mode
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge
+                variant={manualApprovalStatusVariant(approval.approvalStatus)}
+              >
+                {manualApprovalStatusLabel(approval.approvalStatus)}
+              </Badge>
+              <Badge variant="secondary">{approval.approvalMode}</Badge>
+              <Badge variant="muted">{approval.workflowState}</Badge>
+              <Badge variant="danger">approved: false</Badge>
+              <Badge variant="danger">canRecordApproval: false</Badge>
+            </div>
+            <CardTitle className="mt-4 text-2xl tracking-[-0.035em]">
+              Review-state contract before internal test preparation.
+            </CardTitle>
+            <CardDescription className="mt-2 max-w-4xl leading-6">
+              This mode creates a manual review packet and approval gates without
+              persisting approval, sending email, scheduling jobs, adding
+              recipients or unlocking live automation.
+            </CardDescription>
+            <p className="mt-3 max-w-4xl text-sm leading-6 text-secondary/85">
+              {approval.recommendedNextStep}
+            </p>
+          </div>
+          <div className="grid min-w-[280px] grid-cols-2 gap-2 text-center">
+            <MiniMetric
+              label="Safety"
+              value={`${approval.sourceSummary.safetyScore}/100`}
+            />
+            <MiniMetric
+              label="Pre-live"
+              value={`${approval.sourceSummary.preLiveScore}/100`}
+            />
+            <MiniMetric label="Gates" value={approval.approvalGates.length} />
+            <MiniMetric
+              label="Blockers"
+              value={approval.blockingReasons.length}
+            />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm" variant="secondary">
+            <a
+              href={buildDailyBriefAutomationManualApprovalUrl(selectedWindow)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <FileJson className="mr-2 h-4 w-4" />
+              Manual approval JSON
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <a
+              href={buildDailyBriefAutomationPreLiveChecklistUrl(selectedWindow)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ShieldAlert className="mr-2 h-4 w-4" />
+              Checklist JSON
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="ghost">
+            <a
+              href={buildDailyBriefAutomationPreviewUrl(selectedWindow)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              Preview JSON
+            </a>
+          </Button>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-4">
+          <StatusTile
+            label="Approval decision"
+            value={approval.approvalDecision.approved ? "Approved" : "Not approved"}
+            helper={approval.approvalDecision.detail}
+            variant="danger"
+          />
+          <StatusTile
+            label="Live approval"
+            value={approval.approvalDecision.approvedForLive ? "Allowed" : "Blocked"}
+            helper="Manual Approval Mode v1 cannot approve live automation."
+            variant="danger"
+          />
+          <StatusTile
+            label="Limited test"
+            value={
+              approval.approvalDecision.approvedForLimitedInternalTest
+                ? "Allowed"
+                : "Not approved"
+            }
+            helper="The next step may prepare requirements, not send messages."
+            variant="accent"
+          />
+          <StatusTile
+            label="Persistence"
+            value={approval.approvalDecision.persistenceEnabled ? "On" : "Off"}
+            helper="No approval state or run history is written to the database."
+            variant="secondary"
+          />
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+          <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-4">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              <FileText className="h-3.5 w-3.5" />
+              Review packet
+            </div>
+            <h3 className="mt-3 text-lg font-semibold tracking-[-0.02em]">
+              {approval.reviewPacket.subject}
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground/72">
+              {approval.reviewPacket.summary}
+            </p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <MiniMetric
+                label="Artifacts"
+                value={approval.reviewPacket.artifactCount}
+              />
+              <MiniMetric
+                label="Channels"
+                value={approval.reviewPacket.simulatedChannelCount}
+              />
+              <MiniMetric
+                label="Markdown"
+                value={approval.reviewPacket.markdownCharacters}
+              />
+              <MiniMetric label="Window" value={approval.reviewPacket.window} />
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border/10 bg-muted/20 p-4">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Required review checklist
+            </div>
+            <div className="mt-4 space-y-3">
+              {approval.reviewChecklist.map((item) => (
+                <div
+                  key={item.id}
+                  className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-foreground">
+                      {item.label}
+                    </p>
+                    <Badge variant={manualApprovalGateVariant(item.status)}>
+                      {item.status}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                    {item.detail}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Blocking reasons
+            </p>
+            <div className="mt-3 space-y-2">
+              {(blockingReasons.length > 0
+                ? blockingReasons
+                : [
+                    "No blocking approval gate in the current dry-run review state.",
+                  ]
+              ).map((item) => (
+                <p
+                  key={item}
+                  className="rounded-2xl border border-border/10 bg-muted/20 px-3 py-2 text-xs leading-5 text-muted-foreground/72"
+                >
+                  {item}
+                </p>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Cannot approve until
+            </p>
+            <div className="mt-3 space-y-2">
+              {(cannotApproveUntil.length > 0
+                ? cannotApproveUntil
+                : [
+                    "A human reviewer policy is defined for the later limited internal test step.",
+                  ]
+              ).map((item) => (
+                <p
+                  key={item}
+                  className="rounded-2xl border border-border/10 bg-muted/20 px-3 py-2 text-xs leading-5 text-muted-foreground/72"
+                >
+                  {item}
+                </p>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border/10 bg-muted/20 p-4">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+            <ShieldAlert className="h-3.5 w-3.5" />
+            Approval gates
+          </div>
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            {(visibleGates.length > 0
+              ? visibleGates
+              : approval.approvalGates.slice(0, 6)
+            ).map((gate) => (
+              <div
+                key={gate.id}
+                className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">
+                    {gate.label}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant={manualApprovalGateVariant(gate.status)}>
+                      {gate.status}
+                    </Badge>
+                    <Badge variant={manualApprovalSeverityVariant(gate.severity)}>
+                      {gate.severity}
+                    </Badge>
+                  </div>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground/68">
+                  {gate.detail}
+                </p>
+                <p className="mt-2 text-xs leading-5 text-secondary/80">
+                  {gate.requiredAction}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-2xl border border-secondary/15 bg-secondary/5 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Allowed reviewer actions
+            </p>
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground/72">
+              {approval.allowedReviewerActions.slice(0, 5).map((item) => (
+                <li key={item}>• {item}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="rounded-2xl border border-danger/20 bg-danger/10 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+              Disallowed reviewer actions
+            </p>
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground/72">
+              {approval.disallowedReviewerActions.slice(0, 6).map((item) => (
+                <li key={item}>• {item}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function ReportsHubView() {
   const [selectedWindow, setSelectedWindow] = useState<DashboardWindow>("7d");
   const [brief, setBrief] = useState<DailyBriefResponse | null>(null);
@@ -3033,6 +3395,32 @@ export function ReportsHubView() {
       automationPreview,
       exportReadiness,
       serverPdfQa,
+    ],
+  );
+
+  const automationManualApproval = useMemo(
+    () =>
+      automationDryRun &&
+      automationGuardrails &&
+      automationPreview &&
+      automationPreLiveChecklist &&
+      exportReadiness
+        ? buildAutomationManualApproval({
+            config: automationConfig,
+            manifest: automationDryRun,
+            guardrails: automationGuardrails,
+            preview: automationPreview,
+            checklist: automationPreLiveChecklist,
+            readiness: exportReadiness,
+          })
+        : null,
+    [
+      automationConfig,
+      automationDryRun,
+      automationGuardrails,
+      automationPreLiveChecklist,
+      automationPreview,
+      exportReadiness,
     ],
   );
 
@@ -3554,6 +3942,12 @@ export function ReportsHubView() {
             {automationPreLiveChecklist ? (
               <AutomationPreLiveChecklistPanel
                 checklist={automationPreLiveChecklist}
+                selectedWindow={selectedWindow}
+              />
+            ) : null}
+            {automationManualApproval ? (
+              <AutomationManualApprovalPanel
+                approval={automationManualApproval}
                 selectedWindow={selectedWindow}
               />
             ) : null}

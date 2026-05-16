@@ -14,6 +14,7 @@ import {
   BookmarkCheck,
   BrainCircuit,
   CheckCircle2,
+  Clipboard,
   Clock3,
   Download,
   Eye,
@@ -48,6 +49,7 @@ import {
   buildDailyBriefAutomationConfigUrl,
   buildDailyBriefAutomationDryRunUrl,
   buildDailyBriefAutomationGuardrailsUrl,
+  buildDailyBriefAutomationManualApprovalUrl,
   buildDailyBriefAutomationPreLiveChecklistUrl,
   buildDailyBriefAutomationPreviewUrl,
   buildDailyBriefExportReadinessUrl,
@@ -87,6 +89,11 @@ import {
   preLiveChecklistStatusTone,
   type AutomationPreLiveChecklistStatus,
 } from "@/lib/trends/automation-pre-live-checklist";
+import {
+  buildAutomationManualApproval,
+  manualApprovalStatusTone,
+  type AutomationManualApprovalStatus,
+} from "@/lib/trends/automation-manual-approval";
 import {
   buildExportSystemReadiness,
   type ExportSystemReadinessStatus,
@@ -299,6 +306,23 @@ function preLiveStatusVariant(
   status: AutomationPreLiveChecklistStatus,
 ): BadgeProps["variant"] {
   return reportToneVariant(preLiveChecklistStatusTone(status));
+}
+
+
+function manualApprovalStatusVariant(
+  status: AutomationManualApprovalStatus,
+): BadgeProps["variant"] {
+  return reportToneVariant(manualApprovalStatusTone(status));
+}
+
+function manualApprovalStatusLabel(status: AutomationManualApprovalStatus) {
+  const labels: Record<AutomationManualApprovalStatus, string> = {
+    ready_for_review: "Ready for review",
+    review_required: "Review required",
+    blocked: "Blocked",
+  };
+
+  return labels[status];
 }
 
 function preLiveStatusLabel(status: AutomationPreLiveChecklistStatus) {
@@ -978,6 +1002,26 @@ function ExportReadyStructurePanel({
     ],
   );
 
+  const automationManualApproval = useMemo(
+    () =>
+      buildAutomationManualApproval({
+        config: automationConfig,
+        manifest: automationDryRun,
+        guardrails: automationGuardrails,
+        preview: automationPreview,
+        checklist: automationPreLiveChecklist,
+        readiness: exportReadiness,
+      }),
+    [
+      automationConfig,
+      automationDryRun,
+      automationGuardrails,
+      automationPreLiveChecklist,
+      automationPreview,
+      exportReadiness,
+    ],
+  );
+
   const topGuardrailBlockers = automationGuardrails.blockerPolicy.blockedBy.slice(
     0,
     3,
@@ -1163,6 +1207,16 @@ function ExportReadyStructurePanel({
                 >
                   <ShieldCheck className="mr-2 h-4 w-4" />
                   Config JSON
+                </a>
+              </Button>
+              <Button asChild size="sm" variant="ghost">
+                <a
+                  href={buildDailyBriefAutomationManualApprovalUrl(selectedWindow)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Clipboard className="mr-2 h-4 w-4" />
+                  Approval JSON
                 </a>
               </Button>
             </div>
@@ -1755,6 +1809,72 @@ function ExportReadyStructurePanel({
               <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
                 {automationPreLiveChecklist.allowedNextSteps[1] ??
                   automationPreLiveChecklist.allowedNextSteps[0]}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-secondary/15 bg-secondary/5 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/62">
+                <Clipboard className="h-3.5 w-3.5" />
+                Manual Approval Mode
+              </div>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground/78">
+                Simulation-only review state. It creates approval gates and a
+                review packet, but cannot record approval, send email, schedule
+                jobs or unlock live automation.
+              </p>
+              <p className="mt-2 text-xs leading-5 text-secondary/85">
+                {automationManualApproval.recommendedNextStep}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Badge
+                variant={manualApprovalStatusVariant(
+                  automationManualApproval.approvalStatus,
+                )}
+              >
+                {manualApprovalStatusLabel(
+                  automationManualApproval.approvalStatus,
+                )}
+              </Badge>
+              <Badge variant="secondary">
+                {automationManualApproval.workflowState}
+              </Badge>
+              <Badge variant="danger">approved: false</Badge>
+              <Badge variant="danger">record: false</Badge>
+              <Button asChild size="sm" variant="ghost">
+                <a
+                  href={buildDailyBriefAutomationManualApprovalUrl(selectedWindow)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Approval JSON
+                </a>
+              </Button>
+            </div>
+          </div>
+          <div className="mt-3 grid gap-2 md:grid-cols-3">
+            <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3">
+              <p className="text-xs font-semibold text-foreground">Review packet</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                {automationManualApproval.reviewPacket.subject}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3">
+              <p className="text-xs font-semibold text-foreground">Top blocker</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                {automationManualApproval.blockingReasons[0] ??
+                  "No active approval blocker; approval still cannot be recorded in v1."}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3">
+              <p className="text-xs font-semibold text-foreground">Cannot approve until</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground/68">
+                {automationManualApproval.cannotApproveUntil[0] ??
+                  "Reviewer policy is defined for the later internal test step."}
               </p>
             </div>
           </div>
