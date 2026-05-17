@@ -1,3 +1,5 @@
+import type { ConnectorReadinessSummary } from "@/lib/scan/connector-readiness";
+
 export type DashboardWindow = "24h" | "7d" | "30d";
 
 export type DashboardMode =
@@ -262,6 +264,7 @@ export type LatestScanStatus = {
   failedSources: number;
   sourceCoverage: ScanSourceCoverage;
   warnings: string[];
+  connectorReadiness?: ConnectorReadinessSummary;
 };
 
 export type DashboardTrendsResponse = {

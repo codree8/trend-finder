@@ -1,4 +1,4 @@
-import { AlertTriangle, Activity, CheckCircle2, Database } from "lucide-react";
+import { AlertTriangle, Activity, CheckCircle2, Database, PlugZap, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { LatestScanStatus, SourceBreakdownItem } from "@/lib/trends/types";
 
@@ -30,6 +30,13 @@ export function ScanHealthPanel({ latestScan, sourceBreakdown }: Props) {
   const hasWarnings = Boolean(latestScan?.warnings.length);
   const sourceText =
     latestScan?.sourceCoverage.label ?? "0/0 sources with signals";
+  const connectorReadiness = latestScan?.connectorReadiness;
+  const activeConnectorText = connectorReadiness?.activeSources.length
+    ? connectorReadiness.activeSources.join(" · ")
+    : "GitHub · Hacker News · RSS";
+  const inactiveConnectorText = connectorReadiness?.inactiveSupportedSources.length
+    ? connectorReadiness.inactiveSupportedSources.join(" · ")
+    : "Optional sources not scanned yet";
 
   return (
     <section className="rounded-3xl border border-secondary/15 bg-card/72 p-5 shadow-card">
@@ -99,6 +106,31 @@ export function ScanHealthPanel({ latestScan, sourceBreakdown }: Props) {
             {latestScan?.sourceCoverage.withSignals ?? sourceBreakdown.length}/
             {latestScan?.sourceCoverage.scanned ?? sourceBreakdown.length}
           </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <div className="rounded-2xl border border-secondary/15 bg-secondary/10 p-4">
+          <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-secondary/85">
+            <PlugZap className="h-4 w-4" />
+            Active sources
+          </div>
+          <p className="text-sm leading-6 text-foreground/86">{activeConnectorText}</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground/64">
+            These connectors are actually used by the scan runner. Model-only sources are not counted as active data.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
+          <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-muted-foreground/60">
+            <ShieldAlert className="h-4 w-4" />
+            Supported but inactive
+          </div>
+          <p className="text-sm leading-6 text-muted-foreground/86">{inactiveConnectorText}</p>
+          {connectorReadiness?.warnings.length ? (
+            <p className="mt-1 text-xs leading-5 text-accent/84">
+              {connectorReadiness.warnings.length} connector setting needs review in Admin / Source Connectors.
+            </p>
+          ) : null}
         </div>
       </div>
 

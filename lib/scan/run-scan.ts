@@ -8,7 +8,8 @@ import {
 } from "@/lib/db/schema";
 import { getDb } from "@/lib/db";
 import { defaultAiKeywords } from "@/lib/config/scan-keywords";
-import { activeConnectors } from "@/lib/scan/connectors";
+import { getActiveConnectors } from "@/lib/scan/connectors";
+import { getConnectorReadinessSummary } from "@/lib/scan/connector-readiness";
 import { clusterSourceSignals } from "@/lib/clustering/cluster-topics";
 import {
   addTrendSnapshots,
@@ -20,7 +21,7 @@ import {
   prepareSignalForStorage,
   uniquePreparedSignals,
 } from "@/lib/signals/signal-fingerprint";
-import type { SourceSignal } from "@/lib/sources/types";
+import type { SourceConnector, SourceSignal } from "@/lib/sources/types";
 
 export type RunScanOptions = {
   mode: "manual" | "daily";
@@ -216,7 +217,7 @@ function prepareSignalsForScan(signals: SourceSignal[], observedAt: Date) {
 }
 
 async function scanConnector(
-  connector: (typeof activeConnectors)[number],
+  connector: SourceConnector,
   args: { keywords: string[]; since: Date },
 ): Promise<ConnectorScanResult> {
   try {
@@ -549,10 +550,12 @@ export async function runTrendScan(options: RunScanOptions) {
     ? options.keywords
     : defaultAiKeywords;
   const observedAt = new Date();
-  const scannedSources = activeConnectors.map((connector) => connector.name);
+  const connectors = getActiveConnectors();
+  const connectorReadiness = getConnectorReadinessSummary();
+  const scannedSources = connectors.map((connector) => connector.name);
 
   const connectorResults = await Promise.all(
-    activeConnectors.map((connector) =>
+    connectors.map((connector) =>
       scanConnector(connector, { keywords, since }),
     ),
   );
@@ -574,6 +577,8 @@ export async function runTrendScan(options: RunScanOptions) {
     windowDays,
     keywords,
     scannedSources,
+    activeSources: connectorReadiness.activeSources,
+    connectorReadiness,
     sourceCounts,
     failedSources: failed.length,
     failedSourceDetails: failed.map((result) => ({
@@ -657,6 +662,7 @@ export async function runTrendScan(options: RunScanOptions) {
     snapshotsCreated: persistenceResult.scanSummary.snapshotsCreated,
     sourceCounts,
     sourceCoverage,
+    connectorReadiness,
     failedSources: failed.length,
     scanSummary: {
       ...persistenceResult.scanSummary,

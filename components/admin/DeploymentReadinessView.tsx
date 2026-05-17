@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, Cloud, ExternalLink, Rocket, ShieldCheck, TriangleAlert, XCircle } from "lucide-react";
+import { CheckCircle2, Cloud, ExternalLink, PlugZap, Rocket, ShieldCheck, TriangleAlert, XCircle } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,12 @@ const checks: DeploymentCheck[] = [
     title: "Empty and error states",
     status: "Review",
     detail: "Run with an empty database or temporarily broken API response and confirm pages fail clearly.",
+  },
+
+  {
+    title: "Connector readiness visible",
+    status: "Ready",
+    detail: "Admin Source Connectors separates active scanner sources from sources that are only supported by the model.",
   },
   {
     title: "/api/trends reachable",
@@ -132,9 +138,9 @@ export function DeploymentReadinessView() {
           </Card>
           <Card className="border-secondary/15 bg-[#160d0d]/66">
             <CardHeader>
-              <Rocket className="h-5 w-5 text-secondary" />
-              <CardTitle>Demo path</CardTitle>
-              <CardDescription>The demo route gives a clean presentation path without fake data.</CardDescription>
+              <PlugZap className="h-5 w-5 text-secondary" />
+              <CardTitle>Connector boundary</CardTitle>
+              <CardDescription>YouTube is optional and feature-flagged. Reddit/arXiv remain model-supported, not active scanner sources.</CardDescription>
             </CardHeader>
           </Card>
         </section>
@@ -176,6 +182,9 @@ export function DeploymentReadinessView() {
                 <Link href="/demo">Open demo flow</Link>
               </Button>
               <Button asChild variant="outline">
+                <Link href="/admin/source-connectors">Open source connectors</Link>
+              </Button>
+              <Button asChild variant="ghost">
                 <Link href="/admin/automation">Open system boundaries</Link>
               </Button>
               <Button asChild variant="ghost">

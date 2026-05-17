@@ -18,6 +18,7 @@ import {
   Wrench,
   Rocket,
   SlidersHorizontal,
+  PlugZap,
   type LucideIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -91,6 +92,7 @@ const adminRouteItems: NavItem[] = [
   { href: "/daily-brief", label: "Daily Brief", icon: Newspaper },
   { href: "/admin/beta-readiness", label: "Beta QA", icon: ListChecks },
   { href: "/admin/scoring-lab", label: "Scoring Lab", icon: SlidersHorizontal },
+  { href: "/admin/source-connectors", label: "Source Connectors", icon: PlugZap },
   { href: "/admin/deployment-readiness", label: "Deployment", icon: Rocket },
   { href: "/demo", label: "Demo Flow", icon: Sparkles },
   { href: "/admin/automation", label: "Boundaries", icon: ShieldCheck },

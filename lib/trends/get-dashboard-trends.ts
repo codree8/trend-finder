@@ -15,6 +15,7 @@ import { buildCreatorOpportunity } from "@/lib/trends/creator-opportunity";
 import { buildTopicQuality } from "@/lib/trends/topic-quality";
 import { buildSourceQualitySummary } from "@/lib/product/source-quality";
 import { buildProductTrendIntelligence } from "@/lib/product/intelligence-scoring";
+import { getConnectorReadinessSummary } from "@/lib/scan/connector-readiness";
 import {
   canonicalKeyFromTopicText,
   mergeAliases,
@@ -190,6 +191,31 @@ function canonicalKeyForRow(
   return (
     row.canonicalKey ?? canonicalKeyFromTopicText(`${row.name} ${row.slug}`)
   );
+}
+
+
+function connectorReadinessFromPayload(payload: unknown) {
+  const readiness = asRecord(asRecord(payload).connectorReadiness);
+  const items = readiness.items;
+
+  if (!Array.isArray(items)) {
+    return getConnectorReadinessSummary();
+  }
+
+  return {
+    ...getConnectorReadinessSummary(),
+    ...readiness,
+    items,
+    warnings: Array.isArray(readiness.warnings)
+      ? readiness.warnings.filter((item): item is string => typeof item === "string")
+      : [],
+    activeSources: Array.isArray(readiness.activeSources)
+      ? readiness.activeSources.filter((item): item is string => typeof item === "string")
+      : [],
+    inactiveSupportedSources: Array.isArray(readiness.inactiveSupportedSources)
+      ? readiness.inactiveSupportedSources.filter((item): item is string => typeof item === "string")
+      : [],
+  };
 }
 
 function sourceCoverageFromPayload(payload: unknown): ScanSourceCoverage {
@@ -608,6 +634,7 @@ function buildLatestScan(
     failedSources: numberFromPayload(row.rawPayload, "failedSources"),
     sourceCoverage: sourceCoverageFromPayload(row.rawPayload),
     warnings: stringArrayFromPayload(row.rawPayload, "warnings"),
+    connectorReadiness: connectorReadinessFromPayload(row.rawPayload),
   };
 }
 
