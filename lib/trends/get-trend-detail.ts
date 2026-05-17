@@ -23,6 +23,7 @@ import { buildTopicQuality } from "@/lib/trends/topic-quality";
 import { buildSourceQualitySummary } from "@/lib/product/source-quality";
 import { buildProductTrendIntelligence } from "@/lib/product/intelligence-scoring";
 import { buildResearchSignalCalibration } from "@/lib/product/research-signal-calibration";
+import { buildTrendSourceEvidenceInspector } from "@/lib/product/source-evidence-inspector";
 import {
   canonicalKeyFromTopicText,
   mergeAliases,
@@ -741,6 +742,11 @@ export async function getTrendDetail(
     snapshots: snapshotHistory,
     rawTrendScore: currentSnapshot.trendScore,
   });
+  const sourceEvidenceInspector = buildTrendSourceEvidenceInspector({
+    trend,
+    signals: evidenceLayer.signals,
+    scoringTransparency,
+  });
 
   return {
     ok: true,
@@ -767,6 +773,7 @@ export async function getTrendDetail(
       sourceQuality: trend.sourceQuality,
       researchSignal: trend.researchSignal,
       productIntelligence: trend.productIntelligence,
+      sourceEvidenceInspector,
       snapshots: snapshotHistory,
     },
   };

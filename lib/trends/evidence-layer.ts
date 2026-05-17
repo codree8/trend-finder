@@ -27,9 +27,11 @@ const sourceCredibility: Record<string, number> = {
   "hacker news": 84,
   hn: 84,
   rss: 68,
+  "rss / blogs": 68,
   blog: 66,
   reddit: 58,
   youtube: 54,
+  arxiv: 86,
 };
 
 function clampScore(value: number) {

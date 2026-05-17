@@ -67,6 +67,10 @@ import type {
   TrendScoringTransparencyConfidence,
   TrendScoringTransparencyImpact,
   TrendSignalQualityTag,
+  TrendSourceEvidenceGroup,
+  TrendSourceEvidenceInspector,
+  TrendSourceEvidenceSignal,
+  TrendSourceEvidenceVerdict,
   WatchlistStatus,
 } from "@/lib/trends/types";
 
@@ -644,6 +648,11 @@ export function TrendDetailDrawer({
 
               <ProductTrendDecisionSection trend={detail.trend} showAdminDiagnostics={showAdminDiagnostics} />
 
+              <SourceEvidenceInspectorSection
+                inspector={detail.intelligence.sourceEvidenceInspector}
+                showAdminDiagnostics={showAdminDiagnostics}
+              />
+
               <section className="rounded-3xl border border-border/10 bg-card/72 p-5 shadow-card">
                 <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-secondary">
                   <Compass className="h-4 w-4" />
@@ -1193,6 +1202,260 @@ function researchSignalVariant(impact: DashboardTrend["researchSignal"]["confide
   if (impact === "boost") return "secondary" as const;
   if (impact === "caution") return "accent" as const;
   return "muted" as const;
+}
+
+function sourceEvidenceVariant(verdict: TrendSourceEvidenceVerdict) {
+  if (verdict === "supports") return "secondary" as const;
+  if (verdict === "watch") return "accent" as const;
+  if (verdict === "caution") return "danger" as const;
+  return "muted" as const;
+}
+
+function sourceEvidenceTone(verdict: TrendSourceEvidenceVerdict) {
+  if (verdict === "supports") return "text-secondary";
+  if (verdict === "watch") return "text-accent";
+  if (verdict === "caution") return "text-primary";
+  return "text-muted-foreground/70";
+}
+
+function sourceGroupBorder(verdict: TrendSourceEvidenceVerdict) {
+  if (verdict === "supports") return "border-secondary/20";
+  if (verdict === "watch") return "border-accent/20";
+  if (verdict === "caution") return "border-primary/25";
+  return "border-border/10";
+}
+
+function sourceGroupIcon(verdict: TrendSourceEvidenceVerdict) {
+  if (verdict === "supports") return CheckCircle2;
+  if (verdict === "watch") return Radar;
+  if (verdict === "caution") return AlertTriangle;
+  return ShieldAlert;
+}
+
+function SourceEvidenceInspectorSection({
+  inspector,
+  showAdminDiagnostics,
+}: {
+  inspector: TrendSourceEvidenceInspector;
+  showAdminDiagnostics: boolean;
+}) {
+  return (
+    <section className="rounded-3xl border border-secondary/15 bg-card/76 p-5 shadow-card">
+      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+            <Link2 className="h-4 w-4" />
+            Source evidence inspector
+          </div>
+          <h3 className="mt-2 text-xl font-semibold tracking-[-0.03em] text-foreground">
+            Which sources are actually carrying this trend?
+          </h3>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground/78">
+            {inspector.summary}
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Badge variant={sourceEvidenceVariant(inspector.verdict)}>
+            {inspector.verdictLabel}
+          </Badge>
+          <Badge variant="muted">{inspector.overallScore}/100 evidence</Badge>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-4">
+        <MovementCard
+          label="Sources"
+          value={String(inspector.sourceCount)}
+          helper="confirmed groups"
+        />
+        <MovementCard
+          label="Signals"
+          value={String(inspector.signalCount)}
+          helper="visible evidence"
+        />
+        <MovementCard
+          label="Strongest"
+          value={inspector.strongestSource ?? "n/a"}
+          helper="largest contribution"
+          className="text-secondary"
+        />
+        <MovementCard
+          label="Confidence"
+          value={inspector.confidenceDriver}
+          helper="ranking context"
+          className={sourceEvidenceTone(inspector.verdict)}
+        />
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-3">
+        <EvidenceMemoCard title="Adoption evidence" body={inspector.adoptionEvidence} />
+        <EvidenceMemoCard title="Research evidence" body={inspector.researchEvidence} />
+        <EvidenceMemoCard title="Creator evidence" body={inspector.creatorEvidence} />
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-border/10 bg-muted/25 p-4 text-sm leading-6 text-muted-foreground/78">
+        <strong className="text-foreground">Cross-source read:</strong> {inspector.crossSourceSummary}
+      </div>
+
+      {inspector.warnings.length > 0 ? (
+        <div className="mt-4 rounded-2xl border border-primary/20 bg-primary/10 p-4">
+          <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+            <AlertTriangle className="h-4 w-4" />
+            Evidence caveats
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {inspector.warnings.map((warning) => (
+              <Badge key={warning} variant="danger">
+                {warning}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mt-5 grid gap-4 xl:grid-cols-2">
+        {inspector.groups.slice(0, showAdminDiagnostics ? 8 : 4).map((group) => (
+          <SourceEvidenceGroupCard
+            key={group.source}
+            group={group}
+            showAdminDiagnostics={showAdminDiagnostics}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function EvidenceMemoCard({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="rounded-2xl border border-border/10 bg-[#160d0d]/38 p-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-secondary/90">
+        {title}
+      </p>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground/78">{body}</p>
+    </div>
+  );
+}
+
+function SourceEvidenceGroupCard({
+  group,
+  showAdminDiagnostics,
+}: {
+  group: TrendSourceEvidenceGroup;
+  showAdminDiagnostics: boolean;
+}) {
+  const GroupIcon = sourceGroupIcon(group.verdict);
+
+  return (
+    <article
+      className={`rounded-3xl border ${sourceGroupBorder(group.verdict)} bg-[#160d0d]/42 p-4`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="rounded-2xl border border-border/10 bg-muted/30 p-2">
+            <GroupIcon className={`h-4 w-4 ${sourceEvidenceTone(group.verdict)}`} />
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="text-sm font-semibold text-foreground">
+                {group.source}
+              </h4>
+              <Badge variant={sourceEvidenceVariant(group.verdict)}>
+                {group.verdictLabel}
+              </Badge>
+              <Badge variant="muted">{group.roleLabel}</Badge>
+            </div>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground/78">
+              {group.summary}
+            </p>
+          </div>
+        </div>
+        <div className="shrink-0 text-right">
+          <p className={`text-2xl font-semibold ${scoreTone(group.contributionScore)}`}>
+            {group.contributionScore}
+          </p>
+          <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/55">
+            contribution
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+        <span className="rounded-xl border border-border/10 bg-muted/25 px-2 py-2">
+          <strong className="block text-foreground">{group.signalCount}</strong>
+          Signals
+        </span>
+        <span className="rounded-xl border border-border/10 bg-muted/25 px-2 py-2">
+          <strong className="block text-foreground">{group.trustScore}</strong>
+          Trust
+        </span>
+        <span className="rounded-xl border border-border/10 bg-muted/25 px-2 py-2">
+          <strong className="block text-foreground">{group.share}%</strong>
+          Share
+        </span>
+      </div>
+
+      {group.warnings.length > 0 ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {group.warnings.map((warning) => (
+            <Badge key={`${group.source}-${warning}`} variant="accent">
+              {warning}
+            </Badge>
+          ))}
+        </div>
+      ) : null}
+
+      {showAdminDiagnostics ? (
+        <div className="mt-4 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/55">
+            Signal impact
+          </p>
+          {group.signals.slice(0, 3).map((signal) => (
+            <SourceEvidenceSignalRow
+              key={`${group.source}-${signal.url}`}
+              signal={signal}
+            />
+          ))}
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function SourceEvidenceSignalRow({
+  signal,
+}: {
+  signal: TrendSourceEvidenceSignal;
+}) {
+  return (
+    <a
+      href={signal.url}
+      target="_blank"
+      rel="noreferrer"
+      className="group block rounded-2xl border border-border/10 bg-muted/25 p-3 transition hover:border-secondary/30 hover:bg-muted/40"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="mb-2 flex flex-wrap gap-2">
+            <Badge variant={sourceEvidenceVariant(signal.impact)}>
+              {signal.impactLabel}
+            </Badge>
+            <Badge variant="muted">{signal.sourceEvidenceScore}/100</Badge>
+            {signal.qualityScore ? (
+              <Badge variant="muted">quality {signal.qualityScore}</Badge>
+            ) : null}
+          </div>
+          <p className="text-sm font-medium leading-5 text-foreground/90">
+            {signal.title}
+          </p>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground/65">
+            {signal.reason}
+          </p>
+        </div>
+        <ExternalLink className="mt-1 h-4 w-4 shrink-0 text-muted-foreground/50 transition group-hover:text-secondary" />
+      </div>
+    </a>
+  );
 }
 
 function ProductTrendDecisionSection({

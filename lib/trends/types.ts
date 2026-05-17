@@ -219,6 +219,62 @@ export type ProductTrendIntelligence = {
   researchCaveat: string;
 };
 
+export type TrendSourceEvidenceVerdict =
+  | "supports"
+  | "watch"
+  | "weak"
+  | "caution";
+
+export type TrendSourceEvidenceSignal = {
+  title: string;
+  source: string;
+  url: string;
+  engagement: number;
+  publishedAt: string | null;
+  createdAt: string | null;
+  qualityScore?: number;
+  evidenceTags: TrendEvidenceType[];
+  qualityTags: TrendSignalQualityTag[];
+  sourceEvidenceScore: number;
+  impact: TrendSourceEvidenceVerdict;
+  impactLabel: string;
+  reason: string;
+};
+
+export type TrendSourceEvidenceGroup = {
+  source: string;
+  category: SourceQualityCategory;
+  roleLabel: string;
+  signalCount: number;
+  share: number;
+  trustScore: number;
+  averageSignalScore: number;
+  contributionScore: number;
+  verdict: TrendSourceEvidenceVerdict;
+  verdictLabel: string;
+  summary: string;
+  warnings: string[];
+  signals: TrendSourceEvidenceSignal[];
+};
+
+export type TrendSourceEvidenceInspector = {
+  overallScore: number;
+  verdict: TrendSourceEvidenceVerdict;
+  verdictLabel: string;
+  summary: string;
+  sourceCount: number;
+  signalCount: number;
+  strongestSource: string | null;
+  weakestSource: string | null;
+  confidenceDriver: string;
+  crossSourceSummary: string;
+  adoptionEvidence: string;
+  researchEvidence: string;
+  creatorEvidence: string;
+  warnings: string[];
+  groups: TrendSourceEvidenceGroup[];
+};
+
 export type DashboardTrend = {
   id: string;
   topicId: number;
@@ -879,6 +935,7 @@ export type TrendDetailIntelligence = {
   sourceQuality: SourceQualitySummary;
   researchSignal: ResearchSignalCalibration;
   productIntelligence: ProductTrendIntelligence;
+  sourceEvidenceInspector: TrendSourceEvidenceInspector;
   snapshots: TrendDetailSnapshot[];
 };
 
