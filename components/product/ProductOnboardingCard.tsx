@@ -14,13 +14,15 @@ import {
 
 export function ProductOnboardingCard() {
   const [isVisible, setIsVisible] = useState(
-    () => !readProductPreferences().onboardingDismissed,
+    !defaultProductPreferences.onboardingDismissed,
   );
 
   useEffect(() => {
     function handlePreferenceChange() {
       setIsVisible(!readProductPreferences().onboardingDismissed);
     }
+
+    handlePreferenceChange();
 
     window.addEventListener(productPreferencesChangedEvent, handlePreferenceChange);
     window.addEventListener("storage", handlePreferenceChange);

@@ -346,14 +346,16 @@ function ToggleRow({
 }
 
 export function ProductSettingsView() {
-  const [preferences, setPreferences] = useState<ProductPreferences>(() =>
-    readProductPreferences(),
+  const [preferences, setPreferences] = useState<ProductPreferences>(
+    defaultProductPreferences,
   );
 
   useEffect(() => {
     function handlePreferenceChange() {
       setPreferences(readProductPreferences());
     }
+
+    handlePreferenceChange();
 
     window.addEventListener(productPreferencesChangedEvent, handlePreferenceChange);
     window.addEventListener("storage", handlePreferenceChange);

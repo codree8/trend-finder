@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
+  defaultProductPreferences,
   productPreferencesChangedEvent,
   readPreferredWorkspaceView,
   readProductPreferences,
@@ -95,7 +96,7 @@ const adminComingSoonItems: DisabledNavItem[] = [
   { label: "System Diagnostics", icon: Wrench, reason: "coming soon" },
 ];
 
-function getInitialDashboardSection(): DashboardSectionId {
+function readDashboardSectionFromHash(): DashboardSectionId {
   if (typeof window === "undefined") return "dashboard-overview";
 
   const hashId = window.location.hash.replace("#", "");
@@ -104,8 +105,8 @@ function getInitialDashboardSection(): DashboardSectionId {
     : "dashboard-overview";
 }
 
-function getInitialWorkspaceView(pathname: string): WorkspaceView {
-  return readPreferredWorkspaceView(pathname);
+function getHydrationSafeWorkspaceView(pathname: string): WorkspaceView {
+  return pathname.startsWith("/admin") ? "admin" : defaultProductPreferences.defaultWorkspace;
 }
 
 function isSameRoute(pathname: string, href: string) {
@@ -116,12 +117,12 @@ function isSameRoute(pathname: string, href: string) {
 export function Sidebar() {
   const pathname = usePathname();
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>(() =>
-    getInitialWorkspaceView(pathname),
+    getHydrationSafeWorkspaceView(pathname),
   );
   const [activeDashboardSection, setActiveDashboardSection] =
-    useState<DashboardSectionId>(getInitialDashboardSection);
-  const [preferences, setPreferences] = useState<ProductPreferences>(() =>
-    readProductPreferences(),
+    useState<DashboardSectionId>("dashboard-overview");
+  const [preferences, setPreferences] = useState<ProductPreferences>(
+    defaultProductPreferences,
   );
 
   const isDashboard = pathname === "/dashboard" || pathname === "/";
@@ -154,10 +155,10 @@ export function Sidebar() {
   }, [isAdminView, preferences.dashboardSections]);
 
   useEffect(() => {
-    if (pathname.startsWith("/admin")) {
-      setWorkspaceView("admin");
+    if (isDashboard) {
+      setActiveDashboardSection(readDashboardSectionFromHash());
     }
-  }, [pathname]);
+  }, [isDashboard, pathname]);
 
   useEffect(() => {
     function handlePreferenceChange() {
@@ -165,6 +166,8 @@ export function Sidebar() {
       setPreferences(nextPreferences);
       setWorkspaceView(readPreferredWorkspaceView(pathname));
     }
+
+    handlePreferenceChange();
 
     window.addEventListener(productPreferencesChangedEvent, handlePreferenceChange);
     window.addEventListener("storage", handlePreferenceChange);

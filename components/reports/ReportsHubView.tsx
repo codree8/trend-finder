@@ -32,6 +32,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { ProductExperienceBanner } from "@/components/product/ProductExperienceBanner";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import {
+  defaultProductPreferences,
   productPreferencesChangedEvent,
   readProductPreferences,
   type DefaultExportFormat,
@@ -3703,12 +3704,13 @@ export function ReportsHubView({
 }: {
   mode?: ReportsHubMode;
 } = {}) {
-  const [preferences, setPreferences] = useState<ProductPreferences>(() =>
-    readProductPreferences(),
+  const [preferences, setPreferences] = useState<ProductPreferences>(
+    defaultProductPreferences,
   );
   const [selectedWindow, setSelectedWindow] = useState<DashboardWindow>(
-    () => readProductPreferences().defaultBriefWindow,
+    defaultProductPreferences.defaultBriefWindow,
   );
+  const [hasHydratedPreferences, setHasHydratedPreferences] = useState(false);
   const [brief, setBrief] = useState<DailyBriefResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -3775,6 +3777,11 @@ export function ReportsHubView({
   }, [selectedWindow]);
 
   useEffect(() => {
+    const initialPreferences = readProductPreferences();
+    setPreferences(initialPreferences);
+    setSelectedWindow(initialPreferences.defaultBriefWindow);
+    setHasHydratedPreferences(true);
+
     function handlePreferenceChange() {
       setPreferences(readProductPreferences());
     }
@@ -3792,12 +3799,14 @@ export function ReportsHubView({
   }, []);
 
   useEffect(() => {
+    if (!hasHydratedPreferences) return;
     void loadBrief();
-  }, [loadBrief]);
+  }, [hasHydratedPreferences, loadBrief]);
 
   useEffect(() => {
+    if (!hasHydratedPreferences) return;
     void loadServerPdfQa();
-  }, [loadServerPdfQa]);
+  }, [hasHydratedPreferences, loadServerPdfQa]);
 
   useEffect(() => {
     if (copyState === "idle") return;

@@ -5,6 +5,7 @@ import { Eye, Presentation, Sparkles, type LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  defaultProductPreferences,
   productPreferencesChangedEvent,
   readProductPreferences,
   updateProductPreferences,
@@ -52,13 +53,15 @@ export function ProductExperienceBanner({
   className?: string;
 }) {
   const [experienceMode, setExperienceMode] = useState<ProductExperienceMode>(
-    () => readProductPreferences().experienceMode,
+    defaultProductPreferences.experienceMode,
   );
 
   useEffect(() => {
     function handlePreferenceChange() {
       setExperienceMode(readProductPreferences().experienceMode);
     }
+
+    handlePreferenceChange();
 
     window.addEventListener(productPreferencesChangedEvent, handlePreferenceChange);
     window.addEventListener("storage", handlePreferenceChange);

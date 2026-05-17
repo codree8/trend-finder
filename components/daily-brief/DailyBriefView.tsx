@@ -39,6 +39,7 @@ import { TrendDetailDrawer } from "@/components/dashboard/TrendDetailDrawer";
 import { ProductExperienceBanner } from "@/components/product/ProductExperienceBanner";
 import { WatchlistButton } from "@/components/watchlist/WatchlistButton";
 import {
+  defaultProductPreferences,
   parseDashboardWindow,
   productPreferencesChangedEvent,
   readProductPreferences,
@@ -136,13 +137,14 @@ import type {
 
 const windowOptions: DashboardWindow[] = ["24h", "7d", "30d"];
 
-function getInitialDashboardWindow(): DashboardWindow {
-  if (typeof window === "undefined") return "7d";
+function readDashboardWindowFromUrl(
+  fallback: DashboardWindow,
+): DashboardWindow {
+  if (typeof window === "undefined") return fallback;
 
-  const preferences = readProductPreferences();
   return parseDashboardWindow(
     new URLSearchParams(window.location.search).get("window"),
-    preferences.defaultBriefWindow,
+    fallback,
   );
 }
 
@@ -461,12 +463,13 @@ function isTrendSaved(
 }
 
 export function DailyBriefView() {
-  const [preferences, setPreferences] = useState<ProductPreferences>(() =>
-    readProductPreferences(),
+  const [preferences, setPreferences] = useState<ProductPreferences>(
+    defaultProductPreferences,
   );
   const [trendWindow, setTrendWindow] = useState<DashboardWindow>(
-    getInitialDashboardWindow,
+    defaultProductPreferences.defaultBriefWindow,
   );
+  const [hasHydratedPreferences, setHasHydratedPreferences] = useState(false);
   const [brief, setBrief] = useState<DailyBriefResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -530,6 +533,11 @@ export function DailyBriefView() {
   }, [trendWindow]);
 
   useEffect(() => {
+    const initialPreferences = readProductPreferences();
+    setPreferences(initialPreferences);
+    setTrendWindow(readDashboardWindowFromUrl(initialPreferences.defaultBriefWindow));
+    setHasHydratedPreferences(true);
+
     function handlePreferenceChange() {
       setPreferences(readProductPreferences());
     }
@@ -547,12 +555,14 @@ export function DailyBriefView() {
   }, []);
 
   useEffect(() => {
+    if (!hasHydratedPreferences) return;
     void loadBrief();
-  }, [loadBrief]);
+  }, [hasHydratedPreferences, loadBrief]);
 
   useEffect(() => {
+    if (!hasHydratedPreferences) return;
     void loadServerPdfQa();
-  }, [loadServerPdfQa]);
+  }, [hasHydratedPreferences, loadServerPdfQa]);
 
   const savedTrendKeys = useMemo(
     () => new Set(brief?.savedTrendKeys ?? []),

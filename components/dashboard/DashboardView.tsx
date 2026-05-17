@@ -16,6 +16,7 @@ import { TREND_SCAN_COMPLETED_EVENT } from "@/components/dashboard/ScanButton";
 import { ProductExperienceBanner } from "@/components/product/ProductExperienceBanner";
 import { ProductOnboardingCard } from "@/components/product/ProductOnboardingCard";
 import {
+  defaultProductPreferences,
   productPreferencesChangedEvent,
   readProductPreferences,
   type ProductPreferences,
@@ -34,7 +35,7 @@ const emptyDashboardData = (
 ): DashboardTrendsResponse => ({
   ok: true,
   window,
-  generatedAt: new Date().toISOString(),
+  generatedAt: "1970-01-01T00:00:00.000Z",
   latestScan: null,
   kpis: [
     {
@@ -126,13 +127,14 @@ function formatScanDate(value: string | null | undefined) {
 }
 
 export function DashboardView() {
-  const [preferences, setPreferences] = useState<ProductPreferences>(() =>
-    readProductPreferences(),
+  const [preferences, setPreferences] = useState<ProductPreferences>(
+    defaultProductPreferences,
   );
   const [mode, setMode] = useState<DashboardMode>("All");
   const [trendWindow, setTrendWindow] = useState<DashboardWindow>(
-    () => readProductPreferences().defaultBriefWindow,
+    defaultProductPreferences.defaultBriefWindow,
   );
+  const [hasHydratedPreferences, setHasHydratedPreferences] = useState(false);
   const [category, setCategory] = useState("All");
   const [data, setData] = useState<DashboardTrendsResponse>(() =>
     emptyDashboardData("7d"),
@@ -207,6 +209,11 @@ export function DashboardView() {
   );
 
   useEffect(() => {
+    const initialPreferences = readProductPreferences();
+    setPreferences(initialPreferences);
+    setTrendWindow(initialPreferences.defaultBriefWindow);
+    setHasHydratedPreferences(true);
+
     function handlePreferenceChange() {
       setPreferences(readProductPreferences());
     }
@@ -224,15 +231,18 @@ export function DashboardView() {
   }, []);
 
   useEffect(() => {
+    if (!hasHydratedPreferences) return;
     void loadDashboardData(trendWindow);
-  }, [loadDashboardData, trendWindow]);
+  }, [hasHydratedPreferences, loadDashboardData, trendWindow]);
 
   useEffect(() => {
+    if (!hasHydratedPreferences) return;
     void loadSavedTrendKeys(trendWindow);
-  }, [loadSavedTrendKeys, trendWindow]);
+  }, [hasHydratedPreferences, loadSavedTrendKeys, trendWindow]);
 
   useEffect(() => {
     function handleScanCompleted() {
+      if (!hasHydratedPreferences) return;
       void loadDashboardData(trendWindow);
       void loadSavedTrendKeys(trendWindow);
     }
@@ -243,7 +253,7 @@ export function DashboardView() {
         TREND_SCAN_COMPLETED_EVENT,
         handleScanCompleted,
       );
-  }, [loadDashboardData, loadSavedTrendKeys, trendWindow]);
+  }, [hasHydratedPreferences, loadDashboardData, loadSavedTrendKeys, trendWindow]);
 
   const filteredTrends = useMemo(() => {
     return data.trends.filter(
