@@ -16,6 +16,9 @@ import {
   ShieldCheck,
   Sparkles,
   Wrench,
+  Mail,
+  Rocket,
+  SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -87,12 +90,15 @@ const adminRouteItems: NavItem[] = [
   { href: "/reports", label: "Reports", icon: FileText },
   { href: "/daily-brief", label: "Daily Brief", icon: Newspaper },
   { href: "/admin/automation", label: "Automation", icon: ShieldCheck },
+  { href: "/admin/scoring-lab", label: "Scoring Lab", icon: SlidersHorizontal },
+  { href: "/admin/internal-email-test", label: "Email Test", icon: Mail },
+  { href: "/admin/deployment-readiness", label: "Deployment", icon: Rocket },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 const adminComingSoonItems: DisabledNavItem[] = [
   { label: "Scan Health", icon: Radar, reason: "coming soon" },
-  { label: "Export QA", icon: BarChart3, reason: "coming soon" },
+  { label: "Export QA", icon: BarChart3, reason: "covered in Automation" },
   { label: "System Diagnostics", icon: Wrench, reason: "coming soon" },
 ];
 

@@ -1,7 +1,8 @@
 import type { DashboardWindow } from "@/lib/trends/types";
 
 export const workspaceStorageKey = "trend-finder-workspace-view";
-export const productPreferencesStorageKey = "trend-finder-product-preferences-v1";
+export const productPreferencesStorageKey = "trend-finder-product-preferences-v2";
+export const legacyProductPreferencesStorageKey = "trend-finder-product-preferences-v1";
 export const productPreferencesChangedEvent = "trend-finder-product-preferences-changed";
 
 export type WorkspaceView = "product" | "admin";
@@ -9,6 +10,14 @@ export type ProductLens = "creator-startup";
 export type DefaultExportFormat = "pdf" | "html" | "json" | "markdown";
 export type BriefTone = "executive" | "creator" | "research";
 export type ProductExperienceMode = "standard" | "demo" | "pitch";
+export type ReportTemplateId = "executive" | "creator" | "research" | "pitch";
+export type SourceWeightKey =
+  | "github"
+  | "hackerNews"
+  | "rss"
+  | "reddit"
+  | "youtube"
+  | "arxiv";
 
 export type DashboardSectionPreferences = {
   charts: boolean;
@@ -32,16 +41,29 @@ export type ReportSectionPreferences = {
   recommendedFocus: boolean;
 };
 
+export type TopicInterestProfile = {
+  preferredCategories: string[];
+  includeKeywords: string[];
+  excludeKeywords: string[];
+  minimumTrendScore: number;
+  prioritizeHiddenGems: boolean;
+};
+
+export type SourceWeightPreferences = Record<SourceWeightKey, number>;
+
 export type ProductPreferences = {
-  schemaVersion: 1;
+  schemaVersion: 2;
   defaultWorkspace: WorkspaceView;
   defaultLens: ProductLens;
   defaultBriefWindow: DashboardWindow;
   defaultExport: DefaultExportFormat;
   briefTone: BriefTone;
+  reportTemplate: ReportTemplateId;
   experienceMode: ProductExperienceMode;
   dashboardSections: DashboardSectionPreferences;
   reportSections: ReportSectionPreferences;
+  interestProfile: TopicInterestProfile;
+  sourceWeights: SourceWeightPreferences;
   onboardingDismissed: boolean;
 };
 
@@ -50,14 +72,25 @@ const workspaceViews = ["product", "admin"] as const;
 const defaultExports = ["pdf", "html", "json", "markdown"] as const;
 const briefTones = ["executive", "creator", "research"] as const;
 const experienceModes = ["standard", "demo", "pitch"] as const;
+const reportTemplates = ["executive", "creator", "research", "pitch"] as const;
+
+const sourceWeightKeys: SourceWeightKey[] = [
+  "github",
+  "hackerNews",
+  "rss",
+  "reddit",
+  "youtube",
+  "arxiv",
+];
 
 export const defaultProductPreferences: ProductPreferences = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   defaultWorkspace: "product",
   defaultLens: "creator-startup",
   defaultBriefWindow: "7d",
   defaultExport: "pdf",
   briefTone: "executive",
+  reportTemplate: "executive",
   experienceMode: "standard",
   dashboardSections: {
     charts: true,
@@ -79,6 +112,21 @@ export const defaultProductPreferences: ProductPreferences = {
     topicsToAvoid: true,
     recommendedFocus: true,
   },
+  interestProfile: {
+    preferredCategories: [],
+    includeKeywords: [],
+    excludeKeywords: [],
+    minimumTrendScore: 0,
+    prioritizeHiddenGems: true,
+  },
+  sourceWeights: {
+    github: 1,
+    hackerNews: 1,
+    rss: 1,
+    reddit: 1,
+    youtube: 1,
+    arxiv: 1,
+  },
   onboardingDismissed: false,
 };
 
@@ -87,6 +135,7 @@ export const pitchProductPreferences: ProductPreferences = {
   defaultBriefWindow: "7d",
   defaultExport: "pdf",
   briefTone: "executive",
+  reportTemplate: "pitch",
   experienceMode: "pitch",
   dashboardSections: {
     ...defaultProductPreferences.dashboardSections,
@@ -99,6 +148,7 @@ export const demoProductPreferences: ProductPreferences = {
   defaultBriefWindow: "7d",
   defaultExport: "pdf",
   briefTone: "creator",
+  reportTemplate: "creator",
   experienceMode: "demo",
 };
 
@@ -113,7 +163,23 @@ function oneOf<T extends readonly string[]>(
   values: T,
   fallback: T[number],
 ): T[number] {
-  return typeof value === "string" && values.includes(value as T[number]) ? value : fallback;
+  return typeof value === "string" && values.includes(value as T[number])
+    ? value
+    : fallback;
+}
+
+function stringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 24);
+}
+
+function clampNumber(value: unknown, fallback: number, min: number, max: number) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.max(min, Math.min(max, value));
 }
 
 export function parseDashboardWindow(
@@ -137,9 +203,13 @@ export function mergeProductPreferences(value: unknown): ProductPreferences {
     ? value.dashboardSections
     : {};
   const reportSections = isRecord(value.reportSections) ? value.reportSections : {};
+  const interestProfile = isRecord(value.interestProfile)
+    ? value.interestProfile
+    : {};
+  const sourceWeights = isRecord(value.sourceWeights) ? value.sourceWeights : {};
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     defaultWorkspace: parseWorkspaceView(
       typeof value.defaultWorkspace === "string" ? value.defaultWorkspace : null,
     ),
@@ -157,6 +227,11 @@ export function mergeProductPreferences(value: unknown): ProductPreferences {
       briefTones,
       defaultProductPreferences.briefTone,
     ) as BriefTone,
+    reportTemplate: oneOf(
+      value.reportTemplate,
+      reportTemplates,
+      defaultProductPreferences.reportTemplate,
+    ) as ReportTemplateId,
     experienceMode: oneOf(
       value.experienceMode,
       experienceModes,
@@ -173,6 +248,28 @@ export function mergeProductPreferences(value: unknown): ProductPreferences {
       ...defaultProductPreferences.reportSections,
       ...booleanRecordPatch(reportSections, defaultProductPreferences.reportSections),
     },
+    interestProfile: {
+      preferredCategories: stringList(interestProfile.preferredCategories),
+      includeKeywords: stringList(interestProfile.includeKeywords),
+      excludeKeywords: stringList(interestProfile.excludeKeywords),
+      minimumTrendScore: clampNumber(
+        interestProfile.minimumTrendScore,
+        defaultProductPreferences.interestProfile.minimumTrendScore,
+        0,
+        100,
+      ),
+      prioritizeHiddenGems:
+        typeof interestProfile.prioritizeHiddenGems === "boolean"
+          ? interestProfile.prioritizeHiddenGems
+          : defaultProductPreferences.interestProfile.prioritizeHiddenGems,
+    },
+    sourceWeights: sourceWeightKeys.reduce<SourceWeightPreferences>(
+      (weights, key) => ({
+        ...weights,
+        [key]: clampNumber(sourceWeights[key], 1, 0.5, 1.5),
+      }),
+      { ...defaultProductPreferences.sourceWeights },
+    ),
     onboardingDismissed:
       typeof value.onboardingDismissed === "boolean"
         ? value.onboardingDismissed
@@ -194,11 +291,19 @@ function booleanRecordPatch<T extends Record<string, boolean>>(
   }, {});
 }
 
+function readRawStoredPreferences(): string | null {
+  if (typeof window === "undefined") return null;
+  return (
+    window.localStorage.getItem(productPreferencesStorageKey) ??
+    window.localStorage.getItem(legacyProductPreferencesStorageKey)
+  );
+}
+
 export function readProductPreferences(): ProductPreferences {
   if (typeof window === "undefined") return defaultProductPreferences;
 
   try {
-    const raw = window.localStorage.getItem(productPreferencesStorageKey);
+    const raw = readRawStoredPreferences();
     if (!raw) return defaultProductPreferences;
     return mergeProductPreferences(JSON.parse(raw));
   } catch {
@@ -216,6 +321,7 @@ export function writeProductPreferences(
       productPreferencesStorageKey,
       JSON.stringify(normalized),
     );
+    window.localStorage.removeItem(legacyProductPreferencesStorageKey);
     window.localStorage.setItem(workspaceStorageKey, normalized.defaultWorkspace);
     window.dispatchEvent(
       new CustomEvent<ProductPreferences>(productPreferencesChangedEvent, {
@@ -258,10 +364,8 @@ export function writePreferredWorkspaceView(nextView: WorkspaceView) {
 
   const normalizedView = parseWorkspaceView(nextView);
   window.localStorage.setItem(workspaceStorageKey, normalizedView);
-  updateProductPreferences((current) => ({
-    ...current,
-    defaultWorkspace: normalizedView,
-  }));
+  const current = readProductPreferences();
+  writeProductPreferences({ ...current, defaultWorkspace: normalizedView });
 }
 
 export function markOnboardingDismissed() {
@@ -271,6 +375,17 @@ export function markOnboardingDismissed() {
   }));
 }
 
-export function resetProductPreferences() {
-  return writeProductPreferences(defaultProductPreferences);
+export function resetProductPreferences(): ProductPreferences {
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(productPreferencesStorageKey);
+    window.localStorage.removeItem(legacyProductPreferencesStorageKey);
+    window.localStorage.removeItem(workspaceStorageKey);
+    window.dispatchEvent(
+      new CustomEvent<ProductPreferences>(productPreferencesChangedEvent, {
+        detail: defaultProductPreferences,
+      }),
+    );
+  }
+
+  return defaultProductPreferences;
 }

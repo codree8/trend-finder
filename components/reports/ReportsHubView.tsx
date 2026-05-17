@@ -23,6 +23,7 @@ import {
   Loader2,
   Mail,
   Newspaper,
+  History,
   Printer,
   ShieldAlert,
   ShieldCheck,
@@ -30,6 +31,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProductExperienceBanner } from "@/components/product/ProductExperienceBanner";
+import { saveReportSnapshot } from "@/lib/preferences/report-history";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import {
   defaultProductPreferences,
@@ -3718,6 +3720,7 @@ export function ReportsHubView({
     useState<DailyBriefServerPdfReliabilityQa | null>(null);
   const [serverPdfQaError, setServerPdfQaError] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<CopyState>("idle");
+  const [saveHistoryState, setSaveHistoryState] = useState<"idle" | "saved">("idle");
   const isAdminMode = mode === "automation-admin";
 
   const loadBrief = useCallback(async () => {
@@ -3814,6 +3817,13 @@ export function ReportsHubView({
     const timeout = window.setTimeout(() => setCopyState("idle"), 2200);
     return () => window.clearTimeout(timeout);
   }, [copyState]);
+
+  useEffect(() => {
+    if (saveHistoryState === "idle") return;
+
+    const timeout = window.setTimeout(() => setSaveHistoryState("idle"), 2200);
+    return () => window.clearTimeout(timeout);
+  }, [saveHistoryState]);
 
   const reportDocument = brief?.reportDocument ?? null;
 
@@ -4283,6 +4293,17 @@ export function ReportsHubView({
     }
   }, [reportDocument]);
 
+  const saveReportToHistory = useCallback(() => {
+    if (!reportDocument) return;
+
+    saveReportSnapshot(
+      reportDocument,
+      preferences.reportTemplate,
+      exportReadiness?.statusLabel ?? "Saved",
+    );
+    setSaveHistoryState("saved");
+  }, [exportReadiness?.statusLabel, preferences.reportTemplate, reportDocument]);
+
   return (
     <AppShell>
       <div className="space-y-6">
@@ -4426,6 +4447,9 @@ export function ReportsHubView({
                       <Badge variant="muted">
                         Confidence {brief.briefPosture.confidence}/100
                       </Badge>
+                      {!isAdminMode ? (
+                        <Badge variant="accent">Template: {preferences.reportTemplate}</Badge>
+                      ) : null}
                     </div>
                     <CardTitle className="mt-4 text-2xl tracking-[-0.035em]">
                       {brief.executiveSummary.headline}
@@ -4441,6 +4465,12 @@ export function ReportsHubView({
                         Open Daily Brief
                       </Link>
                     </Button>
+                    {!isAdminMode ? (
+                      <Button variant="outline" onClick={saveReportToHistory}>
+                        <History className="mr-2 h-4 w-4" />
+                        {saveHistoryState === "saved" ? "Saved" : "Save snapshot"}
+                      </Button>
+                    ) : null}
                     <Button asChild variant="outline">
                       <a
                         href={buildDailyBriefHtmlExportUrl(selectedWindow)}
@@ -4545,7 +4575,25 @@ export function ReportsHubView({
               <ReportDocumentPanel reportDocument={reportDocument} />
               <div className="space-y-5">
                 {!isAdminMode ? (
+                  <>
                   <ReportPreferencesSummaryCard preferences={preferences} />
+                  <Card className="border-border/10 bg-[#160d0d]/62">
+                    <CardHeader>
+                      <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+                        <History className="h-4 w-4" />
+                        Saved report history
+                      </div>
+                      <CardDescription>
+                        Store local snapshots for pitch prep and manual handoff. No database table yet.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Button asChild variant="outline" size="sm">
+                        <Link href="/reports/history">Open history</Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                  </>
                 ) : null}
                 <QuickCopyPanel
                   reportDocument={reportDocument}

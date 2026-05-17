@@ -37,6 +37,7 @@ import {
 import { AppShell } from "@/components/layout/AppShell";
 import { TrendDetailDrawer } from "@/components/dashboard/TrendDetailDrawer";
 import { ProductExperienceBanner } from "@/components/product/ProductExperienceBanner";
+import { ProductStateCard } from "@/components/common/ProductStateCard";
 import { WatchlistButton } from "@/components/watchlist/WatchlistButton";
 import {
   defaultProductPreferences,
@@ -614,37 +615,26 @@ export function DailyBriefView() {
         </section>
 
         {error ? (
-          <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm leading-6 text-red-100">
-            {error}
-          </div>
+          <ProductStateCard
+            variant="error"
+            title="Daily Brief could not be loaded"
+            description={error}
+          />
         ) : null}
 
         {isLoading ? (
-          <Card>
-            <CardContent className="flex items-center p-6 text-sm text-muted-foreground/75">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin text-secondary" />
-              Building the daily brief from current intelligence layers...
-            </CardContent>
-          </Card>
+          <ProductStateCard
+            variant="loading"
+            title="Building Daily Brief"
+            description="Reading action queue, watchlist movement, hidden gems, avoid topics and report export state."
+          />
         ) : null}
 
         {!isLoading && !brief ? (
-          <Card className="signal-glow">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-secondary/15 p-3 text-secondary">
-                  <FileText className="h-6 w-6" />
-                </div>
-                <div>
-                  <CardTitle>No brief available</CardTitle>
-                  <CardDescription>
-                    Run a scan first or check the API response. The brief needs
-                    trend snapshots before it can write anything useful.
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
+          <ProductStateCard
+            title="No brief available"
+            description="Run a scan first or check the API response. The brief needs trend snapshots before it can write anything useful."
+          />
         ) : null}
 
         {brief ? (

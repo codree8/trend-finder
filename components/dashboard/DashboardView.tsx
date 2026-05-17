@@ -15,12 +15,14 @@ import { TrendDetailDrawer } from "@/components/dashboard/TrendDetailDrawer";
 import { TREND_SCAN_COMPLETED_EVENT } from "@/components/dashboard/ScanButton";
 import { ProductExperienceBanner } from "@/components/product/ProductExperienceBanner";
 import { ProductOnboardingCard } from "@/components/product/ProductOnboardingCard";
+import { ProductStateCard } from "@/components/common/ProductStateCard";
 import {
   defaultProductPreferences,
   productPreferencesChangedEvent,
   readProductPreferences,
   type ProductPreferences,
 } from "@/lib/preferences/product-preferences";
+import { applyProductTrendPreferences } from "@/lib/product/apply-product-preferences";
 import type {
   DashboardMode,
   DashboardTrend,
@@ -256,20 +258,24 @@ export function DashboardView() {
   }, [hasHydratedPreferences, loadDashboardData, loadSavedTrendKeys, trendWindow]);
 
   const filteredTrends = useMemo(() => {
-    return data.trends.filter(
+    const baseTrends = data.trends.filter(
       (trend) =>
         filterByMode(trend, mode) &&
         (category === "All" || trend.category === category),
     );
-  }, [category, data.trends, mode]);
+
+    return applyProductTrendPreferences(baseTrends, preferences);
+  }, [category, data.trends, mode, preferences]);
 
   const filteredHiddenGems = useMemo(() => {
-    return data.hiddenGems.filter(
+    const baseTrends = data.hiddenGems.filter(
       (trend) =>
         filterByMode(trend, mode) &&
         (category === "All" || trend.category === category),
     );
-  }, [category, data.hiddenGems, mode]);
+
+    return applyProductTrendPreferences(baseTrends, preferences);
+  }, [category, data.hiddenGems, mode, preferences]);
 
   const creatorOpportunities = useMemo(() => {
     const ranked = data.creatorMode.opportunities.length
@@ -385,18 +391,39 @@ export function DashboardView() {
         </section>
 
         {error ? (
-          <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm leading-6 text-red-100">
-            {error}
-          </div>
+          <ProductStateCard
+            variant="error"
+            title="Dashboard data could not be loaded"
+            description={error}
+            secondaryAction={<a href="/settings">Review settings</a>}
+          />
         ) : null}
 
         {isLoading ? (
-          <div className="rounded-2xl border border-border/10 bg-card/70 p-5 text-sm text-muted-foreground/75">
-            Loading real trend data from the database...
-          </div>
+          <ProductStateCard
+            variant="loading"
+            title="Loading trend radar"
+            description="Reading the latest stored snapshots, source breakdown and signal timeline."
+          />
         ) : null}
 
         <KpiCards kpis={data.kpis} />
+
+        {!isLoading && !error && data.trends.length === 0 ? (
+          <ProductStateCard
+            title="No trend snapshots yet"
+            description="Run a scan first, then this page will show ranked topics, hidden gems, source coverage and creator opportunities."
+            secondaryAction={<a href="/settings">Check product setup</a>}
+          />
+        ) : null}
+
+        {!isLoading && !error && data.trends.length > 0 && filteredTrends.length === 0 ? (
+          <ProductStateCard
+            title="No trends match your current profile"
+            description="Your interest profile, category filter or minimum score is hiding every current trend. Loosen the filters or reset preferences."
+            secondaryAction={<a href="/settings">Update interest profile</a>}
+          />
+        ) : null}
 
         {showScanHealth ? (
           <ScanHealthPanel

@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { PublicDemoLanding } from "@/components/landing/PublicDemoLanding";
 
 export default function HomePage() {
-  redirect("/dashboard");
+  return <PublicDemoLanding />;
 }

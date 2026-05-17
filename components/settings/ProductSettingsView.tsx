@@ -11,9 +11,12 @@ import {
   Gauge,
   Layers3,
   Lightbulb,
+  Mail,
   Newspaper,
   Presentation,
   Radar,
+  SlidersHorizontal,
+  UserRound,
   RotateCcw,
   Settings2,
   Sparkles,
@@ -46,6 +49,9 @@ import {
   type ProductExperienceMode,
   type ProductPreferences,
   type ReportSectionPreferences,
+  type ReportTemplateId,
+  type SourceWeightKey,
+  type TopicInterestProfile,
   type WorkspaceView,
 } from "@/lib/preferences/product-preferences";
 import type { DashboardWindow } from "@/lib/trends/types";
@@ -114,6 +120,62 @@ const toneOptions: Array<{ value: BriefTone; label: string; helper: string }> = 
     label: "Research-focused",
     helper: "More cautious framing for signal review and analysis.",
   },
+];
+
+const reportTemplateOptions: Array<{
+  value: ReportTemplateId;
+  label: string;
+  helper: string;
+}> = [
+  {
+    value: "executive",
+    label: "Executive brief",
+    helper: "Decision-first structure for founders, managers and operators.",
+  },
+  {
+    value: "creator",
+    label: "Creator pack",
+    helper: "Highlights angles, formats, hooks and content timing.",
+  },
+  {
+    value: "research",
+    label: "Research memo",
+    helper: "More cautious language and evidence-first review framing.",
+  },
+  {
+    value: "pitch",
+    label: "Pitch snapshot",
+    helper: "Presentation-friendly report framing without fake data.",
+  },
+];
+
+const interestCategoryOptions = [
+  "Agents",
+  "Automation",
+  "Business",
+  "Coding",
+  "Education",
+  "General AI",
+  "Image",
+  "Local LLM",
+  "Marketing",
+  "Open Source",
+  "Research",
+  "Security",
+  "Video",
+];
+
+const sourceWeightOptions: Array<{
+  key: SourceWeightKey;
+  label: string;
+  helper: string;
+}> = [
+  { key: "github", label: "GitHub", helper: "Open-source builder signals." },
+  { key: "hackerNews", label: "Hacker News", helper: "Builder discussion and early debate." },
+  { key: "rss", label: "RSS / Blogs", helper: "Editorial and company-published signals." },
+  { key: "reddit", label: "Reddit", helper: "Community demand and noisy early chatter." },
+  { key: "youtube", label: "YouTube", helper: "Creator saturation and audience pull." },
+  { key: "arxiv", label: "arXiv", helper: "Research-grade early signal." },
 ];
 
 const experienceOptions: Array<{
@@ -345,6 +407,24 @@ function ToggleRow({
   );
 }
 
+
+function listToInput(value: string[]) {
+  return value.join(", ");
+}
+
+function inputToList(value: string[]) {
+  return value
+    .flatMap((item) => item.split(","))
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function weightLabel(value: number) {
+  if (value >= 1.2) return "High";
+  if (value <= 0.8) return "Low";
+  return "Normal";
+}
+
 export function ProductSettingsView() {
   const [preferences, setPreferences] = useState<ProductPreferences>(
     defaultProductPreferences,
@@ -393,6 +473,35 @@ export function ProductSettingsView() {
       reportSections: {
         ...preferences.reportSections,
         [key]: !preferences.reportSections[key],
+      },
+    });
+  }
+
+  function patchInterestProfile(nextPatch: Partial<TopicInterestProfile>) {
+    save({
+      ...preferences,
+      interestProfile: {
+        ...preferences.interestProfile,
+        ...nextPatch,
+      },
+    });
+  }
+
+  function togglePreferredCategory(category: string) {
+    const currentCategories = preferences.interestProfile.preferredCategories;
+    patchInterestProfile({
+      preferredCategories: currentCategories.includes(category)
+        ? currentCategories.filter((item) => item !== category)
+        : [...currentCategories, category],
+    });
+  }
+
+  function patchSourceWeight(key: SourceWeightKey, value: number) {
+    save({
+      ...preferences,
+      sourceWeights: {
+        ...preferences.sourceWeights,
+        [key]: value,
       },
     });
   }
@@ -552,6 +661,31 @@ export function ProductSettingsView() {
         <Card className="border-border/10 bg-[#160d0d]/62">
           <CardHeader>
             <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+              <FileText className="h-4 w-4" />
+              Report templates
+            </div>
+            <CardTitle>Default report structure</CardTitle>
+            <CardDescription>
+              Templates steer the product copy and report history labels. The canonical export endpoints stay unchanged.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {reportTemplateOptions.map((option) => (
+              <PreferenceChoice
+                key={option.value}
+                value={option.value}
+                currentValue={preferences.reportTemplate}
+                label={option.label}
+                helper={option.helper}
+                onSelect={(value) => patch({ reportTemplate: value })}
+              />
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/10 bg-[#160d0d]/62">
+          <CardHeader>
+            <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
               <Gauge className="h-4 w-4" />
               Dashboard preferences
             </div>
@@ -665,6 +799,175 @@ export function ProductSettingsView() {
             </CardContent>
           </Card>
         ) : null}
+
+        <Card className="border-border/10 bg-[#160d0d]/62">
+          <CardHeader>
+            <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+              <UserRound className="h-4 w-4" />
+              Interest profile
+            </div>
+            <CardTitle>Topics you want the radar to favor</CardTitle>
+            <CardDescription>
+              This is a local product preference layer. It adjusts dashboard ranking and filtering without deleting data.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
+                Preferred categories
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {interestCategoryOptions.map((category) => {
+                  const isSelected = preferences.interestProfile.preferredCategories.includes(category);
+                  return (
+                    <Button
+                      key={category}
+                      type="button"
+                      size="sm"
+                      variant={isSelected ? "secondary" : "outline"}
+                      onClick={() => togglePreferredCategory(category)}
+                    >
+                      {category}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
+                  Include keywords
+                </span>
+                <input
+                  value={listToInput(preferences.interestProfile.includeKeywords)}
+                  onChange={(event) =>
+                    patchInterestProfile({ includeKeywords: inputToList([event.target.value]) })
+                  }
+                  placeholder="agents, evals, local llm"
+                  className="w-full rounded-2xl border border-border/10 bg-[#0f0808]/45 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/38 focus:border-secondary/40"
+                />
+              </label>
+              <label className="space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
+                  Exclude keywords
+                </span>
+                <input
+                  value={listToInput(preferences.interestProfile.excludeKeywords)}
+                  onChange={(event) =>
+                    patchInterestProfile({ excludeKeywords: inputToList([event.target.value]) })
+                  }
+                  placeholder="crypto, celebrity, generic"
+                  className="w-full rounded-2xl border border-border/10 bg-[#0f0808]/45 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/38 focus:border-secondary/40"
+                />
+              </label>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Minimum trend score</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground/72">
+                      Hide weak topics below this score. Set to 0 for no score filter.
+                    </p>
+                  </div>
+                  <Badge variant="muted">{preferences.interestProfile.minimumTrendScore}</Badge>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={preferences.interestProfile.minimumTrendScore}
+                  onChange={(event) =>
+                    patchInterestProfile({ minimumTrendScore: Number(event.target.value) })
+                  }
+                  className="mt-4 w-full"
+                />
+              </label>
+              <ToggleRow
+                label="Prioritize hidden gems"
+                helper="Give early low-saturation opportunities a small ranking boost."
+                icon={Sparkles}
+                isChecked={preferences.interestProfile.prioritizeHiddenGems}
+                onToggle={() =>
+                  patchInterestProfile({
+                    prioritizeHiddenGems: !preferences.interestProfile.prioritizeHiddenGems,
+                  })
+                }
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/10 bg-[#160d0d]/62">
+          <CardHeader>
+            <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+              <SlidersHorizontal className="h-4 w-4" />
+              Source quality weighting
+            </div>
+            <CardTitle>How much each source should influence ranking</CardTitle>
+            <CardDescription>
+              This affects client-side product ranking and the calibration lab. It does not rewrite historical snapshots.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {sourceWeightOptions.map((option) => (
+              <div
+                key={option.key}
+                className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{option.label}</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground/72">
+                      {option.helper}
+                    </p>
+                  </div>
+                  <Badge variant="muted">{weightLabel(preferences.sourceWeights[option.key])}</Badge>
+                </div>
+                <div className="mt-4 flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={0.5}
+                    max={1.5}
+                    step={0.05}
+                    value={preferences.sourceWeights[option.key]}
+                    onChange={(event) =>
+                      patchSourceWeight(option.key, Number(event.target.value))
+                    }
+                    className="w-full"
+                  />
+                  <span className="w-12 text-right text-xs font-semibold text-secondary">
+                    {preferences.sourceWeights[option.key].toFixed(2)}x
+                  </span>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="border-secondary/15 bg-secondary/10">
+          <CardHeader>
+            <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+              <Mail className="h-4 w-4" />
+              Manual-only email testing
+            </div>
+            <CardTitle>Email stays manual for now</CardTitle>
+            <CardDescription>
+              Internal email prep is available in Admin, but this product does not send, schedule or store recipients.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            <Button asChild variant="secondary">
+              <Link href="/admin/automation">Open internal email prep</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/reports/history">Open saved reports</Link>
+            </Button>
+          </CardContent>
+        </Card>
 
         <Card className="border-border/10 bg-[#160d0d]/62">
           <CardHeader>
