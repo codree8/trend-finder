@@ -12,6 +12,7 @@ import {
   Layers3,
   Lightbulb,
   Newspaper,
+  PlugZap,
   Presentation,
   Radar,
   SlidersHorizontal,
@@ -33,7 +34,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { sourcePresets } from "@/lib/config/source-presets";
 import {
   defaultProductPreferences,
   demoProductPreferences,
@@ -171,10 +171,54 @@ const sourceWeightOptions: Array<{
 }> = [
   { key: "github", label: "GitHub", helper: "Open-source builder signals." },
   { key: "hackerNews", label: "Hacker News", helper: "Builder discussion and early debate." },
-  { key: "rss", label: "RSS / Blogs", helper: "Editorial and company-published signals." },
-  { key: "reddit", label: "Reddit", helper: "Model-supported only for now; not an active scanner source." },
-  { key: "youtube", label: "YouTube", helper: "Creator saturation and audience pull." },
+  { key: "rss", label: "RSS / Blogs", helper: "Editorial and company-published signals, including configured blog feeds." },
+  { key: "youtube", label: "YouTube", helper: "Optional creator saturation and audience pull when enabled." },
   { key: "arxiv", label: "arXiv", helper: "Research-grade early signal." },
+];
+
+
+const sourceReferenceItems: Array<{
+  name: string;
+  status: string;
+  detail: string;
+  variant: "secondary" | "accent" | "muted";
+}> = [
+  {
+    name: "GitHub",
+    status: "Active scanner",
+    detail: "Used by manual scans. A token is optional, but improves reliability and rate limits.",
+    variant: "secondary",
+  },
+  {
+    name: "Hacker News",
+    status: "Active scanner",
+    detail: "Used through the public HN search API. No local secret is required.",
+    variant: "secondary",
+  },
+  {
+    name: "RSS / Blogs",
+    status: "Active scanner",
+    detail: "Uses configured feeds. Hugging Face is included only as the Hugging Face Blog RSS feed, not as a separate connector.",
+    variant: "secondary",
+  },
+  {
+    name: "YouTube",
+    status: "Optional",
+    detail: "Implemented, but active only when ENABLE_YOUTUBE_CONNECTOR=true and YOUTUBE_API_KEY exists.",
+    variant: "accent",
+  },
+  {
+    name: "arXiv",
+    status: "Optional/keyless",
+    detail: "Implemented without an API key. It is used as research evidence, not popularity proof.",
+    variant: "accent",
+  },
+  {
+    name: "Reddit",
+    status: "Not active",
+    detail: "Not scanned in this build. It remains a future/model-supported source only.",
+    variant: "muted",
+  },
 ];
 
 const experienceOptions: Array<{
@@ -946,39 +990,28 @@ export function ProductSettingsView() {
 
         <Card className="border-border/10 bg-[#160d0d]/62">
           <CardHeader>
-            <CardTitle>Source presets</CardTitle>
+            <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+              <PlugZap className="h-4 w-4" />
+              Source status reference
+            </div>
+            <CardTitle>What is actually wired into this build</CardTitle>
             <CardDescription>
-              Current filter presets stay visible here for reference. This keeps
-              source logic discoverable without mixing it into product settings.
+              This is not a preset selector. It explains which sources are real scanner input and which are optional or inactive. Full checks live in Admin / Source Connectors.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
-            {sourcePresets.map((preset) => (
+            {sourceReferenceItems.map((source) => (
               <div
-                key={preset.id}
+                key={source.name}
                 className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-4"
               >
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">
-                      {preset.label}
-                    </p>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground/72">
-                      {preset.description}
-                    </p>
-                  </div>
-                  <Badge variant="muted">Preset</Badge>
+                  <p className="text-sm font-semibold text-foreground">{source.name}</p>
+                  <Badge variant={source.variant}>{source.status}</Badge>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {preset.sources.map((source) => (
-                    <span
-                      key={source}
-                      className="rounded-full border border-border/15 bg-muted px-3 py-1 text-xs text-muted-foreground"
-                    >
-                      {source}
-                    </span>
-                  ))}
-                </div>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground/72">
+                  {source.detail}
+                </p>
               </div>
             ))}
           </CardContent>

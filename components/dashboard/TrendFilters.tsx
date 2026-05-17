@@ -1,6 +1,6 @@
 import type { DashboardMode, DashboardWindow } from "@/lib/trends/types";
 import { Button } from "@/components/ui/button";
-import { aiCategories } from "@/lib/config/source-presets";
+import { aiCategories } from "@/lib/config/ai-categories";
 
 type Props = {
   mode: DashboardMode;
@@ -62,7 +62,6 @@ export function TrendFilters({
           {aiCategories.map((item) => (
             <option key={item}>{item}</option>
           ))}
-          <option>General AI</option>
         </select>
       </div>
     </div>

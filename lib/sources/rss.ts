@@ -37,39 +37,43 @@ export const rssConnector: SourceConnector = {
     const signals: SourceSignal[] = [];
 
     for (const feed of rssFeeds) {
-      const response = await fetch(feed.url, { next: { revalidate: 0 } });
-      if (!response.ok) continue;
+      try {
+        const response = await fetch(feed.url, { next: { revalidate: 0 } });
+        if (!response.ok) continue;
 
-      const xml = await response.text();
-      const items = extractItems(xml).slice(0, 20);
+        const xml = await response.text();
+        const items = extractItems(xml).slice(0, 20);
 
-      for (const item of items) {
-        const title = extractTag(item, "title");
-        const url = extractLink(item);
-        const publishedAt =
-          extractTag(item, "pubDate") ??
-          extractTag(item, "published") ??
-          extractTag(item, "updated");
-        const publishedDate = publishedAt ? new Date(publishedAt) : undefined;
+        for (const item of items) {
+          const title = extractTag(item, "title");
+          const url = extractLink(item);
+          const publishedAt =
+            extractTag(item, "pubDate") ??
+            extractTag(item, "published") ??
+            extractTag(item, "updated");
+          const publishedDate = publishedAt ? new Date(publishedAt) : undefined;
 
-        if (!title || !url) continue;
-        if (publishedDate && publishedDate < since) continue;
-        if (!isRelevant(title, keywords)) continue;
+          if (!title || !url) continue;
+          if (publishedDate && publishedDate < since) continue;
+          if (!isRelevant(title, keywords)) continue;
 
-        signals.push({
-          source: "RSS",
-          externalId: `${feed.name}:${url}`,
-          title,
-          url,
-          author: feed.name,
-          publishedAt: publishedDate?.toISOString(),
-          engagement: 1,
-          rawPayload: {
-            feed: feed.name,
-            summary:
-              extractTag(item, "description") ?? extractTag(item, "summary"),
-          },
-        });
+          signals.push({
+            source: "RSS",
+            externalId: `${feed.name}:${url}`,
+            title,
+            url,
+            author: feed.name,
+            publishedAt: publishedDate?.toISOString(),
+            engagement: 1,
+            rawPayload: {
+              feed: feed.name,
+              summary:
+                extractTag(item, "description") ?? extractTag(item, "summary"),
+            },
+          });
+        }
+      } catch {
+        continue;
       }
     }
 

@@ -129,7 +129,7 @@ export function getConnectorReadinessItems(): ConnectorReadinessItem[] {
       implemented: true,
       missingEnvVars: [],
       reliabilityScore: 78,
-      note: "Active through configured RSS/blog feeds. Feed availability can vary by publisher.",
+      note: "Active through configured RSS/blog feeds, including Hugging Face Blog as a feed. Hugging Face is not a standalone connector.",
     }),
     item({
       id: "youtube",

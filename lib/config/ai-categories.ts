@@ -1,0 +1,17 @@
+export const aiCategories = [
+  "Agents",
+  "Coding",
+  "Video",
+  "Image",
+  "Audio",
+  "Open Source",
+  "Local LLM",
+  "Automation",
+  "Research",
+  "Marketing",
+  "Business",
+  "Education",
+  "Security",
+  "Robotics",
+  "General AI",
+];

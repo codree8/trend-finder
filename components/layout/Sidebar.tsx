@@ -15,7 +15,6 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
-  Wrench,
   Rocket,
   SlidersHorizontal,
   PlugZap,
@@ -46,12 +45,6 @@ type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
-};
-
-type DisabledNavItem = {
-  label: string;
-  icon: LucideIcon;
-  reason: string;
 };
 
 const dashboardSections: NavItem[] = [
@@ -91,16 +84,14 @@ const adminRouteItems: NavItem[] = [
   { href: "/daily-brief", label: "Daily Brief", icon: Newspaper },
   { href: "/admin/beta-readiness", label: "Beta QA", icon: ListChecks },
   { href: "/admin/scoring-lab", label: "Scoring Lab", icon: SlidersHorizontal },
-  { href: "/admin/source-connectors", label: "Source Connectors", icon: PlugZap },
+  {
+    href: "/admin/source-connectors",
+    label: "Source Connectors",
+    icon: PlugZap,
+  },
   { href: "/admin/deployment-readiness", label: "Deployment", icon: Rocket },
   { href: "/admin/system-boundaries", label: "Boundaries", icon: ShieldCheck },
   { href: "/settings", label: "Settings", icon: Settings },
-];
-
-const adminComingSoonItems: DisabledNavItem[] = [
-  { label: "Scan Health", icon: Radar, reason: "coming soon" },
-  { label: "Export QA", icon: BarChart3, reason: "covered in Reports" },
-  { label: "System Diagnostics", icon: Wrench, reason: "coming soon" },
 ];
 
 function readDashboardSectionFromHash(): DashboardSectionId {
@@ -113,11 +104,14 @@ function readDashboardSectionFromHash(): DashboardSectionId {
 }
 
 function getHydrationSafeWorkspaceView(pathname: string): WorkspaceView {
-  return pathname.startsWith("/admin") ? "admin" : defaultProductPreferences.defaultWorkspace;
+  return pathname.startsWith("/admin")
+    ? "admin"
+    : defaultProductPreferences.defaultWorkspace;
 }
 
 function isSameRoute(pathname: string, href: string) {
-  if (href === "/dashboard") return pathname === "/" || pathname === "/dashboard";
+  if (href === "/dashboard")
+    return pathname === "/" || pathname === "/dashboard";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -146,15 +140,19 @@ export function Sidebar() {
           preferences.dashboardSections.trendTimeline
         );
       }
-      if (item.id === "hidden-gems") return preferences.dashboardSections.hiddenGems;
-      if (item.id === "creator-mode") return preferences.dashboardSections.creatorMode;
+      if (item.id === "hidden-gems")
+        return preferences.dashboardSections.hiddenGems;
+      if (item.id === "creator-mode")
+        return preferences.dashboardSections.creatorMode;
       if (item.id === "signals") return preferences.dashboardSections.signals;
       return true;
     });
 
     const visibleProductRoutes = productRouteItems.filter((item) => {
-      if (item.href === "/watchlist") return preferences.dashboardSections.watchlist;
-      if (item.href === "/action-queue") return preferences.dashboardSections.actionQueue;
+      if (item.href === "/watchlist")
+        return preferences.dashboardSections.watchlist;
+      if (item.href === "/action-queue")
+        return preferences.dashboardSections.actionQueue;
       return true;
     });
 
@@ -176,7 +174,10 @@ export function Sidebar() {
 
     handlePreferenceChange();
 
-    window.addEventListener(productPreferencesChangedEvent, handlePreferenceChange);
+    window.addEventListener(
+      productPreferencesChangedEvent,
+      handlePreferenceChange,
+    );
     window.addEventListener("storage", handlePreferenceChange);
 
     return () => {
@@ -341,7 +342,11 @@ export function Sidebar() {
               href={item.href}
               onClick={
                 item.id
-                  ? (event) => handleDashboardNavClick(event, item.id as DashboardSectionId)
+                  ? (event) =>
+                      handleDashboardNavClick(
+                        event,
+                        item.id as DashboardSectionId,
+                      )
                   : undefined
               }
               aria-current={isActive ? "page" : undefined}
@@ -357,40 +362,7 @@ export function Sidebar() {
             </Link>
           );
         })}
-
-        {isAdminView ? (
-          <div className="pt-3">
-            <p className="px-3 pb-2 text-[0.66rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground/50">
-              Diagnostics
-            </p>
-            <div className="space-y-1">
-              {adminComingSoonItems.map((item) => (
-                <div
-                  key={item.label}
-                  className="flex cursor-not-allowed items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground/38"
-                  aria-disabled="true"
-                >
-                  <span className="flex items-center gap-3">
-                    <item.icon className="h-4 w-4" />
-                    {item.label}
-                  </span>
-                  <span className="text-[0.65rem] uppercase tracking-[0.16em]">
-                    {item.reason}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
       </nav>
-
-      <div className="mt-8 rounded-2xl border border-secondary/20 bg-secondary/10 p-4">
-        <p className="text-sm font-semibold text-secondary">Design rule</p>
-        <p className="mt-2 text-xs leading-5 text-muted-foreground/75">
-          7.5/10 wow. Premium radar, not neon circus. Red means signal. Gold
-          means momentum.
-        </p>
-      </div>
     </aside>
   );
 }

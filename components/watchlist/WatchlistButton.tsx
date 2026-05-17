@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type MouseEvent } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { Bookmark, BookmarkCheck, Loader2 } from "lucide-react";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -31,18 +31,25 @@ export function WatchlistButton({
   variant = "outline",
   size = "sm",
 }: Props) {
+  const [internalSaved, setInternalSaved] = useState(isSaved);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const trendKey = trendKeyForClient(trend);
-  const Icon = isSaving ? Loader2 : isSaved ? BookmarkCheck : Bookmark;
+  const currentSaved = internalSaved;
+  const Icon = isSaving ? Loader2 : currentSaved ? BookmarkCheck : Bookmark;
+
+  useEffect(() => {
+    setInternalSaved(isSaved);
+  }, [isSaved, trendKey]);
 
   async function handleClick(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
     event.stopPropagation();
     setIsSaving(true);
     setError(null);
 
     try {
-      const response = isSaved
+      const response = currentSaved
         ? await fetch(`/api/watchlist/${encodeURIComponent(trendKey)}`, {
             method: "DELETE",
             cache: "no-store",
@@ -75,7 +82,9 @@ export function WatchlistButton({
         throw new Error(payload?.message ?? "Watchlist action failed.");
       }
 
-      onSavedChange?.(trendKey, !isSaved);
+      const nextSaved = !currentSaved;
+      setInternalSaved(nextSaved);
+      onSavedChange?.(trendKey, nextSaved);
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -91,16 +100,16 @@ export function WatchlistButton({
     <div className="flex flex-col gap-1">
       <Button
         type="button"
-        variant={isSaved ? "secondary" : variant}
+        variant={currentSaved ? "secondary" : variant}
         size={size}
-        className={cn(isSaved ? "border-secondary/25" : undefined, className)}
+        className={cn(currentSaved ? "border-secondary/25" : undefined, className)}
         disabled={isSaving}
         onClick={handleClick}
-        title={isSaved ? "Remove from watchlist" : "Save to watchlist"}
+        title={currentSaved ? "Remove from watchlist" : "Save to watchlist"}
       >
         <Icon className={cn("h-4 w-4", isSaving && "animate-spin")} />
         {showLabel ? (
-          <span className="ml-2">{isSaved ? "Watching" : "Watch"}</span>
+          <span className="ml-2">{currentSaved ? "Watching" : "Watch"}</span>
         ) : null}
       </Button>
       {error ? <p className="text-xs text-primary">{error}</p> : null}

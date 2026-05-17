@@ -16,10 +16,12 @@ import { TREND_SCAN_COMPLETED_EVENT } from "@/components/dashboard/ScanButton";
 import { ProductExperienceBanner } from "@/components/product/ProductExperienceBanner";
 import { ProductOnboardingCard } from "@/components/product/ProductOnboardingCard";
 import { ProductStateCard } from "@/components/common/ProductStateCard";
+import { Button } from "@/components/ui/button";
 import {
   defaultProductPreferences,
   productPreferencesChangedEvent,
   readProductPreferences,
+  updateProductPreferences,
   type ProductPreferences,
 } from "@/lib/preferences/product-preferences";
 import { applyProductTrendPreferences } from "@/lib/product/apply-product-preferences";
@@ -336,6 +338,42 @@ export function DashboardView() {
   const showScanHealth = preferences.dashboardSections.scanHealth;
   const isPitchMode = preferences.experienceMode === "pitch";
 
+  const hasActiveProfileFilter =
+    preferences.interestProfile.minimumTrendScore > 0 ||
+    preferences.interestProfile.excludeKeywords.length > 0;
+  const hasActiveViewFilter = mode !== "All" || category !== "All";
+
+  function resetVisibleTrendFilters() {
+    setMode("All");
+    setCategory("All");
+
+    if (hasActiveProfileFilter) {
+      setPreferences(
+        updateProductPreferences((current) => ({
+          ...current,
+          interestProfile: {
+            ...defaultProductPreferences.interestProfile,
+            preferredCategories: current.interestProfile.preferredCategories,
+            includeKeywords: current.interestProfile.includeKeywords,
+          },
+        })),
+      );
+    }
+  }
+
+  const emptyFilteredTitle =
+    category !== "All"
+      ? `No ${category} signals in this scan`
+      : mode !== "All"
+        ? `No ${mode.toLowerCase()} signals in this view`
+        : "No trends visible with the current settings";
+
+  const emptyFilteredDescription = hasActiveViewFilter
+    ? "The radar has trends, but this filter is too narrow for the current scan. Switch back to All to see the full signal set."
+    : hasActiveProfileFilter
+      ? "Your score threshold or excluded keywords are hiding the current signal set. Show all trends resets only the local filters, not the saved data."
+      : "The radar has data, but the current view is hiding it. Show all trends returns to the default product view.";
+
   return (
     <AppShell>
       <div className="space-y-6">
@@ -445,9 +483,14 @@ export function DashboardView() {
 
         {!isLoading && !error && data.trends.length > 0 && filteredTrends.length === 0 ? (
           <ProductStateCard
-            title="No trends match your current profile"
-            description="Your interest profile, category filter or minimum score is hiding every current trend. Loosen the filters or reset preferences."
-            secondaryAction={<a href="/settings">Update interest profile</a>}
+            title={emptyFilteredTitle}
+            description={emptyFilteredDescription}
+            action={
+              <Button type="button" size="sm" variant="secondary" onClick={resetVisibleTrendFilters}>
+                Show all trends
+              </Button>
+            }
+            secondaryAction={<a href="/settings">Open settings</a>}
           />
         ) : null}
 
