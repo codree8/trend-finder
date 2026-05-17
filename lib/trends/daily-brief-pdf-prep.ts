@@ -1,3 +1,6 @@
+import type { ReportTemplateId } from "@/lib/preferences/product-preferences";
+import { getReportTemplate } from "@/lib/reports/report-templates";
+import { buildResearchMemoExportQa } from "@/lib/reports/research-memo-qa";
 import {
   buildDailyBriefPrintLayoutQa,
   printLayoutRiskTone,
@@ -216,10 +219,12 @@ function renderPrintLayoutQa(qa: DailyBriefPrintLayoutQa) {
 
 export function buildDailyBriefPdfPrepHtml(
   document: DailyBriefReportDocument,
-  options: { autoPrint?: boolean } = {},
+  options: { autoPrint?: boolean; template?: ReportTemplateId } = {},
 ) {
   const generatedAt = formatDate(document.generatedAt);
   const latestScanAt = formatDate(document.metadata.latestScanAt);
+  const template = getReportTemplate(options.template ?? "executive");
+  const researchMemoQa = buildResearchMemoExportQa(document, template.id);
   const printQa = buildDailyBriefPrintLayoutQa(document);
   const sectionAssessmentById = new Map(
     printQa.sections.map((section) => [section.id, section]),
@@ -832,6 +837,7 @@ export function buildDailyBriefPdfPrepHtml(
         ${renderBadge(document.metadata.postureLabel, postureTone)}
         ${renderBadge(`${document.metadata.postureConfidence}/100 posture confidence`, "neutral")}
         ${renderBadge(document.metadata.qaStatusLabel, qaTone)}
+        ${template.id === "research" ? renderBadge(`Research QA ${researchMemoQa.score}/100`, researchMemoQa.tone) : ""}
         ${renderBadge(`${document.integrity.sectionCount} sections`, "neutral")}
       </div>
       <div class="meta-grid">
@@ -850,6 +856,11 @@ export function buildDailyBriefPdfPrepHtml(
       )
       .join("\n")}
 
+    ${template.id === "research" ? `<aside class="print-note print-note-${researchMemoQa.status === "ready" ? "clean" : "warning"}">
+      <strong>${escapeHtml(researchMemoQa.statusLabel)}:</strong> ${escapeHtml(researchMemoQa.summary)}
+      ${researchMemoQa.warnings.length > 0 ? `<ul>${researchMemoQa.warnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join("\n")}</ul>` : ""}
+    </aside>` : ""}
+
     ${renderValidationWarnings(document)}
 
     <footer class="footer">
@@ -865,7 +876,8 @@ export function buildDailyBriefPdfPrepHtml(
 
 export function buildDailyBriefPdfPrepFilename(
   document: DailyBriefReportDocument,
+  template: ReportTemplateId = "executive",
 ) {
   const generatedDate = document.generatedAt.slice(0, 10) || "latest";
-  return `trend-finder-daily-brief-pdf-prep-${document.window}-${generatedDate}.html`;
+  return `daily-brief-${template}-pdf-prep-${document.window}-${generatedDate}.html`;
 }

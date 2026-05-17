@@ -12,6 +12,7 @@ import {
   FileText,
   History,
   Layers3,
+  Microscope,
   Loader2,
   Printer,
   RefreshCcw,
@@ -48,10 +49,12 @@ import {
 } from "@/lib/trends/daily-brief-export-links";
 import {
   buildTemplateMarkdown,
+  buildTemplateReportDocument,
   getReportTemplate,
   getTemplateHeroBlocks,
   getTemplateOrderedSections,
 } from "@/lib/reports/report-templates";
+import { buildResearchMemoExportQa } from "@/lib/reports/research-memo-qa";
 import type {
   DailyBriefReportBlock,
   DailyBriefReportDocument,
@@ -143,7 +146,11 @@ export function ReportsHubView() {
   const [saveState, setSaveState] = useState<SaveState>("idle");
 
   const template = getReportTemplate(preferences.reportTemplate);
-  const document = brief?.reportDocument ?? null;
+  const rawDocument = brief?.reportDocument ?? null;
+  const document = useMemo(() => {
+    if (!rawDocument) return null;
+    return buildTemplateReportDocument(rawDocument, preferences.reportTemplate);
+  }, [rawDocument, preferences.reportTemplate]);
 
   const loadReport = useCallback(async () => {
     setIsLoading(true);
@@ -187,7 +194,7 @@ export function ReportsHubView() {
 
   const markdown = useMemo(() => {
     if (!document) return "";
-    return buildTemplateMarkdown(document, preferences.reportTemplate);
+    return document.quickCopy.markdown || buildTemplateMarkdown(document, preferences.reportTemplate);
   }, [document, preferences.reportTemplate]);
 
   const orderedSections = useMemo(() => {
@@ -217,7 +224,7 @@ export function ReportsHubView() {
         format: "pdf",
         title: "PDF report",
         description: "Best for sharing, reviewing, and presenting the brief as a document.",
-        href: buildDailyBriefPdfExportUrl(selectedWindow),
+        href: buildDailyBriefPdfExportUrl(selectedWindow, { template: preferences.reportTemplate }),
         icon: FileText,
       },
       {
@@ -225,7 +232,7 @@ export function ReportsHubView() {
         format: "html",
         title: "HTML preview",
         description: "Open the report in a clean browser view before saving or presenting it.",
-        href: buildDailyBriefHtmlExportUrl(selectedWindow),
+        href: buildDailyBriefHtmlExportUrl(selectedWindow, { template: preferences.reportTemplate }),
         icon: Eye,
       },
       {
@@ -233,7 +240,7 @@ export function ReportsHubView() {
         format: "json",
         title: "JSON export",
         description: "Download the structured report model for reuse or analysis.",
-        href: buildDailyBriefJsonExportUrl(selectedWindow, { download: true }),
+        href: buildDailyBriefJsonExportUrl(selectedWindow, { download: true, template: preferences.reportTemplate }),
         icon: FileJson,
       },
       {
@@ -241,14 +248,14 @@ export function ReportsHubView() {
         format: "markdown",
         title: "Markdown copy",
         description: "Copy a template-aware summary for notes, docs, or community posts.",
-        href: buildDailyBriefFullJsonExportUrl(selectedWindow),
+        href: buildDailyBriefFullJsonExportUrl(selectedWindow, { template: preferences.reportTemplate }),
         icon: Clipboard,
       },
       {
         id: "print",
         title: "Print-ready version",
         description: "Use when you want a browser print layout before exporting manually.",
-        href: buildDailyBriefPdfPrepUrl(selectedWindow),
+        href: buildDailyBriefPdfPrepUrl(selectedWindow, { template: preferences.reportTemplate }),
         icon: Printer,
       },
     ];
@@ -258,10 +265,22 @@ export function ReportsHubView() {
       const bIndex = b.format ? template.preferredFormats.indexOf(b.format) : 99;
       return aIndex - bIndex;
     });
-  }, [selectedWindow, template.preferredFormats]);
+  }, [preferences.reportTemplate, selectedWindow, template.preferredFormats]);
+
+  const researchMemoQa = useMemo(() => {
+    if (!document) return null;
+    return buildResearchMemoExportQa(document, preferences.reportTemplate);
+  }, [document, preferences.reportTemplate]);
 
   const readiness = useMemo(() => {
     if (!document) return { label: "No report", variant: "muted" as const, detail: "Generate a report first." };
+    if (preferences.reportTemplate === "research" && researchMemoQa?.status === "blocked") {
+      return {
+        label: "Blocked",
+        variant: "danger" as const,
+        detail: "Research Memo QA is blocked. Fix the evidence/caveat boundary before export.",
+      };
+    }
     if (document.integrity.validationWarnings.length > 0) {
       return {
         label: "Review",
@@ -273,7 +292,7 @@ export function ReportsHubView() {
       return { label: "Thin", variant: "accent" as const, detail: "Report loaded, but content density is light." };
     }
     return { label: "Ready", variant: "secondary" as const, detail: "Report model is ready for manual export." };
-  }, [document]);
+  }, [document, preferences.reportTemplate, researchMemoQa]);
 
   async function handleCopy() {
     if (!markdown) return;
@@ -445,6 +464,49 @@ export function ReportsHubView() {
                 )}
               </CardContent>
             </Card>
+
+            {preferences.reportTemplate === "research" && researchMemoQa ? (
+              <Card className="border-border/10 bg-[#160d0d]/62">
+                <CardHeader>
+                  <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+                    <Microscope className="h-4 w-4" />
+                    Research Memo QA
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <CardTitle>{researchMemoQa.statusLabel}</CardTitle>
+                    <Badge variant={toneVariant(researchMemoQa.tone)}>Score {researchMemoQa.score}/100</Badge>
+                  </div>
+                  <CardDescription>{researchMemoQa.summary}</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-3 md:grid-cols-4">
+                  <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3">
+                    <p className="text-2xl font-semibold text-foreground">{researchMemoQa.metrics.researchTrendReferences}</p>
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/60">Research refs</p>
+                  </div>
+                  <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3">
+                    <p className="text-2xl font-semibold text-foreground">{researchMemoQa.metrics.caveatMentions}</p>
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/60">Caveats</p>
+                  </div>
+                  <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3">
+                    <p className="text-2xl font-semibold text-foreground">{researchMemoQa.metrics.sourceQualityMentions}</p>
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/60">Source quality</p>
+                  </div>
+                  <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3">
+                    <p className="text-2xl font-semibold text-foreground">{researchMemoQa.metrics.templateMarkdownAligned ? "Yes" : "No"}</p>
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/60">Markdown aligned</p>
+                  </div>
+                  {researchMemoQa.warnings.length > 0 ? (
+                    <div className="md:col-span-4 space-y-2">
+                      {researchMemoQa.warnings.slice(0, 4).map((warning) => (
+                        <div key={warning} className="rounded-2xl border border-accent/25 bg-accent/10 p-3 text-sm text-accent-foreground">
+                          {warning}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </CardContent>
+              </Card>
+            ) : null}
 
             <Card className="border-border/10 bg-[#160d0d]/62">
               <CardHeader>

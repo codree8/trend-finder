@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDailyBrief } from "@/lib/trends/daily-brief";
+import { parseReportTemplateId } from "@/lib/preferences/product-preferences";
 import {
   buildDailyBriefJsonExport,
   buildDailyBriefJsonFilename,
@@ -20,10 +21,11 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const window = normalizeDashboardWindow(searchParams.get("window"));
     const payload = getDailyBriefJsonExportPayload(searchParams.get("payload"));
+    const template = parseReportTemplateId(searchParams.get("template"));
     const brief = await getDailyBrief(window);
-    const exportEnvelope = buildDailyBriefJsonExport(brief, payload);
+    const exportEnvelope = buildDailyBriefJsonExport(brief, payload, template);
     const body = serializeDailyBriefJsonExport(exportEnvelope);
-    const filename = buildDailyBriefJsonFilename(brief.reportDocument, payload);
+    const filename = buildDailyBriefJsonFilename(brief.reportDocument, payload, template);
     const dispositionType = shouldDownload(searchParams.get("download"))
       ? "attachment"
       : "inline";

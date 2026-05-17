@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { getDailyBrief } from "@/lib/trends/daily-brief";
+import { parseReportTemplateId } from "@/lib/preferences/product-preferences";
+import { buildTemplateReportDocument } from "@/lib/reports/report-templates";
+import { buildResearchMemoExportQa } from "@/lib/reports/research-memo-qa";
 import { buildDailyBriefPrintLayoutQa } from "@/lib/trends/daily-brief-print-layout-qa";
 import { buildDailyBriefServerPdf } from "@/lib/trends/daily-brief-server-pdf";
 import { buildDailyBriefServerPdfReliabilityQa } from "@/lib/trends/daily-brief-server-pdf-qa";
@@ -15,20 +18,24 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const window = normalizeDashboardWindow(searchParams.get("window"));
+    const template = parseReportTemplateId(searchParams.get("template"));
     const brief = await getDailyBrief(window);
-    const exportQa = buildReportsExportFlowQa(brief.reportDocument);
-    const printQa = buildDailyBriefPrintLayoutQa(brief.reportDocument);
-    const pdf = buildDailyBriefServerPdf(brief.reportDocument);
+    const document = buildTemplateReportDocument(brief.reportDocument, template);
+    const exportQa = buildReportsExportFlowQa(document);
+    const printQa = buildDailyBriefPrintLayoutQa(document);
+    const pdf = buildDailyBriefServerPdf(document, { template });
     const serverPdfQa = buildDailyBriefServerPdfReliabilityQa({
-      document: brief.reportDocument,
+      document,
       pdf,
       printQa,
     });
+    const researchMemoQa = buildResearchMemoExportQa(document, template);
     const readiness = buildExportSystemReadiness({
-      document: brief.reportDocument,
+      document,
       exportQa,
       printQa,
       serverPdfQa,
+      researchMemoQa,
     });
 
     return NextResponse.json(
@@ -38,12 +45,15 @@ export async function GET(request: Request) {
         exportType: "daily_intelligence_brief_export_readiness",
         generatedAt: new Date().toISOString(),
         window,
+        template,
         readiness,
+        researchMemoQa,
         sourceChecks: {
           exportFlowStatus: exportQa.status,
           printLayoutStatus: printQa.status,
           serverPdfStatus: serverPdfQa.status,
-          reportDocumentSchema: brief.reportDocument.schemaVersion,
+          reportDocumentSchema: document.schemaVersion,
+          researchMemoQaStatus: researchMemoQa.status,
         },
       },
       {
@@ -52,6 +62,8 @@ export async function GET(request: Request) {
           "X-Export-System-Readiness": readiness.status,
           "X-Export-System-Readiness-Score": String(readiness.score),
           "X-Local-Boundary": String(readiness.localBoundaryScore),
+          "X-Research-Memo-QA": researchMemoQa.status,
+          "X-Research-Memo-QA-Score": String(researchMemoQa.score),
           "X-Critical-Blockers": String(readiness.metrics.criticalBlockers),
         },
       },

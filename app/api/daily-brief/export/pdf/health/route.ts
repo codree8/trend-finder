@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { getDailyBrief } from "@/lib/trends/daily-brief";
+import { parseReportTemplateId } from "@/lib/preferences/product-preferences";
+import { buildTemplateReportDocument } from "@/lib/reports/report-templates";
+import { buildResearchMemoExportQa } from "@/lib/reports/research-memo-qa";
 import { buildDailyBriefPrintLayoutQa } from "@/lib/trends/daily-brief-print-layout-qa";
 import { buildDailyBriefServerPdf } from "@/lib/trends/daily-brief-server-pdf";
 import { buildDailyBriefServerPdfReliabilityQa } from "@/lib/trends/daily-brief-server-pdf-qa";
@@ -13,11 +16,13 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const window = normalizeDashboardWindow(searchParams.get("window"));
+    const template = parseReportTemplateId(searchParams.get("template"));
     const brief = await getDailyBrief(window);
-    const printQa = buildDailyBriefPrintLayoutQa(brief.reportDocument);
-    const pdf = buildDailyBriefServerPdf(brief.reportDocument);
+    const document = buildTemplateReportDocument(brief.reportDocument, template);
+    const printQa = buildDailyBriefPrintLayoutQa(document);
+    const pdf = buildDailyBriefServerPdf(document, { template });
     const reliabilityQa = buildDailyBriefServerPdfReliabilityQa({
-      document: brief.reportDocument,
+      document,
       pdf,
       printQa,
     });
@@ -29,6 +34,8 @@ export async function GET(request: Request) {
         exportType: "daily_intelligence_brief_server_pdf_health",
         generatedAt: new Date().toISOString(),
         window,
+        template,
+        researchMemoQa: buildResearchMemoExportQa(document, template),
         pdf: {
           filename: pdf.filename,
           pageCount: pdf.pageCount,

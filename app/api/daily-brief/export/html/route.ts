@@ -4,6 +4,8 @@ import {
   buildDailyBriefHtmlFilename,
 } from "@/lib/trends/daily-brief-html-export";
 import { getDailyBrief } from "@/lib/trends/daily-brief";
+import { parseReportTemplateId } from "@/lib/preferences/product-preferences";
+import { buildTemplateReportDocument } from "@/lib/reports/report-templates";
 import { normalizeDashboardWindow } from "@/lib/trends/get-dashboard-trends";
 import type { DailyBriefErrorResponse } from "@/lib/trends/types";
 
@@ -17,9 +19,11 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const window = normalizeDashboardWindow(searchParams.get("window"));
+    const template = parseReportTemplateId(searchParams.get("template"));
     const brief = await getDailyBrief(window);
-    const html = buildDailyBriefHtmlExport(brief.reportDocument);
-    const filename = buildDailyBriefHtmlFilename(brief.reportDocument);
+    const document = buildTemplateReportDocument(brief.reportDocument, template);
+    const html = buildDailyBriefHtmlExport(document, { template });
+    const filename = buildDailyBriefHtmlFilename(document, template);
     const dispositionType = shouldDownload(searchParams.get("download"))
       ? "attachment"
       : "inline";

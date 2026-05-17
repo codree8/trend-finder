@@ -1,3 +1,4 @@
+import type { ResearchMemoExportQa } from "@/lib/reports/research-memo-qa";
 import type { DailyBriefPrintLayoutQa } from "@/lib/trends/daily-brief-print-layout-qa";
 import type { DailyBriefServerPdfReliabilityQa } from "@/lib/trends/daily-brief-server-pdf-qa";
 import type { ReportsExportChannel, ReportsExportFlowQa } from "@/lib/trends/reports-export-flow-qa";
@@ -10,6 +11,7 @@ export type ExportSystemReadinessGateCategory =
   | "data_model"
   | "manual_export"
   | "pdf_reliability"
+  | "research_memo"
   | "local_boundary";
 
 export type ExportSystemReadinessGate = {
@@ -50,6 +52,8 @@ export type ExportSystemReadiness = {
     exportFlowScore: number;
     printLayoutScore: number;
     serverPdfScore: number;
+    researchMemoQaScore: number;
+    researchMemoWarnings: number;
     criticalBlockers: number;
     warnings: number;
     localBoundaries: number;
@@ -105,11 +109,13 @@ export function buildExportSystemReadiness({
   exportQa,
   printQa,
   serverPdfQa,
+  researchMemoQa,
 }: {
   document: DailyBriefReportDocument;
   exportQa: ReportsExportFlowQa;
   printQa: DailyBriefPrintLayoutQa;
   serverPdfQa: DailyBriefServerPdfReliabilityQa | null;
+  researchMemoQa?: ResearchMemoExportQa | null;
 }): ExportSystemReadiness {
   const htmlChannel = channelById(exportQa, "html");
   const jsonChannel = channelById(exportQa, "json");
@@ -188,6 +194,27 @@ export function buildExportSystemReadiness({
       severity: severity(pdfLive && pdfReady, "warning"),
       detail: serverPdfQa?.summary ?? "Server PDF health was not available.",
       recommendedAction: serverPdfQa?.recommendedAction ?? "Use print-ready HTML until PDF health is available.",
+    }),
+    gate({
+      id: "research-memo-qa",
+      label: "Research Memo export QA",
+      category: "research_memo",
+      status: !researchMemoQa
+        ? "watch"
+        : researchMemoQa.status === "ready"
+          ? "pass"
+          : researchMemoQa.status === "blocked"
+            ? "fail"
+            : "watch",
+      severity: !researchMemoQa
+        ? "warning"
+        : researchMemoQa.status === "ready"
+          ? "success"
+          : researchMemoQa.status === "blocked"
+            ? "danger"
+            : "warning",
+      detail: researchMemoQa?.summary ?? "Research Memo QA was not available for this readiness check.",
+      recommendedAction: researchMemoQa?.recommendedAction ?? "Run export readiness with the selected report template.",
     }),
     gate({
       id: "manual-only-boundary",
@@ -281,6 +308,8 @@ export function buildExportSystemReadiness({
       exportFlowScore: exportQa.score,
       printLayoutScore: printQa.score,
       serverPdfScore: serverPdfQa?.score ?? 0,
+      researchMemoQaScore: researchMemoQa?.score ?? 0,
+      researchMemoWarnings: researchMemoQa?.warnings.length ?? 0,
       criticalBlockers,
       warnings,
       localBoundaries: gates.filter((item) => item.category === "local_boundary").length,

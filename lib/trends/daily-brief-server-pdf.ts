@@ -1,3 +1,6 @@
+import type { ReportTemplateId } from "@/lib/preferences/product-preferences";
+import { getReportTemplate } from "@/lib/reports/report-templates";
+import { buildResearchMemoExportQa } from "@/lib/reports/research-memo-qa";
 import { buildDailyBriefPrintLayoutQa } from "@/lib/trends/daily-brief-print-layout-qa";
 import type {
   DailyBriefReportBlock,
@@ -158,7 +161,12 @@ function pushWrapped(
   });
 }
 
-function buildPdfLines(document: DailyBriefReportDocument) {
+function buildPdfLines(
+  document: DailyBriefReportDocument,
+  templateId: ReportTemplateId = "executive",
+) {
+  const template = getReportTemplate(templateId);
+  const researchMemoQa = buildResearchMemoExportQa(document, template.id);
   const printQa = buildDailyBriefPrintLayoutQa(document);
   const lines: PdfLine[] = [];
   const warnings = document.integrity.validationWarnings;
@@ -184,7 +192,7 @@ function buildPdfLines(document: DailyBriefReportDocument) {
   );
   pushWrapped(
     lines,
-    `Posture: ${document.metadata.postureLabel} (${document.metadata.postureConfidence}/100) | Narrative QA: ${document.metadata.qaStatusLabel} | Print QA: ${printQa.statusLabel} (${printQa.score}/100)`,
+    `${template.id === "research" ? `Research QA: ${researchMemoQa.statusLabel} (${researchMemoQa.score}/100) | ` : ""}Posture: ${document.metadata.postureLabel} (${document.metadata.postureConfidence}/100) | Narrative QA: ${document.metadata.qaStatusLabel} | Print QA: ${printQa.statusLabel} (${printQa.score}/100)`,
     {
       size: SMALL_FONT_SIZE,
       lineHeight: SMALL_LINE_HEIGHT,
@@ -245,6 +253,31 @@ function buildPdfLines(document: DailyBriefReportDocument) {
       spacingAfter: 3,
     });
     for (const warning of warnings) {
+      pushWrapped(lines, `- ${warning}`, {
+        size: SMALL_FONT_SIZE,
+        lineHeight: SMALL_LINE_HEIGHT,
+        tone: "warning",
+        indent: 10,
+      });
+    }
+    pushLine(lines, { text: "", spacingAfter: 8 });
+  }
+
+  if (template.id === "research") {
+    pushWrapped(lines, "Research Memo QA", {
+      size: BLOCK_TITLE_FONT_SIZE,
+      lineHeight: 15,
+      font: "bold",
+      tone: researchMemoQa.tone,
+      spacingAfter: 3,
+    });
+    pushWrapped(lines, `${researchMemoQa.statusLabel}: ${researchMemoQa.summary}`, {
+      size: SMALL_FONT_SIZE,
+      lineHeight: SMALL_LINE_HEIGHT,
+      tone: researchMemoQa.tone,
+      indent: 10,
+    });
+    for (const warning of researchMemoQa.warnings.slice(0, 4)) {
       pushWrapped(lines, `- ${warning}`, {
         size: SMALL_FONT_SIZE,
         lineHeight: SMALL_LINE_HEIGHT,
@@ -493,24 +526,27 @@ function buildPdfBytes(document: DailyBriefReportDocument, pages: PdfPage[]) {
 
 export function buildDailyBriefServerPdfFilename(
   document: DailyBriefReportDocument,
+  template: ReportTemplateId = "executive",
 ) {
   const date = new Date(document.generatedAt);
   const stamp = Number.isNaN(date.getTime())
     ? document.generatedAt.slice(0, 10)
     : date.toISOString().slice(0, 10);
 
-  return `daily-brief-${document.window}-${stamp}.pdf`;
+  return `daily-brief-${template}-${document.window}-${stamp}.pdf`;
 }
 
 export function buildDailyBriefServerPdf(
   document: DailyBriefReportDocument,
+  options: { template?: ReportTemplateId } = {},
 ): DailyBriefServerPdfBuildResult {
-  const lines = buildPdfLines(document);
+  const template = options.template ?? "executive";
+  const lines = buildPdfLines(document, template);
   const pages = paginate(lines);
   const bytes = buildPdfBytes(document, pages);
 
   return {
-    filename: buildDailyBriefServerPdfFilename(document),
+    filename: buildDailyBriefServerPdfFilename(document, template),
     bytes,
     pageCount: pages.length,
     generatedAt: new Date().toISOString(),

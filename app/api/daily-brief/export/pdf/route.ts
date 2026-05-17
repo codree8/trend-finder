@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDailyBrief } from "@/lib/trends/daily-brief";
+import { parseReportTemplateId } from "@/lib/preferences/product-preferences";
+import { buildTemplateReportDocument } from "@/lib/reports/report-templates";
 import { buildDailyBriefPrintLayoutQa } from "@/lib/trends/daily-brief-print-layout-qa";
 import { buildDailyBriefServerPdf } from "@/lib/trends/daily-brief-server-pdf";
 import { buildDailyBriefServerPdfReliabilityQa } from "@/lib/trends/daily-brief-server-pdf-qa";
@@ -17,11 +19,13 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const window = normalizeDashboardWindow(searchParams.get("window"));
+    const template = parseReportTemplateId(searchParams.get("template"));
     const brief = await getDailyBrief(window);
-    const printQa = buildDailyBriefPrintLayoutQa(brief.reportDocument);
-    const pdf = buildDailyBriefServerPdf(brief.reportDocument);
+    const document = buildTemplateReportDocument(brief.reportDocument, template);
+    const printQa = buildDailyBriefPrintLayoutQa(document);
+    const pdf = buildDailyBriefServerPdf(document, { template });
     const pdfReliabilityQa = buildDailyBriefServerPdfReliabilityQa({
-      document: brief.reportDocument,
+      document,
       pdf,
       printQa,
     });
@@ -46,7 +50,7 @@ export async function GET(request: Request) {
         "X-Server-PDF-Byte-Size": String(pdf.bytes.byteLength),
         "X-Server-PDF-QA-Status": pdfReliabilityQa.status,
         "X-Server-PDF-QA-Score": String(pdfReliabilityQa.score),
-        "X-Server-PDF-Health": `/api/daily-brief/export/pdf/health?window=${window}`,
+        "X-Server-PDF-Health": `/api/daily-brief/export/pdf/health?window=${window}&template=${template}`,
         "X-Print-Layout-Status": printQa.status,
         "X-Print-Layout-Score": String(printQa.score),
         "X-Estimated-Print-Pages": String(printQa.metrics.estimatedPages),

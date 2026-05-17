@@ -1,3 +1,6 @@
+import type { ReportTemplateId } from "@/lib/preferences/product-preferences";
+import { getReportTemplate } from "@/lib/reports/report-templates";
+import { buildResearchMemoExportQa } from "@/lib/reports/research-memo-qa";
 import type {
   DailyBriefReportBlock,
   DailyBriefReportDocument,
@@ -144,9 +147,14 @@ function renderValidationWarnings(document: DailyBriefReportDocument) {
   </div>`;
 }
 
-export function buildDailyBriefHtmlExport(document: DailyBriefReportDocument) {
+export function buildDailyBriefHtmlExport(
+  document: DailyBriefReportDocument,
+  options: { template?: ReportTemplateId } = {},
+) {
   const generatedAt = formatDate(document.generatedAt);
   const latestScanAt = formatDate(document.metadata.latestScanAt);
+  const template = getReportTemplate(options.template ?? "executive");
+  const researchMemoQa = buildResearchMemoExportQa(document, template.id);
 
   return `<!doctype html>
 <html lang="en">
@@ -431,7 +439,7 @@ export function buildDailyBriefHtmlExport(document: DailyBriefReportDocument) {
 <body>
   <main class="page">
     <header class="hero">
-      <p class="eyebrow">Trend Finder · Daily Intelligence Brief</p>
+      <p class="eyebrow">Trend Finder · ${escapeHtml(template.label)}</p>
       <h1>${escapeHtml(document.subtitle || document.title)}</h1>
       <p class="subtitle">${escapeHtml(document.quickCopy.summary)}</p>
       <div class="hero-meta">
@@ -439,6 +447,7 @@ export function buildDailyBriefHtmlExport(document: DailyBriefReportDocument) {
         ${renderBadge(document.metadata.postureLabel, document.metadata.posture === "offensive" ? "positive" : document.metadata.posture === "defensive" ? "danger" : "warning")}
         ${renderBadge(`${document.metadata.postureConfidence}/100 posture confidence`, "neutral")}
         ${renderBadge(document.metadata.qaStatusLabel, document.metadata.qaStatus === "healthy" ? "positive" : document.metadata.qaStatus === "too_aggressive" ? "danger" : "warning")}
+        ${template.id === "research" ? renderBadge(`Research QA ${researchMemoQa.score}/100`, researchMemoQa.tone) : ""}
       </div>
       <div class="summary-grid">
         <div class="summary-card"><strong>Generated</strong><span>${escapeHtml(generatedAt)}</span></div>
@@ -449,6 +458,11 @@ export function buildDailyBriefHtmlExport(document: DailyBriefReportDocument) {
     </header>
 
     ${document.sections.map(renderSection).join("\n")}
+
+    ${template.id === "research" ? `<div class="export-note export-note-${researchMemoQa.status === "ready" ? "clean" : "warning"}">
+      <strong>${escapeHtml(researchMemoQa.statusLabel)}:</strong> ${escapeHtml(researchMemoQa.summary)}
+      ${researchMemoQa.warnings.length > 0 ? `<ul>${researchMemoQa.warnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join("\n")}</ul>` : ""}
+    </div>` : ""}
 
     ${renderValidationWarnings(document)}
 
@@ -462,7 +476,8 @@ export function buildDailyBriefHtmlExport(document: DailyBriefReportDocument) {
 
 export function buildDailyBriefHtmlFilename(
   document: DailyBriefReportDocument,
+  template: ReportTemplateId = "executive",
 ) {
   const generatedDate = document.generatedAt.slice(0, 10) || "latest";
-  return `trend-finder-daily-brief-${document.window}-${generatedDate}.html`;
+  return `trend-finder-${template}-${document.window}-${generatedDate}.html`;
 }

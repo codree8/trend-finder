@@ -4,6 +4,7 @@ import type {
   DailyBriefReportSection,
 } from "@/lib/trends/types";
 import type { ReportTemplateId } from "@/lib/preferences/product-preferences";
+import { buildResearchMemoExportQa, researchMemoQaToReportSection } from "@/lib/reports/research-memo-qa";
 
 export type ReportTemplateDefinition = {
   id: ReportTemplateId;
@@ -177,6 +178,82 @@ function topTrendRefs(document: DailyBriefReportDocument, matcher: string, limit
     .flatMap((section) => section.blocks)
     .flatMap((block) => block.trendRefs ?? [])
     .slice(0, limit);
+}
+
+
+function countBlocks(sections: DailyBriefReportSection[]) {
+  return sections.reduce((total, section) => total + section.blocks.length, 0);
+}
+
+function countTrendReferences(sections: DailyBriefReportSection[]) {
+  return sections.reduce(
+    (sectionTotal, section) =>
+      sectionTotal +
+      section.blocks.reduce(
+        (blockTotal, block) => blockTotal + (block.trendRefs?.length ?? 0),
+        0,
+      ),
+    0,
+  );
+}
+
+function insertResearchQaSection(
+  sections: DailyBriefReportSection[],
+  qaSection: DailyBriefReportSection,
+) {
+  const withoutExistingQa = sections.filter((section) => section.id !== qaSection.id);
+  const researchIndex = withoutExistingQa.findIndex((section) =>
+    sectionMatches(section, "research_signal"),
+  );
+
+  if (researchIndex < 0) {
+    return [...withoutExistingQa, qaSection];
+  }
+
+  return [
+    ...withoutExistingQa.slice(0, researchIndex + 1),
+    qaSection,
+    ...withoutExistingQa.slice(researchIndex + 1),
+  ];
+}
+
+export function buildTemplateReportDocument(
+  document: DailyBriefReportDocument,
+  templateId: ReportTemplateId,
+): DailyBriefReportDocument {
+  const template = getReportTemplate(templateId);
+  const markdown = buildTemplateMarkdown(document, templateId);
+  let sections = getTemplateOrderedSections(document, templateId);
+
+  const templateDocument: DailyBriefReportDocument = {
+    ...document,
+    title: `${template.label}: ${document.title}`,
+    subtitle: template.headline,
+    sections,
+    quickCopy: {
+      ...document.quickCopy,
+      headline: template.headline,
+      markdown,
+    },
+  };
+
+  if (templateId === "research") {
+    const qa = buildResearchMemoExportQa(templateDocument, templateId);
+    sections = insertResearchQaSection(sections, researchMemoQaToReportSection(qa));
+  }
+
+  const integrity = {
+    ...document.integrity,
+    sectionCount: sections.length,
+    blockCount: countBlocks(sections),
+    trendReferenceCount: countTrendReferences(sections),
+  };
+
+  return {
+    ...templateDocument,
+    sections,
+    integrity,
+  };
 }
 
 export function buildTemplateMarkdown(

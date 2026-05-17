@@ -1,4 +1,15 @@
+import type { ReportTemplateId } from "@/lib/preferences/product-preferences";
 import type { DashboardWindow } from "@/lib/trends/types";
+
+type TemplateOption = {
+  template?: ReportTemplateId;
+};
+
+function applyTemplateParam(params: URLSearchParams, template?: ReportTemplateId) {
+  if (template) {
+    params.set("template", template);
+  }
+}
 
 export function buildDailyBriefPageUrl(trendWindow: DashboardWindow) {
   return `/daily-brief?window=${encodeURIComponent(trendWindow)}`;
@@ -10,7 +21,7 @@ export function buildDailyBriefApiUrl(trendWindow: DashboardWindow) {
 
 export function buildDailyBriefHtmlExportUrl(
   trendWindow: DashboardWindow,
-  options: { download?: boolean } = {},
+  options: { download?: boolean } & TemplateOption = {},
 ) {
   const params = new URLSearchParams({ window: trendWindow });
 
@@ -18,12 +29,14 @@ export function buildDailyBriefHtmlExportUrl(
     params.set("download", "1");
   }
 
+  applyTemplateParam(params, options.template);
+
   return `/api/daily-brief/export/html?${params.toString()}`;
 }
 
 export function buildDailyBriefPdfPrepUrl(
   trendWindow: DashboardWindow,
-  options: { autoPrint?: boolean; download?: boolean } = {},
+  options: { autoPrint?: boolean; download?: boolean } & TemplateOption = {},
 ) {
   const params = new URLSearchParams({ window: trendWindow });
 
@@ -35,12 +48,14 @@ export function buildDailyBriefPdfPrepUrl(
     params.set("download", "1");
   }
 
+  applyTemplateParam(params, options.template);
+
   return `/api/daily-brief/export/pdf-prep?${params.toString()}`;
 }
 
 export function buildDailyBriefPdfExportUrl(
   trendWindow: DashboardWindow,
-  options: { inline?: boolean } = {},
+  options: { inline?: boolean } & TemplateOption = {},
 ) {
   const params = new URLSearchParams({ window: trendWindow });
 
@@ -48,11 +63,17 @@ export function buildDailyBriefPdfExportUrl(
     params.set("inline", "1");
   }
 
+  applyTemplateParam(params, options.template);
+
   return `/api/daily-brief/export/pdf?${params.toString()}`;
 }
 
-export function buildDailyBriefPdfHealthUrl(trendWindow: DashboardWindow) {
+export function buildDailyBriefPdfHealthUrl(
+  trendWindow: DashboardWindow,
+  options: TemplateOption = {},
+) {
   const params = new URLSearchParams({ window: trendWindow });
+  applyTemplateParam(params, options.template);
 
   return `/api/daily-brief/export/pdf/health?${params.toString()}`;
 }
@@ -62,7 +83,7 @@ export function buildDailyBriefJsonExportUrl(
   options: {
     download?: boolean;
     payload?: "report-document" | "full-brief";
-  } = {},
+  } & TemplateOption = {},
 ) {
   const params = new URLSearchParams({ window: trendWindow });
 
@@ -74,12 +95,14 @@ export function buildDailyBriefJsonExportUrl(
     params.set("payload", options.payload);
   }
 
+  applyTemplateParam(params, options.template);
+
   return `/api/daily-brief/export/json?${params.toString()}`;
 }
 
 export function buildDailyBriefFullJsonExportUrl(
   trendWindow: DashboardWindow,
-  options: { download?: boolean } = {},
+  options: { download?: boolean } & TemplateOption = {},
 ) {
   return buildDailyBriefJsonExportUrl(trendWindow, {
     ...options,
@@ -89,8 +112,10 @@ export function buildDailyBriefFullJsonExportUrl(
 
 export function buildDailyBriefExportReadinessUrl(
   trendWindow: DashboardWindow,
+  options: TemplateOption = {},
 ) {
   const params = new URLSearchParams({ window: trendWindow });
+  applyTemplateParam(params, options.template);
 
   return `/api/daily-brief/export/readiness?${params.toString()}`;
 }

@@ -189,6 +189,13 @@ export function parseDashboardWindow(
   return oneOf(value, dashboardWindows, fallback) as DashboardWindow;
 }
 
+export function parseReportTemplateId(
+  value: string | null | undefined,
+  fallback: ReportTemplateId = defaultProductPreferences.reportTemplate,
+): ReportTemplateId {
+  return oneOf(value, reportTemplates, fallback) as ReportTemplateId;
+}
+
 export function parseWorkspaceView(
   value: string | null | undefined,
   fallback: WorkspaceView = defaultProductPreferences.defaultWorkspace,

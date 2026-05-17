@@ -1,3 +1,6 @@
+import type { ReportTemplateId } from "@/lib/preferences/product-preferences";
+import { getReportTemplate, buildTemplateReportDocument } from "@/lib/reports/report-templates";
+import { buildResearchMemoExportQa } from "@/lib/reports/research-memo-qa";
 import type {
   DailyBriefReportDocument,
   DailyBriefResponse,
@@ -8,9 +11,14 @@ export type DailyBriefJsonExportPayload = "report-document" | "full-brief";
 
 export type DailyBriefJsonExportEnvelope = {
   ok: true;
-  schemaVersion: "daily-brief-json-export-v1";
+  schemaVersion: "daily-brief-json-export-v2";
   exportType: "daily_intelligence_brief_json";
   payload: DailyBriefJsonExportPayload;
+  template: {
+    id: ReportTemplateId;
+    label: string;
+    appliedToReportDocument: boolean;
+  };
   window: DashboardWindow;
   generatedAt: string;
   source: {
@@ -23,6 +31,8 @@ export type DailyBriefJsonExportEnvelope = {
     exportedSectionCount: number;
     exportedBlockCount: number;
     exportedTrendReferenceCount: number;
+    researchMemoQaStatus: string;
+    researchMemoQaScore: number;
   };
   data: DailyBriefReportDocument | DailyBriefResponse;
 };
@@ -82,15 +92,27 @@ export function getDailyBriefJsonExportPayload(
 export function buildDailyBriefJsonExport(
   brief: DailyBriefResponse,
   payload: DailyBriefJsonExportPayload = "report-document",
+  templateId: ReportTemplateId = "executive",
 ): DailyBriefJsonExportEnvelope {
-  const document = brief.reportDocument;
+  const template = getReportTemplate(templateId);
+  const document = buildTemplateReportDocument(brief.reportDocument, template.id);
+  const researchMemoQa = buildResearchMemoExportQa(document, template.id);
   const includesFullBrief = payload === "full-brief";
+  const templatedBrief: DailyBriefResponse = {
+    ...brief,
+    reportDocument: document,
+  };
 
   return {
     ok: true,
-    schemaVersion: "daily-brief-json-export-v1",
+    schemaVersion: "daily-brief-json-export-v2",
     exportType: "daily_intelligence_brief_json",
     payload,
+    template: {
+      id: template.id,
+      label: template.label,
+      appliedToReportDocument: true,
+    },
     window: brief.window,
     generatedAt: new Date().toISOString(),
     source: {
@@ -104,8 +126,10 @@ export function buildDailyBriefJsonExport(
       exportedSectionCount: document.sections.length,
       exportedBlockCount: countBlocks(document),
       exportedTrendReferenceCount: countTrendReferences(document),
+      researchMemoQaStatus: researchMemoQa.status,
+      researchMemoQaScore: researchMemoQa.score,
     },
-    data: includesFullBrief ? brief : document,
+    data: includesFullBrief ? templatedBrief : document,
   };
 }
 
@@ -118,10 +142,12 @@ export function serializeDailyBriefJsonExport(
 export function buildDailyBriefJsonFilename(
   document: DailyBriefReportDocument,
   payload: DailyBriefJsonExportPayload = "report-document",
+  templateId: ReportTemplateId = "executive",
 ) {
   const windowPart = safeFilenamePart(document.window);
   const payloadPart = safeFilenamePart(payload);
+  const templatePart = safeFilenamePart(templateId);
   const generatedPart = datePart(document.generatedAt);
 
-  return `daily-brief-${windowPart}-${payloadPart}-${generatedPart}.json`;
+  return `daily-brief-${templatePart}-${windowPart}-${payloadPart}-${generatedPart}.json`;
 }

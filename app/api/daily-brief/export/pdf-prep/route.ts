@@ -4,6 +4,8 @@ import {
   buildDailyBriefPdfPrepHtml,
 } from "@/lib/trends/daily-brief-pdf-prep";
 import { getDailyBrief } from "@/lib/trends/daily-brief";
+import { parseReportTemplateId } from "@/lib/preferences/product-preferences";
+import { buildTemplateReportDocument } from "@/lib/reports/report-templates";
 import { buildDailyBriefPrintLayoutQa } from "@/lib/trends/daily-brief-print-layout-qa";
 import { normalizeDashboardWindow } from "@/lib/trends/get-dashboard-trends";
 import type { DailyBriefErrorResponse } from "@/lib/trends/types";
@@ -18,12 +20,15 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const window = normalizeDashboardWindow(searchParams.get("window"));
+    const template = parseReportTemplateId(searchParams.get("template"));
     const brief = await getDailyBrief(window);
-    const printQa = buildDailyBriefPrintLayoutQa(brief.reportDocument);
-    const html = buildDailyBriefPdfPrepHtml(brief.reportDocument, {
+    const document = buildTemplateReportDocument(brief.reportDocument, template);
+    const printQa = buildDailyBriefPrintLayoutQa(document);
+    const html = buildDailyBriefPdfPrepHtml(document, {
       autoPrint: truthy(searchParams.get("autoprint")),
+      template,
     });
-    const filename = buildDailyBriefPdfPrepFilename(brief.reportDocument);
+    const filename = buildDailyBriefPdfPrepFilename(document, template);
     const dispositionType = truthy(searchParams.get("download"))
       ? "attachment"
       : "inline";
