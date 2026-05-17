@@ -11,7 +11,6 @@ import {
   Gauge,
   Layers3,
   Lightbulb,
-  Mail,
   Newspaper,
   Presentation,
   Radar,
@@ -525,7 +524,7 @@ export function ProductSettingsView() {
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
               These preferences are local UI settings. They do not add auth,
-              database writes, cron jobs or email sending. Boring on purpose,
+              database writes or background delivery. Boring on purpose,
               which is exactly how settings should behave.
             </p>
           </div>
@@ -743,7 +742,7 @@ export function ProductSettingsView() {
             <CardTitle>Presentation behavior</CardTitle>
             <CardDescription>
               These modes change framing and defaults. They do not create fake
-              trends or enable hidden automation.
+              trends or enable hidden background behavior.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -786,15 +785,15 @@ export function ProductSettingsView() {
                 <Wrench className="h-4 w-4" />
                 Admin diagnostics shortcut
               </div>
-              <CardTitle>Automation Admin is visible</CardTitle>
+              <CardTitle>Admin boundaries are visible</CardTitle>
               <CardDescription>
-                Your default workspace is Admin, so diagnostics navigation is
+                Your default workspace is Admin, so diagnostics and product-boundary navigation are
                 available in the sidebar.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Button asChild variant="secondary">
-                <Link href="/admin/automation">Open Automation Admin</Link>
+                <Link href="/admin/automation">Open system boundaries</Link>
               </Button>
             </CardContent>
           </Card>
@@ -945,27 +944,6 @@ export function ProductSettingsView() {
                 </div>
               </div>
             ))}
-          </CardContent>
-        </Card>
-
-        <Card className="border-secondary/15 bg-secondary/10">
-          <CardHeader>
-            <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
-              <Mail className="h-4 w-4" />
-              Manual-only email testing
-            </div>
-            <CardTitle>Email stays manual for now</CardTitle>
-            <CardDescription>
-              Internal email prep is available in Admin, but this product does not send, schedule or store recipients.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            <Button asChild variant="secondary">
-              <Link href="/admin/automation">Open internal email prep</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/reports/history">Open saved reports</Link>
-            </Button>
           </CardContent>
         </Card>
 

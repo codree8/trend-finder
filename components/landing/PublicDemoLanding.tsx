@@ -53,9 +53,9 @@ export function PublicDemoLanding() {
 
           <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
             <div>
-              <Badge variant="accent">Public demo packaging v1</Badge>
+              <Badge variant="accent">Public demo ready</Badge>
               <h1 className="mt-6 max-w-4xl text-balance text-5xl font-semibold tracking-[-0.06em] md:text-7xl">
-                AI trend intelligence before the obvious crowd arrives.
+                Spot AI signals before they become obvious.
               </h1>
               <p className="mt-6 max-w-2xl text-base leading-8 text-muted-foreground/82 md:text-lg">
                 Trend Finder is not a list-maker. It is a product radar for spotting emerging AI topics, hidden gems, creator opportunities and report-ready signals from real snapshots.
@@ -75,7 +75,7 @@ export function PublicDemoLanding() {
               </div>
               <div className="mt-6 flex flex-wrap gap-2 text-xs text-muted-foreground/70">
                 <span className="rounded-full border border-border/10 bg-card/60 px-3 py-1.5">No fake demo data</span>
-                <span className="rounded-full border border-border/10 bg-card/60 px-3 py-1.5">Manual exports</span>
+                <span className="rounded-full border border-border/10 bg-card/60 px-3 py-1.5">Manual exports only</span>
                 <span className="rounded-full border border-border/10 bg-card/60 px-3 py-1.5">Admin diagnostics isolated</span>
               </div>
             </div>
@@ -122,15 +122,15 @@ export function PublicDemoLanding() {
             <Card className="border-border/10 bg-[#160d0d]/62">
               <CardHeader>
                 <FileText className="h-5 w-5 text-secondary" />
-                <CardTitle>Report templates</CardTitle>
-                <CardDescription>Executive, creator, research and pitch-ready product framing.</CardDescription>
+                <CardTitle>Template-ready reports</CardTitle>
+                <CardDescription>Executive, creator, research and pitch snapshots without admin noise.</CardDescription>
               </CardHeader>
             </Card>
             <Card className="border-border/10 bg-[#160d0d]/62">
               <CardHeader>
                 <ShieldCheck className="h-5 w-5 text-secondary" />
-                <CardTitle>Safe admin layer</CardTitle>
-                <CardDescription>Automation, calibration and deployment diagnostics stay separate from product navigation.</CardDescription>
+                <CardTitle>Clean admin layer</CardTitle>
+                <CardDescription>Calibration, QA and deployment diagnostics stay separate from product navigation.</CardDescription>
               </CardHeader>
             </Card>
           </section>

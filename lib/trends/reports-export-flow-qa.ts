@@ -33,7 +33,7 @@ export type ReportsExportFlowStep = {
 export type ReportsExportChannel = {
   id: DailyBriefReportAudience | "full_api" | "quick_copy" | "pdf_prep";
   label: string;
-  status: "live" | "ready" | "planned" | "attention";
+  status: "live" | "ready" | "attention";
   tone: DailyBriefReportTone;
   detail: string;
 };
@@ -76,7 +76,6 @@ function channelStatusForTarget(
   document: DailyBriefReportDocument,
   target: DailyBriefReportAudience,
 ): ReportsExportChannel["status"] {
-  if (target === "email") return "planned";
   return hasTarget(document, target) ? "live" : "attention";
 }
 
@@ -110,7 +109,7 @@ export function buildReportsExportFlowQa(
       label: "Section outline available",
       complete: hasSections && hasBlocks,
       detail:
-        "Export sections and blocks are present for HTML, JSON and later PDF/email reuse.",
+        "Export sections and blocks are present for HTML, JSON and PDF reuse.",
     },
     {
       id: "html-export",
@@ -163,7 +162,7 @@ export function buildReportsExportFlowQa(
       id: "missing-html",
       label: "HTML export target missing",
       detail:
-        "HTML should be the primary manual export channel before PDF/email are introduced.",
+        "HTML should be the primary manual export channel before heavier export layers are introduced.",
       severity: "warning",
     });
   }
@@ -260,7 +259,7 @@ export function buildReportsExportFlowQa(
       status: channelStatusForTarget(document, "json"),
       tone: hasJson ? "positive" : "warning",
       detail:
-        "Best developer-facing export for integrations, inspection and future automation.",
+        "Best developer-facing export for integrations and inspection.",
     },
     {
       id: "quick_copy",
@@ -286,14 +285,6 @@ export function buildReportsExportFlowQa(
       detail:
         "Live application/pdf endpoint generated server-side from the reportDocument model. v1 intentionally stays compact and dependency-free.",
     },
-    {
-      id: "email",
-      label: "Email Report",
-      status: "planned",
-      tone: "neutral",
-      detail:
-        "Planned later. No email sending, cron or report database has been added.",
-    },
   ];
 
   const liveChannels = channels.filter(
@@ -310,9 +301,7 @@ export function buildReportsExportFlowQa(
         channel.id === "pdf_prep") &&
       channel.status === "ready",
   ).length;
-  const plannedChannels = channels.filter(
-    (channel) => channel.status === "planned",
-  ).length;
+  const plannedChannels = 0;
 
   return {
     status,
@@ -320,8 +309,8 @@ export function buildReportsExportFlowQa(
     score,
     summary:
       status === "healthy"
-        ? "Reports is wired to the real Daily Brief model with HTML, JSON, print-safe PDF prep and a live server PDF endpoint. Email/cron still stay out until this flow stays boringly reliable. Boring is good here."
-        : "Reports can export, but the flow has at least one clarity or integrity issue that should be fixed before adding email or cron complexity.",
+        ? "Reports is wired to the real Daily Brief model with HTML, JSON, print-safe PDF prep and a live server PDF endpoint. Background delivery stays out of scope; boring is good here."
+        : "Reports can export, but the flow has at least one clarity or integrity issue that should be fixed before adding more product complexity.",
     recommendedPath:
       "Recommended order: open Daily Brief for context, preview HTML for human review, use Server PDF when you need a binary file, keep PDF prep for print/layout QA, and use JSON only for model inspection or integrations.",
     metrics: {

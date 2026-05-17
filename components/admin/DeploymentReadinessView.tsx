@@ -25,9 +25,9 @@ const checks: DeploymentCheck[] = [
     detail: "HTML, JSON, PDF and print-ready exports are still user-triggered.",
   },
   {
-    title: "Automation remains blocked",
+    title: "No background delivery",
     status: "ready",
-    detail: "No cron, recipients, provider send or live email enablement is added here.",
+    detail: "Scheduled delivery and email-related configuration are removed from the local-first product path.",
   },
   {
     title: "Environment variables",
@@ -68,7 +68,7 @@ export function DeploymentReadinessView() {
               Package the product before pushing it into the wild.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
-              This is a practical readiness board for Vercel deployment, public demo review and manual export validation. It is not a secrets scanner and it does not enable automation.
+              This is a practical readiness board for Vercel deployment, public demo review and manual export validation. It is not a secrets scanner and it does not enable background delivery.
             </p>
           </div>
           <div className="rounded-2xl border border-secondary/20 bg-secondary/10 p-4 text-center">
@@ -88,8 +88,8 @@ export function DeploymentReadinessView() {
           <Card className="border-secondary/15 bg-[#160d0d]/66">
             <CardHeader>
               <ShieldCheck className="h-5 w-5 text-secondary" />
-              <CardTitle>Manual-only automation</CardTitle>
-              <CardDescription>Email prep stays review-only until provider and recipients are explicitly configured.</CardDescription>
+              <CardTitle>Manual-only product</CardTitle>
+              <CardDescription>Reports and scans stay user-triggered. No background delivery feature is part of this build.</CardDescription>
             </CardHeader>
           </Card>
           <Card className="border-secondary/15 bg-[#160d0d]/66">
@@ -142,7 +142,7 @@ export function DeploymentReadinessView() {
                 <Link href="/">Open landing page</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="/admin/automation">Open automation admin</Link>
+                <Link href="/admin/automation">Open system boundaries</Link>
               </Button>
               <Button asChild variant="ghost">
                 <a href="https://vercel.com" target="_blank" rel="noreferrer">

@@ -16,7 +16,6 @@ import {
   ShieldCheck,
   Sparkles,
   Wrench,
-  Mail,
   Rocket,
   SlidersHorizontal,
   type LucideIcon,
@@ -89,16 +88,16 @@ const adminRouteItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: Gauge },
   { href: "/reports", label: "Reports", icon: FileText },
   { href: "/daily-brief", label: "Daily Brief", icon: Newspaper },
-  { href: "/admin/automation", label: "Automation", icon: ShieldCheck },
+  { href: "/admin/beta-readiness", label: "Beta QA", icon: ListChecks },
   { href: "/admin/scoring-lab", label: "Scoring Lab", icon: SlidersHorizontal },
-  { href: "/admin/internal-email-test", label: "Email Test", icon: Mail },
   { href: "/admin/deployment-readiness", label: "Deployment", icon: Rocket },
+  { href: "/admin/automation", label: "Boundaries", icon: ShieldCheck },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 const adminComingSoonItems: DisabledNavItem[] = [
   { label: "Scan Health", icon: Radar, reason: "coming soon" },
-  { label: "Export QA", icon: BarChart3, reason: "covered in Automation" },
+  { label: "Export QA", icon: BarChart3, reason: "covered in Reports" },
   { label: "System Diagnostics", icon: Wrench, reason: "coming soon" },
 ];
 

@@ -521,7 +521,7 @@ export type DailyBriefQaSummary = {
   narrativeAdjustments: DailyBriefQaAdjustment[];
 };
 
-export type DailyBriefReportAudience = "ui" | "html" | "pdf" | "email" | "json";
+export type DailyBriefReportAudience = "ui" | "html" | "pdf" | "json";
 
 export type DailyBriefReportTone =
   | "positive"

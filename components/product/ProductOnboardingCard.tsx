@@ -56,7 +56,7 @@ export function ProductOnboardingCard() {
             <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground/78">
               Keep the dashboard readable, use a 7-day brief by default, export
               PDF first, and keep admin diagnostics in the Admin workspace. No
-              fake data, no sending, no automation switch hiding in the bushes.
+              fake data, no background delivery switch hiding in the bushes.
             </p>
           </div>
         </div>

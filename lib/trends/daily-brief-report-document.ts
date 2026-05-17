@@ -237,7 +237,7 @@ export function buildDailyBriefReportDocument(
       eyebrow: "Summary",
       title: "Executive Summary",
       description:
-        "Short lead section for report, PDF, email and HTML export surfaces.",
+        "Short lead section for report, PDF and HTML export surfaces.",
       tone:
         input.briefPosture.posture === "offensive"
           ? "positive"
@@ -423,7 +423,7 @@ export function buildDailyBriefReportDocument(
       eyebrow: "Decision",
       title: "Recommended Focus",
       description:
-        "Compact final decision block for email intros, PDF conclusion and copy-friendly summaries.",
+        "Compact final decision block for PDF conclusion and copy-friendly summaries.",
       tone: "neutral",
       exportPriority: 50,
       pageBreakBefore: true,
@@ -477,7 +477,7 @@ export function buildDailyBriefReportDocument(
     subtitle: input.executiveSummary.headline,
     window: input.window,
     generatedAt: input.generatedAt,
-    exportTargets: ["ui", "html", "pdf", "email", "json"],
+    exportTargets: ["ui", "html", "pdf", "json"],
     metadata: {
       posture: input.briefPosture.posture,
       postureLabel: input.briefPosture.label,
