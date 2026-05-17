@@ -14,4 +14,10 @@ export const aiCategories = [
   "Security",
   "Robotics",
   "General AI",
-];
+] as const;
+
+export type AiCategory = (typeof aiCategories)[number];
+
+export function isAiCategory(value: string): value is AiCategory {
+  return (aiCategories as readonly string[]).includes(value);
+}
