@@ -3,7 +3,7 @@ import type { SourceConnector, SourceSignal } from "@/lib/sources/types";
 import { stripHtml, uniqueSignals } from "@/lib/sources/helpers";
 
 const ARXIV_API_URL = "https://export.arxiv.org/api/query";
-const SEARCH_KEYWORD_LIMIT = 8;
+const SEARCH_KEYWORD_LIMIT = 12;
 const MAX_RESULTS = 24;
 const MIN_REQUEST_INTERVAL_MS = 3_100;
 

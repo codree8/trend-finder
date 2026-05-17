@@ -136,9 +136,11 @@ function buildCategoryKeywords(args: {
 export function buildScanKeywords(
   options: BuildScanKeywordsOptions = {},
 ): ScanKeywordBuildResult {
-  const mode = options.mode ?? "balanced";
-  const profile = getScanKeywordLimitProfile(mode);
+  const requestedMode = options.mode ?? "balanced";
   const category = getValidCategory(options.category);
+  const mode: ScanMode =
+    requestedMode === "balanced" || category ? requestedMode : "balanced";
+  const profile = getScanKeywordLimitProfile(mode);
   const coreKeywords = coreAiKeywords.slice(0, profile.coreKeywords);
 
   const categorySelection =
@@ -164,7 +166,7 @@ export function buildScanKeywords(
 
   return {
     mode,
-    category: mode === "balanced" ? category : category,
+    category,
     keywords,
     sourceKeywords,
     keywordCount: keywords.length,

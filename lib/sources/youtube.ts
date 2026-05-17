@@ -44,7 +44,7 @@ type YouTubeVideosResponse = {
 };
 
 const YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3";
-const SEARCH_KEYWORD_LIMIT = 5;
+const SEARCH_KEYWORD_LIMIT = 8;
 const RESULTS_PER_KEYWORD = 5;
 
 function buildKeywordList(keywords: string[]) {

@@ -23,7 +23,7 @@ export const hackerNewsConnector: SourceConnector = {
     const signals: SourceSignal[] = [];
     const numericSince = Math.floor(since.getTime() / 1000);
 
-    for (const keyword of keywords.slice(0, 8)) {
+    for (const keyword of keywords) {
       const params = new URLSearchParams({
         query: keyword,
         tags: "story",

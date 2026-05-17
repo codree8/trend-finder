@@ -9,6 +9,10 @@ type ScanState = "idle" | "loading" | "success" | "error";
 type ScanApiResponse = {
   ok?: boolean;
   message?: string;
+  scanMode?: "balanced" | "category" | "deep";
+  scanModeLabel?: string;
+  selectedCategory?: string | null;
+  keywordCount?: number;
   totalSignals?: number;
   fetchedSignals?: number;
   insertedSignals?: number;
@@ -49,7 +53,7 @@ export function ScanButton() {
       const response = await fetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ windowDays: 30 }),
+        body: JSON.stringify({ windowDays: 30, scanMode: "balanced" }),
       });
       const data = (await response.json()) as ScanApiResponse;
 
@@ -86,9 +90,13 @@ export function ScanButton() {
         data.persistence?.snapshotsCreated ??
         data.persistence?.storedSnapshots ??
         0;
+      const scanLabel = data.scanModeLabel ?? "Balanced AI scan";
+      const keywordText = data.keywordCount
+        ? ` across ${data.keywordCount} scan keywords`
+        : "";
       const successMessage =
         data.scanSummary?.message ??
-        `Scan completed: ${fetchedSignals} signals found, ${insertedSignals} new, ${skippedDuplicates} duplicates filtered, ${topicClusters} topics grouped, ${snapshotsCreated} trend updates prepared.`;
+        `${scanLabel} completed: ${fetchedSignals} signals checked${keywordText}, ${insertedSignals} new, ${skippedDuplicates} duplicates filtered, ${topicClusters} topics grouped, ${snapshotsCreated} trend updates prepared.`;
 
       setState("success");
       setMessage(successMessage);
@@ -101,6 +109,10 @@ export function ScanButton() {
             skippedDuplicates,
             topicClusters,
             snapshotsCreated,
+            scanMode: data.scanMode,
+            scanModeLabel: data.scanModeLabel,
+            selectedCategory: data.selectedCategory,
+            keywordCount: data.keywordCount,
           },
         }),
       );

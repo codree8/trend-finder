@@ -7,7 +7,10 @@ import {
   trendSnapshots,
 } from "@/lib/db/schema";
 import { getDb } from "@/lib/db";
-import { defaultAiKeywords } from "@/lib/config/scan-keywords";
+import { buildScanKeywords, type ScanKeywordBuildResult } from "@/lib/config/build-scan-keywords";
+import type { AiCategory } from "@/lib/config/ai-categories";
+import type { ScanMode } from "@/lib/config/scan-keyword-limits";
+import { scanModeLabel } from "@/lib/scan/scan-mode";
 import { getActiveConnectors } from "@/lib/scan/connectors";
 import { getConnectorReadinessSummary } from "@/lib/scan/connector-readiness";
 import { clusterSourceSignals } from "@/lib/clustering/cluster-topics";
@@ -25,6 +28,8 @@ import type { SourceConnector, SourceSignal } from "@/lib/sources/types";
 
 export type RunScanOptions = {
   mode: "manual" | "daily";
+  scanMode?: ScanMode;
+  category?: AiCategory | null;
   windowDays?: number;
   keywords?: string[];
   persist?: boolean;
@@ -75,7 +80,15 @@ type ConnectorScanResult = {
   source: string;
   ok: boolean;
   signals: SourceSignal[];
+  keywords: string[];
+  keywordCount: number;
+  sourceKeywordCap: number;
   error?: string;
+};
+
+type ConnectorKeywordPlan = {
+  globalPlan: ScanKeywordBuildResult;
+  sourcePlans: Record<string, ScanKeywordBuildResult>;
 };
 
 function getSinceDate(windowDays: number): Date {
@@ -170,8 +183,13 @@ function buildWarnings(args: {
   return warnings;
 }
 
-function buildSummaryText(summary: ScanSummary) {
-  return `Scan completed: ${summary.fetchedSignals} fetched, ${summary.insertedSignals} inserted, ${summary.skippedDuplicates} duplicates skipped, ${summary.topicClusters} topic clusters, ${summary.snapshotsCreated} snapshots created.`;
+function buildSummaryText(summary: ScanSummary, metadata?: { scanModeLabel?: string; keywordCount?: number }) {
+  const scope = metadata?.scanModeLabel ?? "Scan";
+  const keywordText = metadata?.keywordCount
+    ? ` across ${metadata.keywordCount} scan keywords`
+    : "";
+
+  return `${scope} completed: ${summary.fetchedSignals} fetched${keywordText}, ${summary.insertedSignals} inserted, ${summary.skippedDuplicates} duplicates skipped, ${summary.topicClusters} topic clusters, ${summary.snapshotsCreated} snapshots created.`;
 }
 
 function buildScanSummary(args: {
@@ -218,14 +236,17 @@ function prepareSignalsForScan(signals: SourceSignal[], observedAt: Date) {
 
 async function scanConnector(
   connector: SourceConnector,
-  args: { keywords: string[]; since: Date },
+  args: { keywordPlan: ScanKeywordBuildResult; since: Date },
 ): Promise<ConnectorScanResult> {
   try {
     return {
       source: connector.name,
       ok: true,
+      keywords: args.keywordPlan.sourceKeywords,
+      keywordCount: args.keywordPlan.sourceKeywordCount,
+      sourceKeywordCap: args.keywordPlan.sourceKeywordCap,
       signals: await connector.scan({
-        keywords: args.keywords,
+        keywords: args.keywordPlan.sourceKeywords,
         since: args.since,
         limitPerSource: 20,
       }),
@@ -235,6 +256,9 @@ async function scanConnector(
       source: connector.name,
       ok: false,
       signals: [],
+      keywords: args.keywordPlan.sourceKeywords,
+      keywordCount: args.keywordPlan.sourceKeywordCount,
+      sourceKeywordCap: args.keywordPlan.sourceKeywordCap,
       error: error instanceof Error ? error.message : "Unknown connector error",
     };
   }
@@ -508,7 +532,16 @@ async function persistScanState(args: {
 
   await db.insert(scanRuns).values({
     status: "completed",
-    summary: buildSummaryText(scanSummary),
+    summary: buildSummaryText(scanSummary, {
+      scanModeLabel:
+        typeof args.metadata.scanModeLabel === "string"
+          ? args.metadata.scanModeLabel
+          : undefined,
+      keywordCount:
+        typeof args.metadata.keywordCount === "number"
+          ? args.metadata.keywordCount
+          : undefined,
+    }),
     rawPayload: {
       ...args.metadata,
       ...scanSummary,
@@ -546,17 +579,38 @@ async function persistScanState(args: {
 export async function runTrendScan(options: RunScanOptions) {
   const windowDays = options.windowDays ?? 30;
   const since = getSinceDate(windowDays);
-  const keywords = options.keywords?.length
-    ? options.keywords
-    : defaultAiKeywords;
   const observedAt = new Date();
   const connectors = getActiveConnectors();
   const connectorReadiness = getConnectorReadinessSummary();
   const scannedSources = connectors.map((connector) => connector.name);
+  const scanMode = options.scanMode ?? "balanced";
+  const category = options.category ?? null;
+  const keywordPlan: ConnectorKeywordPlan = {
+    globalPlan: buildScanKeywords({
+      mode: scanMode,
+      category,
+      rotationSeed: observedAt,
+      extraKeywords: options.keywords,
+    }),
+    sourcePlans: {},
+  };
+
+  for (const connector of connectors) {
+    keywordPlan.sourcePlans[connector.name] = buildScanKeywords({
+      mode: scanMode,
+      category,
+      rotationSeed: observedAt,
+      source: connector.name,
+      extraKeywords: options.keywords,
+    });
+  }
 
   const connectorResults = await Promise.all(
     connectors.map((connector) =>
-      scanConnector(connector, { keywords, since }),
+      scanConnector(connector, {
+        keywordPlan: keywordPlan.sourcePlans[connector.name] ?? keywordPlan.globalPlan,
+        since,
+      }),
     ),
   );
 
@@ -564,6 +618,12 @@ export async function runTrendScan(options: RunScanOptions) {
   const failed = connectorResults.filter((result) => !result.ok);
   const fetchedSignals = successful.flatMap((result) => result.signals);
   const sourceCounts = countBySource(fetchedSignals);
+  const sourceKeywordCounts = Object.fromEntries(
+    connectorResults.map((result) => [result.source, result.keywordCount]),
+  );
+  const sourceKeywordCaps = Object.fromEntries(
+    connectorResults.map((result) => [result.source, result.sourceKeywordCap]),
+  );
   const sourceCoverage = buildSourceCoverage({
     scannedSources,
     successfulSources: successful.map((result) => result.source),
@@ -571,11 +631,20 @@ export async function runTrendScan(options: RunScanOptions) {
     failedSources: failed.length,
   });
 
+  const scanLabel = scanModeLabel(keywordPlan.globalPlan.mode, category);
   const metadata = {
     mode: options.mode,
+    scanMode: keywordPlan.globalPlan.mode,
+    requestedScanMode: scanMode,
+    selectedCategory: category,
+    scanModeLabel: scanLabel,
     scoringCalibrationVersion,
     windowDays,
-    keywords,
+    keywords: keywordPlan.globalPlan.keywords,
+    keywordCount: keywordPlan.globalPlan.keywordCount,
+    sourceKeywordCounts,
+    sourceKeywordCaps,
+    categoryCoverage: keywordPlan.globalPlan.categoryCoverage,
     scannedSources,
     activeSources: connectorReadiness.activeSources,
     connectorReadiness,
@@ -649,7 +718,16 @@ export async function runTrendScan(options: RunScanOptions) {
   return {
     ok: true,
     mode: options.mode,
+    scanMode: keywordPlan.globalPlan.mode,
+    requestedScanMode: scanMode,
+    selectedCategory: category,
+    scanModeLabel: scanLabel,
     windowDays,
+    keywords: keywordPlan.globalPlan.keywords,
+    keywordCount: keywordPlan.globalPlan.keywordCount,
+    sourceKeywordCounts,
+    sourceKeywordCaps,
+    categoryCoverage: keywordPlan.globalPlan.categoryCoverage,
     scannedSources,
     totalSignals: persistenceResult.scanSummary.fetchedSignals,
     fetchedSignals: persistenceResult.scanSummary.fetchedSignals,
@@ -666,7 +744,10 @@ export async function runTrendScan(options: RunScanOptions) {
     failedSources: failed.length,
     scanSummary: {
       ...persistenceResult.scanSummary,
-      message: buildSummaryText(persistenceResult.scanSummary),
+      message: buildSummaryText(persistenceResult.scanSummary, {
+        scanModeLabel: scanLabel,
+        keywordCount: keywordPlan.globalPlan.keywordCount,
+      }),
     },
     persistence: persistenceResult.persistence,
     topics: clusteredTopics.slice(0, 25).map((topic) => ({

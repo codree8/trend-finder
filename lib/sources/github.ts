@@ -31,7 +31,7 @@ export const githubConnector: SourceConnector = {
     const token = process.env.GITHUB_TOKEN;
     const signals: SourceSignal[] = [];
 
-    for (const keyword of keywords.slice(0, 6)) {
+    for (const keyword of keywords) {
       const params = new URLSearchParams({
         q: buildQuery(keyword, since),
         sort: "stars",
