@@ -493,6 +493,9 @@ export function ScoringCalibrationLabView() {
                 const breakdownItems = [
                   ["Source", row.breakdown.sourceContribution],
                   ["Freshness", row.breakdown.freshnessContribution],
+                  ["Signal aging", -row.trend.signalAging.decayPenalty],
+                  ["Validation", row.trend.trendValidation.validationScore],
+                  ["Consistency", row.trend.actionConsistency.score],
                   ["Lifecycle", row.breakdown.lifecycleContribution],
                   ["Quality gate", row.breakdown.qualityGateContribution],
                   ["Creator", row.breakdown.creatorOpportunityContribution],
@@ -539,7 +542,7 @@ export function ScoringCalibrationLabView() {
                       ))}
                     </div>
 
-                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                       <div className="rounded-2xl border border-border/10 bg-[#160d0d]/50 p-3">
                         <Badge variant={scoreBand(row.trend.sourceQuality.crossSourceConfirmationScore)}>Source contribution</Badge>
                         <p className="mt-2 text-xs leading-5 text-muted-foreground/72">{row.trend.sourceQuality.summary}</p>
@@ -549,6 +552,14 @@ export function ScoringCalibrationLabView() {
                         <p className="mt-2 text-xs leading-5 text-muted-foreground/72">
                           {row.trend.researchSignal.summary} {row.trend.researchSignal.caveat}
                         </p>
+                      </div>
+                      <div className="rounded-2xl border border-border/10 bg-[#160d0d]/50 p-3">
+                        <Badge variant={row.trend.signalAging.status === "fresh" || row.trend.signalAging.status === "active" ? "secondary" : row.trend.signalAging.status === "stale" ? "danger" : "accent"}>Signal aging</Badge>
+                        <p className="mt-2 text-xs leading-5 text-muted-foreground/72">{row.trend.signalAging.summary}</p>
+                      </div>
+                      <div className="rounded-2xl border border-border/10 bg-[#160d0d]/50 p-3">
+                        <Badge variant={row.trend.actionConsistency.status === "clean" ? "secondary" : row.trend.actionConsistency.status === "review" ? "accent" : "danger"}>Action consistency</Badge>
+                        <p className="mt-2 text-xs leading-5 text-muted-foreground/72">{row.trend.actionConsistency.summary}</p>
                       </div>
                       <div className="rounded-2xl border border-border/10 bg-[#160d0d]/50 p-3">
                         <Badge variant={scoreBand(row.trend.topicQuality.score)}>Positive driver</Badge>

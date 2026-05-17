@@ -122,6 +122,103 @@ export type TopicQuality = {
   warnings: string[];
 };
 
+
+export type SignalAgingBand = "fresh" | "active" | "cooling" | "stale";
+
+export type SignalAgingStatus =
+  | "fresh"
+  | "active"
+  | "cooling"
+  | "stale"
+  | "resurfacing";
+
+export type SignalAgingSourceContribution = {
+  source: string;
+  signalCount: number;
+  latestSignalAgeHours: number;
+  averageSignalAgeHours: number;
+  halfLifeHours: number;
+  freshnessScore: number;
+  decayFactor: number;
+  contributionScore: number;
+  band: SignalAgingBand;
+  oldSourcePressure: number;
+  summary: string;
+};
+
+export type TrendSignalAging = {
+  status: SignalAgingStatus;
+  statusLabel: string;
+  overallFreshnessScore: number;
+  decayPenalty: number;
+  freshnessBoost: number;
+  latestSignalAgeHours: number | null;
+  medianSignalAgeHours: number | null;
+  oldestSignalAgeHours: number | null;
+  freshSignalCount: number;
+  activeSignalCount: number;
+  coolingSignalCount: number;
+  staleSignalCount: number;
+  resurfacingSignalCount: number;
+  recentConfirmationScore: number;
+  oldSourcePressure: number;
+  sourceContributions: SignalAgingSourceContribution[];
+  summary: string;
+  warnings: string[];
+  recommendedAction: string;
+};
+
+export type TrendValidationStatus =
+  | "validated"
+  | "emerging"
+  | "watchlist_candidate"
+  | "needs_confirmation"
+  | "cooling_down"
+  | "likely_noise"
+  | "too_stale"
+  | "too_saturated"
+  | "research_only";
+
+export type TrendValidationDecision =
+  | "act"
+  | "watch"
+  | "research"
+  | "avoid"
+  | "ignore";
+
+export type TrendValidationState = {
+  status: TrendValidationStatus;
+  statusLabel: string;
+  decision: TrendValidationDecision;
+  decisionLabel: string;
+  validationScore: number;
+  confidence: "high" | "medium" | "low";
+  summary: string;
+  primaryReason: string;
+  recommendedAction: string;
+  positiveSignals: string[];
+  blockers: string[];
+  warnings: string[];
+  qaFlags: string[];
+};
+
+export type EvidenceActionAlignmentCheck = {
+  id: string;
+  label: string;
+  status: "pass" | "warn" | "fail";
+  detail: string;
+};
+
+export type EvidenceToActionConsistencyQa = {
+  status: "clean" | "review" | "blocked";
+  statusLabel: string;
+  score: number;
+  summary: string;
+  contradictions: string[];
+  checks: EvidenceActionAlignmentCheck[];
+  recommendedFix: string;
+};
+
 export type DashboardKpi = {
   label: string;
   value: string;
@@ -217,6 +314,8 @@ export type ProductTrendIntelligence = {
   sourceContributionSummary: string;
   researchSummary: string;
   researchCaveat: string;
+  validationSummary: string;
+  agingSummary: string;
 };
 
 export type TrendSourceEvidenceVerdict =
@@ -307,7 +406,10 @@ export type DashboardTrend = {
   topicQuality: TopicQuality;
   sourceQuality: SourceQualitySummary;
   researchSignal: ResearchSignalCalibration;
+  signalAging: TrendSignalAging;
   productIntelligence: ProductTrendIntelligence;
+  trendValidation: TrendValidationState;
+  actionConsistency: EvidenceToActionConsistencyQa;
 };
 
 export type SourceBreakdownItem = {
@@ -934,7 +1036,10 @@ export type TrendDetailIntelligence = {
   topicQuality: TopicQuality;
   sourceQuality: SourceQualitySummary;
   researchSignal: ResearchSignalCalibration;
+  signalAging: TrendSignalAging;
   productIntelligence: ProductTrendIntelligence;
+  trendValidation: TrendValidationState;
+  actionConsistency: EvidenceToActionConsistencyQa;
   sourceEvidenceInspector: TrendSourceEvidenceInspector;
   snapshots: TrendDetailSnapshot[];
 };

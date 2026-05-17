@@ -1,3 +1,4 @@
+import { buildConnectorRegressionQa, type ConnectorRegressionQaSummary } from "@/lib/scan/connector-regression-qa";
 export type ConnectorReadinessStatus =
   | "active"
   | "configured-disabled"
@@ -25,6 +26,7 @@ export type ConnectorReadinessItem = {
 };
 
 export type ConnectorReadinessSummary = {
+  regressionQa: ConnectorRegressionQaSummary;
   activeCount: number;
   implementedCount: number;
   configuredCount: number;
@@ -213,6 +215,7 @@ export function getConnectorReadinessSummary(): ConnectorReadinessSummary {
   ];
 
   return {
+    regressionQa: buildConnectorRegressionQa(items),
     activeCount: activeItems.length,
     implementedCount: implementedItems.length,
     configuredCount: configuredItems.length,

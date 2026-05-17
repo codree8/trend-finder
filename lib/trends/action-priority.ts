@@ -106,16 +106,28 @@ function buildRawActionScore(
     trend.trendScore * 0.24 +
     trend.creatorOpportunity.score * 0.24 +
     trend.topicQuality.score * 0.28 +
-    lifecycleFit(trend.lifecycle.status) * 0.12 +
-    evidenceFit(trend) * 0.08 +
+    lifecycleFit(trend.lifecycle.status) * 0.08 +
+    trend.signalAging.overallFreshnessScore * 0.08 +
+    evidenceFit(trend) * 0.07 +
     watchlistFit(watchStatus) * 0.04 +
     (trend.researchSignal.confidenceImpact === "boost"
       ? Math.min(6, trend.researchSignal.score * 0.05)
-      : 0);
+      : 0) +
+    (trend.trendValidation.decision === "act" ? 5 : 0) -
+    (trend.actionConsistency.status === "blocked" ? 12 : trend.actionConsistency.status === "review" ? 4 : 0);
 
   let penalty = 0;
 
   if (trend.topicQuality.gateStatus === "suppress") penalty += 42;
+  if (trend.signalAging.status === "stale") penalty += 28;
+  if (trend.signalAging.status === "cooling") penalty += 14;
+  if (trend.signalAging.status === "resurfacing") penalty += 8;
+  penalty += Math.min(18, Math.round(trend.signalAging.decayPenalty * 0.3));
+  if (trend.trendValidation.decision === "ignore") penalty += 22;
+  if (trend.trendValidation.decision === "avoid") penalty += 16;
+  if (trend.trendValidation.decision === "research") penalty += 9;
+  if (trend.actionConsistency.status === "blocked") penalty += 24;
+  if (trend.actionConsistency.status === "review") penalty += 8;
   if (trend.topicQuality.gateStatus === "watch") penalty += 12;
   if (trend.topicQuality.noiseRisk === "high") penalty += 34;
   if (trend.topicQuality.noiseRisk === "medium") penalty += 12;
@@ -187,6 +199,18 @@ function buildActNowBlockers(
   if (!isLifecycleActionable(trend.lifecycle.status)) {
     blockers.push(`Lifecycle is ${trend.lifecycle.status}.`);
   }
+  if (trend.signalAging.status === "stale" || trend.signalAging.status === "cooling") {
+    blockers.push(`Signal aging is ${trend.signalAging.status}; Act Now needs active or fresh evidence.`);
+  }
+  if (trend.signalAging.status === "resurfacing") {
+    blockers.push("Signal is resurfacing; confirm renewal across another source before Act Now.");
+  }
+  if (trend.trendValidation.decision !== "act") {
+    blockers.push(`Validation state is ${trend.trendValidation.statusLabel}; decision is ${trend.trendValidation.decisionLabel}.`);
+  }
+  if (trend.actionConsistency.status !== "clean") {
+    blockers.push(`Evidence-to-action QA is ${trend.actionConsistency.statusLabel}: ${trend.actionConsistency.recommendedFix}`);
+  }
   if (latestAge !== null && latestAge > 48) {
     blockers.push(
       `Latest signal is ${Math.round(latestAge)}h old; Act Now needs freshness.`,
@@ -248,11 +272,16 @@ function buildPromotionSignals(
   if (isLifecycleActionable(trend.lifecycle.status)) {
     signals.push(`Lifecycle is ${trend.lifecycle.status}.`);
   }
-  if (
+  if (trend.signalAging.status === "fresh") {
+    signals.push("Signal aging model says evidence is fresh.");
+  } else if (
     trend.lifecycle.latestSignalAgeHours === null ||
     trend.lifecycle.latestSignalAgeHours <= 24
   ) {
-    signals.push("Latest signal is fresh.");
+    signals.push("Latest lifecycle signal is fresh.");
+  }
+  if (trend.trendValidation.decision === "act") {
+    signals.push(`Validation state supports action: ${trend.trendValidation.statusLabel}.`);
   }
   if (trend.sourceCount >= 2) {
     signals.push(`${trend.sourceCount} sources confirm the topic.`);
@@ -314,6 +343,12 @@ function buildDemotionSignals(
   }
   if (trend.researchSignal.confidenceImpact === "caution") {
     pushUnique(warnings, trend.researchSignal.caveat);
+  }
+  if (trend.signalAging.status !== "fresh" && trend.signalAging.status !== "active") {
+    pushUnique(warnings, `Signal aging is ${trend.signalAging.status}.`);
+  }
+  if (trend.actionConsistency.status !== "clean") {
+    pushUnique(warnings, `Evidence-to-action QA is ${trend.actionConsistency.statusLabel}.`);
   }
   if (
     isLifecycleClosed(trend.lifecycle.status) ||
@@ -414,6 +449,14 @@ function buildCalibration(
       "Peaking topics are capped below Act Now unless a future scan shows renewed acceleration.",
     );
   }
+  if (trend.signalAging.decayPenalty > 0) {
+    tuningNotes.push(
+      "Signal aging decay is part of the action cap; old evidence cannot carry an Act Now recommendation.",
+    );
+  }
+  if (trend.actionConsistency.status !== "clean") {
+    tuningNotes.push(trend.actionConsistency.recommendedFix);
+  }
 
   return {
     scoreBand: band,
@@ -439,6 +482,9 @@ function buildPriority(
     quality.gateStatus === "suppress" ||
     trend.lifecycle.status === "Stale" ||
     trend.lifecycle.status === "Dormant" ||
+    trend.signalAging.status === "stale" ||
+    trend.trendValidation.decision === "ignore" ||
+    trend.actionConsistency.status === "blocked" ||
     (quality.noiseRisk === "high" && actionScore < 70) ||
     actionScore < 38
   ) {

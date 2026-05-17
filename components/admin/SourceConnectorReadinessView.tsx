@@ -8,6 +8,13 @@ type Props = {
   readiness: ConnectorReadinessSummary;
 };
 
+
+function regressionVariant(status: string) {
+  if (status === "pass") return "secondary" as const;
+  if (status === "review") return "accent" as const;
+  return "danger" as const;
+}
+
 function statusVariant(item: ConnectorReadinessItem) {
   if (item.active) return "secondary" as const;
   if (item.stage === "review") return "accent" as const;
@@ -95,6 +102,39 @@ export function SourceConnectorReadinessView({ readiness }: Props) {
             </CardHeader>
           </Card>
         </section>
+
+        <Card className="border-border/10 bg-[#160d0d]/62">
+          <CardHeader>
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <CardTitle>Source connector regression QA</CardTitle>
+                <CardDescription>
+                  Checks that active sources are honest, optional connectors are safely gated, and model-only sources are not presented as live scanner input.
+                </CardDescription>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={regressionVariant(readiness.regressionQa.status)}>{readiness.regressionQa.statusLabel}</Badge>
+                <Badge variant="muted">{readiness.regressionQa.score}/100</Badge>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {readiness.regressionQa.checks.map((check) => (
+              <div key={check.id} className="flex flex-col gap-2 rounded-2xl border border-border/10 bg-[#0f0808]/35 p-4 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{check.label}</p>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground/76">{check.detail}</p>
+                </div>
+                <Badge variant={regressionVariant(check.status)}>{check.status}</Badge>
+              </div>
+            ))}
+            {readiness.regressionQa.recommendedActions.length ? (
+              <div className="rounded-2xl border border-secondary/15 bg-secondary/10 p-4 text-sm leading-6 text-muted-foreground/78">
+                <strong className="text-foreground">Recommended actions:</strong> {readiness.regressionQa.recommendedActions.join(" ")}
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
 
         {readiness.warnings.length ? (
           <Card className="border-accent/20 bg-accent/10">

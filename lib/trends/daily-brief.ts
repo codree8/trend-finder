@@ -131,7 +131,10 @@ function isUsableOpportunity(trend: DashboardTrend) {
     trend.topicQuality.noiseRisk !== "high" &&
     trend.topicQuality.isActionableTrend &&
     trend.lifecycle.status !== "Stale" &&
-    trend.lifecycle.status !== "Dormant"
+    trend.lifecycle.status !== "Dormant" &&
+    trend.signalAging.status !== "stale" &&
+    trend.trendValidation.decision !== "ignore" &&
+    trend.actionConsistency.status !== "blocked"
   );
 }
 
@@ -193,14 +196,18 @@ function buildHiddenGems(trends: DashboardTrend[]) {
       (a, b) =>
         b.hiddenGemScore * 0.42 +
         b.creatorOpportunity.score * 0.36 +
-        b.lifecycle.freshnessScore * 0.14 +
-        Math.max(0, 100 - b.saturation) * 0.08 +
+        b.lifecycle.freshnessScore * 0.08 +
+        b.signalAging.overallFreshnessScore * 0.1 +
+        b.trendValidation.validationScore * 0.08 +
+        Math.max(0, 100 - b.saturation) * 0.06 +
         (b.researchSignal.confidenceImpact === "boost" ? 5 : 0) -
         (b.researchSignal.confidenceImpact === "caution" ? 7 : 0) -
         (a.hiddenGemScore * 0.42 +
           a.creatorOpportunity.score * 0.36 +
-          a.lifecycle.freshnessScore * 0.14 +
-          Math.max(0, 100 - a.saturation) * 0.08 +
+          a.lifecycle.freshnessScore * 0.08 +
+          a.signalAging.overallFreshnessScore * 0.1 +
+          a.trendValidation.validationScore * 0.08 +
+          Math.max(0, 100 - a.saturation) * 0.06 +
           (a.researchSignal.confidenceImpact === "boost" ? 5 : 0) -
           (a.researchSignal.confidenceImpact === "caution" ? 7 : 0)),
     )
@@ -220,10 +227,14 @@ function buildCreatorOpportunities(trends: DashboardTrend[]) {
       (a, b) =>
         b.creatorOpportunity.score * 0.72 +
         b.contentScore * 0.18 +
-        b.topicQuality.score * 0.1 -
+        b.topicQuality.score * 0.08 +
+        b.signalAging.overallFreshnessScore * 0.08 +
+        b.actionConsistency.score * 0.04 -
         (a.creatorOpportunity.score * 0.72 +
           a.contentScore * 0.18 +
-          a.topicQuality.score * 0.1),
+          a.topicQuality.score * 0.08 +
+          a.signalAging.overallFreshnessScore * 0.08 +
+          a.actionConsistency.score * 0.04),
     )
     .slice(0, MAX_CREATOR_OPPORTUNITIES);
 }
@@ -239,7 +250,8 @@ function researchCandidateScore(trend: DashboardTrend) {
     trend.researchSignal.score * 0.42 +
     trend.topicQuality.score * 0.18 +
     trend.hiddenGemScore * 0.14 +
-    trend.lifecycle.freshnessScore * 0.12 +
+    trend.lifecycle.freshnessScore * 0.08 +
+    trend.signalAging.overallFreshnessScore * 0.08 +
     trend.sourceQuality.crossSourceConfirmationScore * 0.14 +
     boost -
     cautionPenalty
@@ -271,7 +283,8 @@ function avoidSeverityForTrend(trend: DashboardTrend): DailyBriefAvoidSeverity {
 
   if (
     trend.lifecycle.status === "Stale" ||
-    trend.lifecycle.status === "Dormant"
+    trend.lifecycle.status === "Dormant" ||
+    trend.signalAging.status === "stale"
   ) {
     return "stale";
   }
@@ -294,7 +307,7 @@ function avoidReasonForTrend(
   }
 
   if (severity === "stale") {
-    return `Lifecycle is ${trend.lifecycle.status}; latest signal age is ${trend.lifecycle.latestSignalAgeHours ?? "unknown"}h.`;
+    return `${trend.signalAging.summary} Lifecycle is ${trend.lifecycle.status}; latest signal age is ${trend.signalAging.latestSignalAgeHours ?? trend.lifecycle.latestSignalAgeHours ?? "unknown"}h.`;
   }
 
   if (severity === "saturated") {
@@ -314,6 +327,8 @@ function warningsForAvoidTrend(trend: DashboardTrend) {
       ...trend.topicQuality.warnings,
       ...trend.creatorOpportunity.warnings,
       ...trend.researchSignal.warnings,
+      ...trend.signalAging.warnings,
+      trend.actionConsistency.status !== "clean" ? trend.actionConsistency.summary : "",
       trend.lifecycle.summary,
     ].filter(Boolean),
     3,
@@ -328,6 +343,9 @@ function shouldAvoidTrend(trend: DashboardTrend) {
     trend.topicQuality.topicClarity === "vague" ||
     trend.lifecycle.status === "Stale" ||
     trend.lifecycle.status === "Dormant" ||
+    trend.signalAging.status === "stale" ||
+    trend.trendValidation.decision === "ignore" ||
+    trend.actionConsistency.status === "blocked" ||
     trend.saturation >= 82 ||
     (trend.researchSignal.confidenceImpact === "caution" &&
       trend.sourceQuality.confirmedSourceCount <= 1) ||
@@ -942,10 +960,10 @@ function buildRecommendedFocus(args: {
         ? `Best creator timing: ${creatorCandidate.topic} is marked ${creatorCandidate.creatorOpportunity.recommendedTiming}.`
         : "Creator opportunity layer is not showing a low-risk winner yet.",
       researchCandidate
-        ? `Research calibration selected ${researchCandidate.topic} with ${researchCandidate.researchSignal.score}/100 research score.`
+        ? `Research calibration selected ${researchCandidate.topic} with ${researchCandidate.researchSignal.score}/100 research score and ${researchCandidate.signalAging.statusLabel.toLowerCase()}.`
         : "Research calibration did not find an arXiv-backed candidate worth elevating.",
       avoidCandidate
-        ? `Noise suppression protects the brief from ${avoidCandidate.severity} topics.`
+        ? `Noise suppression and evidence-action QA protect the brief from ${avoidCandidate.severity} topics.`
         : "No major suppressed trend needs a hard warning today.",
     ]),
   };

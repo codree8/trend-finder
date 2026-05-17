@@ -21,6 +21,8 @@ export type ProductTrendIntelligence = {
   sourceContributionSummary: string;
   researchSummary: string;
   researchCaveat: string;
+  validationSummary: string;
+  agingSummary: string;
 };
 
 export type TrendCalibrationBreakdown = {
@@ -61,7 +63,12 @@ export function buildProductTrendIntelligence(
   trend: DashboardTrend,
 ): ProductTrendIntelligence {
   const signalStrength = clampScore(
-    trend.trendScore * 0.5 + trend.velocity * 0.22 + trend.lifecycle.freshnessScore * 0.28,
+    trend.trendScore * 0.42 +
+      trend.velocity * 0.18 +
+      trend.lifecycle.freshnessScore * 0.18 +
+      trend.signalAging.overallFreshnessScore * 0.18 +
+      trend.signalAging.freshnessBoost * 0.8 -
+      trend.signalAging.decayPenalty * 0.35,
   );
   const researchEvidenceLift =
     trend.researchSignal.confidenceImpact === "boost"
@@ -72,8 +79,10 @@ export function buildProductTrendIntelligence(
   const evidenceQuality = clampScore(
     trend.topicQuality.score * 0.52 +
       trend.sourceQuality.sourceTrustScore * 0.19 +
-      trend.sourceQuality.crossSourceConfirmationScore * 0.23 +
-      researchEvidenceLift,
+      trend.sourceQuality.crossSourceConfirmationScore * 0.2 +
+      trend.signalAging.recentConfirmationScore * 0.08 +
+      researchEvidenceLift -
+      trend.signalAging.decayPenalty * 0.12,
   );
   const sourceConfidence = clampScore(
     trend.sourceQuality.sourceTrustScore * 0.36 +
@@ -88,6 +97,8 @@ export function buildProductTrendIntelligence(
     trend.topicQuality.noiseRisk === "high" ||
     trend.lifecycle.status === "Stale" ||
     trend.lifecycle.status === "Dormant" ||
+    trend.signalAging.status === "stale" ||
+    (trend.signalAging.status === "cooling" && trend.sourceQuality.crossSourceConfirmationScore < 55) ||
     (trend.saturation >= 86 && trend.hiddenGemScore < 65) ||
     (trend.researchSignal.evidenceLevel === "research_only" && trend.sourceQuality.confirmedSourceCount <= 1) ||
     evidenceQuality < 42;
@@ -96,6 +107,8 @@ export function buildProductTrendIntelligence(
     signalStrength >= 72 &&
     evidenceQuality >= 64 &&
     sourceConfidence >= 58 &&
+    trend.signalAging.status !== "cooling" &&
+    trend.signalAging.status !== "resurfacing" &&
     trend.creatorOpportunity.contentRisk !== "high";
   const classification: ProductTrendClassification = shouldAvoid
     ? "Avoid"
@@ -136,7 +149,9 @@ export function buildProductTrendIntelligence(
           ? `${trend.topic} has enough freshness, evidence, source confidence and research support to turn into a concrete move.`
           : `${trend.topic} has enough freshness, evidence and source confidence to turn into a concrete move.`
         : classification === "Watch"
-          ? `${trend.topic} has useful early movement, but the safer play is to confirm evidence before spending serious attention.`
+          ? trend.signalAging.status === "resurfacing"
+            ? `${trend.topic} is resurfacing, but the safer play is to confirm renewed evidence before spending serious attention.`
+            : `${trend.topic} has useful early movement, but the safer play is to confirm evidence before spending serious attention.`
           : `${trend.topic} is not clean enough for today's focus. The risk is higher than the opportunity.`,
     creatorAngle:
       trend.creatorOpportunity.contentRisk === "high"
@@ -156,7 +171,9 @@ export function buildProductTrendIntelligence(
       classification === "Act"
         ? "Open the evidence, pick one angle, then turn it into a content or product-research action today."
         : classification === "Watch"
-          ? "Save it, monitor the next scan, and wait for broader confirmation before acting."
+          ? trend.signalAging.status === "resurfacing"
+            ? "Treat it as a renewed watch candidate and wait for one more confirming source."
+            : "Save it, monitor the next scan, and wait for broader confirmation before acting."
           : "Skip it for now unless new evidence appears from stronger or more diverse sources.",
     evidenceQualitySummary:
       evidenceQuality >= 70
@@ -167,6 +184,8 @@ export function buildProductTrendIntelligence(
     sourceContributionSummary: trend.sourceQuality.summary,
     researchSummary: trend.researchSignal.summary,
     researchCaveat: trend.researchSignal.caveat,
+    validationSummary: "Validation is computed after product intelligence is built.",
+    agingSummary: trend.signalAging.summary,
   };
 }
 
@@ -179,7 +198,9 @@ export function buildTrendCalibrationBreakdown(
   const delta = preferenceScore < 0 ? -trend.trendScore : adjustedScore - trend.trendScore;
   const sourceMultiplier = sourceWeightMultiplier(trend.sources, preferences.sourceWeights);
   const sourceContribution = clampScore((sourceMultiplier - 1) * 100 + 50);
-  const freshnessContribution = clampScore(trend.lifecycle.freshnessScore * 0.18);
+  const freshnessContribution = clampScore(
+    trend.lifecycle.freshnessScore * 0.1 + trend.signalAging.overallFreshnessScore * 0.12,
+  );
   const lifecycleContribution = clampScore(
     trend.lifecycle.status === "Accelerating"
       ? 18
@@ -204,6 +225,7 @@ export function buildTrendCalibrationBreakdown(
     trend.researchSignal.confidenceImpact === "caution"
       ? Math.max(6, trend.researchSignal.researchOnlyPenalty)
       : 0;
+  const agingDecayPenalty = clampScore(trend.signalAging.decayPenalty * 0.35);
   const weakEvidencePenalty =
     trend.mentionCount <= 2 || trend.sourceQuality.singleSourceRisk !== "low" ? 10 : 0;
   const noiseRiskPenalty =
@@ -220,7 +242,8 @@ export function buildTrendCalibrationBreakdown(
       ? 8
       : 0;
   const positiveDrivers = [
-    trend.lifecycle.freshnessScore >= 72 ? "Fresh signals are pushing it up." : "",
+    trend.signalAging.status === "fresh" ? "Fresh signal aging is pushing it up." : "",
+    trend.lifecycle.freshnessScore >= 72 ? "Lifecycle freshness is healthy." : "",
     trend.creatorOpportunity.score >= 72 ? "Creator opportunity is strong." : "",
     trend.sourceQuality.crossSourceConfirmationScore >= 70 ? "Cross-source confirmation is healthy." : "",
     hiddenGemBoost > 0 ? "Hidden-gem preference boosts the rank." : "",
@@ -231,6 +254,7 @@ export function buildTrendCalibrationBreakdown(
     noiseRiskPenalty > 0 ? "Noise risk is reducing confidence." : "",
     mainstreamSaturationPenalty > 0 ? "Saturation is pulling it down." : "",
     researchOnlyPenalty > 0 ? "Research-only evidence prevents over-promotion." : "",
+    agingDecayPenalty > 0 ? "Signal aging decay is reducing confidence." : "",
     preferenceScore < 0 ? "Current preference filters hide this trend." : "",
   ].filter(Boolean);
   const movementExplanation =

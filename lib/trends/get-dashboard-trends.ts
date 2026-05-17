@@ -16,6 +16,9 @@ import { buildTopicQuality } from "@/lib/trends/topic-quality";
 import { buildSourceQualitySummary } from "@/lib/product/source-quality";
 import { buildProductTrendIntelligence } from "@/lib/product/intelligence-scoring";
 import { buildResearchSignalCalibration } from "@/lib/product/research-signal-calibration";
+import { buildSignalAgingProfile } from "@/lib/product/signal-aging";
+import { buildTrendValidationState } from "@/lib/product/trend-validation-state";
+import { buildEvidenceActionConsistencyQa } from "@/lib/product/evidence-action-consistency";
 import { getConnectorReadinessSummary } from "@/lib/scan/connector-readiness";
 import {
   canonicalKeyFromTopicText,
@@ -453,6 +456,28 @@ function buildDashboardTrend(
     sourceCount: row.sourceCount,
     lifecycleStatus: lifecycle.status,
   });
+  const signalAging = buildSignalAgingProfile({
+    signals: [
+      ...topicMentions.map((mention) => ({
+        source: mention.source,
+        publishedAt: mention.publishedAt?.toISOString() ?? null,
+        createdAt: mention.createdAt.toISOString(),
+        engagement: mention.engagement,
+        qualityScore: mention.qualityScore,
+      })),
+      ...fallbackTopSignals.map((signal) => ({
+        source: signal.source,
+        engagement: signal.engagement,
+        publishedAt: null,
+        createdAt: row.createdAt.toISOString(),
+      })),
+    ],
+    snapshotCreatedAt: row.createdAt,
+    trendScore: freshnessAdjustedTrendScore,
+    velocity,
+    sourceCount: row.sourceCount,
+    mentionCount: row.mentionCount,
+  });
 
   const trend = {
     id: canonicalKeyForRow(row),
@@ -486,12 +511,23 @@ function buildDashboardTrend(
     topicQuality,
     sourceQuality,
     researchSignal,
+    signalAging,
     productIntelligence: null as never,
+    trendValidation: null as never,
+    actionConsistency: null as never,
+  };
+  const withProductIntelligence = {
+    ...trend,
+    productIntelligence: buildProductTrendIntelligence(trend),
+  };
+  const withValidation = {
+    ...withProductIntelligence,
+    trendValidation: buildTrendValidationState(withProductIntelligence),
   };
 
   return {
-    ...trend,
-    productIntelligence: buildProductTrendIntelligence(trend),
+    ...withValidation,
+    actionConsistency: buildEvidenceActionConsistencyQa(withValidation),
   };
 }
 

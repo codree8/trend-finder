@@ -23,6 +23,9 @@ import { buildTopicQuality } from "@/lib/trends/topic-quality";
 import { buildSourceQualitySummary } from "@/lib/product/source-quality";
 import { buildProductTrendIntelligence } from "@/lib/product/intelligence-scoring";
 import { buildResearchSignalCalibration } from "@/lib/product/research-signal-calibration";
+import { buildSignalAgingProfile } from "@/lib/product/signal-aging";
+import { buildTrendValidationState } from "@/lib/product/trend-validation-state";
+import { buildEvidenceActionConsistencyQa } from "@/lib/product/evidence-action-consistency";
 import { buildTrendSourceEvidenceInspector } from "@/lib/product/source-evidence-inspector";
 import {
   canonicalKeyFromTopicText,
@@ -376,6 +379,28 @@ function buildDashboardTrend(
     sourceCount: snapshot.sourceCount,
     lifecycleStatus: lifecycle.status,
   });
+  const signalAging = buildSignalAgingProfile({
+    signals: [
+      ...mentions.map((mention) => ({
+        source: mention.source,
+        publishedAt: mention.publishedAt?.toISOString() ?? null,
+        createdAt: mention.createdAt.toISOString(),
+        engagement: mention.engagement,
+        qualityScore: mention.qualityScore,
+      })),
+      ...fallbackSignals.map((signal) => ({
+        source: signal.source,
+        engagement: signal.engagement,
+        publishedAt: null,
+        createdAt: snapshot.createdAt.toISOString(),
+      })),
+    ],
+    snapshotCreatedAt: snapshot.createdAt,
+    trendScore: freshnessAdjustedTrendScore,
+    velocity,
+    sourceCount: snapshot.sourceCount,
+    mentionCount: snapshot.mentionCount,
+  });
 
   const trend = {
     id: canonicalKeyForTopic(topic),
@@ -409,12 +434,23 @@ function buildDashboardTrend(
     topicQuality,
     sourceQuality,
     researchSignal,
+    signalAging,
     productIntelligence: null as never,
+    trendValidation: null as never,
+    actionConsistency: null as never,
+  };
+  const withProductIntelligence = {
+    ...trend,
+    productIntelligence: buildProductTrendIntelligence(trend),
+  };
+  const withValidation = {
+    ...withProductIntelligence,
+    trendValidation: buildTrendValidationState(withProductIntelligence),
   };
 
   return {
-    ...trend,
-    productIntelligence: buildProductTrendIntelligence(trend),
+    ...withValidation,
+    actionConsistency: buildEvidenceActionConsistencyQa(withValidation),
   };
 }
 
@@ -772,7 +808,10 @@ export async function getTrendDetail(
       topicQuality: trend.topicQuality,
       sourceQuality: trend.sourceQuality,
       researchSignal: trend.researchSignal,
+      signalAging: trend.signalAging,
       productIntelligence: trend.productIntelligence,
+      trendValidation: trend.trendValidation,
+      actionConsistency: trend.actionConsistency,
       sourceEvidenceInspector,
       snapshots: snapshotHistory,
     },

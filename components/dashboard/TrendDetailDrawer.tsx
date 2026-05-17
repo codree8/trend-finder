@@ -646,6 +646,10 @@ export function TrendDetailDrawer({
                 />
               ) : null}
 
+              <SignalAgingSection trend={detail.trend} showAdminDiagnostics={showAdminDiagnostics} />
+
+              <ValidationConsistencySection trend={detail.trend} showAdminDiagnostics={showAdminDiagnostics} />
+
               <ProductTrendDecisionSection trend={detail.trend} showAdminDiagnostics={showAdminDiagnostics} />
 
               <SourceEvidenceInspectorSection
@@ -1458,6 +1462,174 @@ function SourceEvidenceSignalRow({
   );
 }
 
+
+function signalAgingVariant(status: DashboardTrend["signalAging"]["status"]) {
+  if (status === "fresh" || status === "active") return "secondary" as const;
+  if (status === "resurfacing" || status === "cooling") return "accent" as const;
+  return "danger" as const;
+}
+
+function validationDecisionVariant(decision: DashboardTrend["trendValidation"]["decision"]) {
+  if (decision === "act") return "secondary" as const;
+  if (decision === "watch" || decision === "research") return "accent" as const;
+  return "danger" as const;
+}
+
+function consistencyVariant(status: DashboardTrend["actionConsistency"]["status"]) {
+  if (status === "clean") return "secondary" as const;
+  if (status === "review") return "accent" as const;
+  return "danger" as const;
+}
+
+function SignalAgingSection({
+  trend,
+  showAdminDiagnostics,
+}: {
+  trend: DashboardTrend;
+  showAdminDiagnostics: boolean;
+}) {
+  const aging = trend.signalAging;
+
+  return (
+    <section className="rounded-3xl border border-border/10 bg-card/72 p-5 shadow-card">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <Badge variant={signalAgingVariant(aging.status)}>{aging.statusLabel}</Badge>
+            <Badge variant="muted">Decay {aging.decayPenalty}</Badge>
+            <Badge variant="muted">Recent confirmation {aging.recentConfirmationScore}</Badge>
+          </div>
+          <h3 className="text-lg font-semibold tracking-[-0.03em] text-foreground">
+            Signal aging: {aging.recommendedAction}
+          </h3>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground/78">
+            {aging.summary}
+          </p>
+        </div>
+        <div className="grid min-w-[250px] grid-cols-3 gap-2 text-center text-xs">
+          <span className="rounded-2xl border border-border/10 bg-muted/35 p-3">
+            <strong className="block text-lg text-secondary">{aging.overallFreshnessScore}</strong>
+            Freshness
+          </span>
+          <span className="rounded-2xl border border-border/10 bg-muted/35 p-3">
+            <strong className="block text-lg text-secondary">{aging.freshSignalCount + aging.activeSignalCount}</strong>
+            Fresh/active
+          </span>
+          <span className="rounded-2xl border border-border/10 bg-muted/35 p-3">
+            <strong className="block text-lg text-secondary">{aging.staleSignalCount}</strong>
+            Stale
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-4">
+        <MovementCard label="Latest" value={aging.latestSignalAgeHours === null ? "—" : `${aging.latestSignalAgeHours}h`} helper="newest signal" />
+        <MovementCard label="Median" value={aging.medianSignalAgeHours === null ? "—" : `${aging.medianSignalAgeHours}h`} helper="middle signal age" />
+        <MovementCard label="Old pressure" value={String(aging.oldSourcePressure)} helper="old-source drag" />
+        <MovementCard label="Boost" value={String(aging.freshnessBoost)} helper="freshness lift" />
+      </div>
+
+      {aging.warnings.length ? (
+        <div className="mt-4 rounded-2xl border border-accent/20 bg-accent/10 p-4 text-sm leading-6 text-accent/90">
+          {aging.warnings.join(" ")}
+        </div>
+      ) : null}
+
+      {showAdminDiagnostics ? (
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {aging.sourceContributions.slice(0, 4).map((source) => (
+            <div key={source.source} className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-foreground">{source.source}</p>
+                <Badge variant={signalAgingVariant(source.band)}>{source.band}</Badge>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground/70">{source.summary}</p>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs text-muted-foreground/65">
+                <span className="rounded-xl border border-border/10 bg-muted/20 p-2">{source.freshnessScore}<br />fresh</span>
+                <span className="rounded-xl border border-border/10 bg-muted/20 p-2">{source.decayFactor}<br />decay</span>
+                <span className="rounded-xl border border-border/10 bg-muted/20 p-2">{source.contributionScore}<br />score</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function ValidationConsistencySection({
+  trend,
+  showAdminDiagnostics,
+}: {
+  trend: DashboardTrend;
+  showAdminDiagnostics: boolean;
+}) {
+  const validation = trend.trendValidation;
+  const consistency = trend.actionConsistency;
+
+  return (
+    <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+      <div className="rounded-3xl border border-secondary/15 bg-card/72 p-5 shadow-card">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <Badge variant={validationDecisionVariant(validation.decision)}>{validation.decisionLabel}</Badge>
+          <Badge variant="muted">{validation.statusLabel}</Badge>
+          <Badge variant="muted">{validation.validationScore}/100</Badge>
+        </div>
+        <h3 className="text-lg font-semibold tracking-[-0.03em] text-foreground">
+          Validation state: {validation.recommendedAction}
+        </h3>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground/78">{validation.summary}</p>
+        <p className="mt-3 rounded-2xl border border-border/10 bg-muted/25 p-3 text-sm leading-6 text-muted-foreground/72">
+          <strong className="text-foreground">Main reason:</strong> {validation.primaryReason}
+        </p>
+        {showAdminDiagnostics ? (
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <div className="rounded-2xl border border-secondary/15 bg-secondary/10 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-secondary">Positive</p>
+              <ul className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground/78">
+                {(validation.positiveSignals.length ? validation.positiveSignals : ["No decisive positive signal yet."]).map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            </div>
+            <div className="rounded-2xl border border-primary/15 bg-primary/10 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Blockers / warnings</p>
+              <ul className="mt-3 space-y-2 text-sm leading-6 text-red-100/82">
+                {([...validation.blockers, ...validation.warnings].length ? [...validation.blockers, ...validation.warnings] : ["No major blocker detected."]).slice(0, 6).map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="rounded-3xl border border-border/10 bg-card/72 p-5 shadow-card">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <Badge variant={consistencyVariant(consistency.status)}>{consistency.statusLabel}</Badge>
+          <Badge variant="muted">{consistency.score}/100</Badge>
+        </div>
+        <h3 className="text-lg font-semibold tracking-[-0.03em] text-foreground">
+          Evidence-to-action QA
+        </h3>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground/78">{consistency.summary}</p>
+        <p className="mt-3 rounded-2xl border border-border/10 bg-muted/25 p-3 text-sm leading-6 text-muted-foreground/72">
+          {consistency.recommendedFix}
+        </p>
+        {showAdminDiagnostics ? (
+          <div className="mt-4 space-y-2">
+            {consistency.checks.map((item) => (
+              <div key={item.id} className="flex items-start justify-between gap-3 rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{item.label}</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground/68">{item.detail}</p>
+                </div>
+                <Badge variant={item.status === "pass" ? "secondary" : item.status === "warn" ? "accent" : "danger"}>{item.status}</Badge>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 function ProductTrendDecisionSection({
   trend,
   showAdminDiagnostics,
@@ -1529,6 +1701,15 @@ function ProductTrendDecisionSection({
             {researchSignal.recommendedUse}
           </p>
         ) : null}
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <div className="rounded-2xl border border-border/10 bg-muted/25 p-4 text-sm leading-6 text-muted-foreground/78">
+          <strong className="text-foreground">Validation:</strong> {trend.trendValidation.summary}
+        </div>
+        <div className="rounded-2xl border border-border/10 bg-muted/25 p-4 text-sm leading-6 text-muted-foreground/78">
+          <strong className="text-foreground">Signal timing:</strong> {trend.signalAging.summary}
+        </div>
       </div>
 
       {showAdminDiagnostics ? (
