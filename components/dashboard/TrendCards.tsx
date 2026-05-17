@@ -169,8 +169,7 @@ export function TrendCards({
             <span className="font-semibold text-foreground">
               Scan Trends Now
             </span>{" "}
-            and the dashboard will switch from empty state to real database
-            data.
+            and the dashboard will fill this section with early opportunities.
           </CardContent>
         </Card>
       )}

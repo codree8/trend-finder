@@ -84,6 +84,18 @@ function postureVariant(posture: DailyBriefResponse["briefPosture"]["posture"]):
   return "danger";
 }
 
+
+function actionPriorityText(priority: ActionQueueItem["actionPriority"]) {
+  const labels: Record<ActionQueueItem["actionPriority"], string> = {
+    act_now: "Act on this",
+    monitor: "Watch this",
+    review: "Research-only, validate first",
+    ignore: "Avoid this",
+  };
+
+  return labels[priority];
+}
+
 function actionVariant(priority: ActionQueueItem["actionPriority"]): BadgeProps["variant"] {
   if (priority === "act_now") return "secondary";
   if (priority === "monitor") return "accent";
@@ -225,10 +237,10 @@ export function DailyBriefView() {
           "No major saved-trend movement yet. Use the current scan as the baseline.",
       },
       {
-        label: "Act on now",
+        label: "Act on this",
         value: topAction
           ? `${topAction.trend.topic}: ${topAction.summary}`
-          : "No topic cleared the Act Now bar. That is a result, not a failure.",
+          : "No topic is strong enough to act on yet. That is a result, not a failure.",
       },
       {
         label: "Watch",
@@ -318,7 +330,7 @@ export function DailyBriefView() {
               Product / Daily Brief
             </p>
             <h1 className="mt-3 max-w-4xl text-balance text-4xl font-semibold tracking-[-0.04em] text-foreground md:text-5xl">
-              Today&apos;s useful signals, without the diagnostics fog.
+              Today&apos;s useful signals, without the system noise.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
               A simplified decision brief for what to act on, watch, turn into content, or avoid. Technical checks live in Admin.
@@ -363,7 +375,7 @@ export function DailyBriefView() {
         {!isLoading && !error && !brief ? (
           <ProductStateCard
             title="No Daily Brief yet"
-            description="Run a scan first, then return here. The brief needs current trend snapshots before it can say anything useful."
+            description="Run a scan first, then return here. The brief needs current signals before it can say anything useful."
             action={<Link href="/dashboard">Open dashboard</Link>}
           />
         ) : null}
@@ -405,7 +417,7 @@ export function DailyBriefView() {
             </Card>
 
             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-              <MetricCard label="Priority actions" value={brief.radarStats.actNow} helper="Items worth acting on now." />
+              <MetricCard label="Act on this" value={brief.radarStats.actNow} helper="Items strong enough to act on now." />
               <MetricCard label="Hidden gems" value={brief.radarStats.hiddenGems} helper="Early signals with room before saturation." />
               <MetricCard label="Creator opportunities" value={brief.radarStats.creatorOpportunities} helper="Topics with content timing upside." />
               <MetricCard label="Research signals" value={brief.radarStats.researchSignals} helper="arXiv-backed candidates to validate." />
@@ -478,10 +490,10 @@ export function DailyBriefView() {
                 <CardHeader>
                   <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
                     <TrendingUp className="h-4 w-4" />
-                    Priority actions
+                    Act on this
                   </div>
                   <CardTitle>What deserves attention first</CardTitle>
-                  <CardDescription>Actionable topics only. Admin scoring details stay out of this view.</CardDescription>
+                  <CardDescription>Only topics with enough confirmation. Anything uncertain is pushed into watch or research first.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {brief.topPriorityActions.slice(0, 5).map((item) => (
@@ -490,7 +502,7 @@ export function DailyBriefView() {
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="text-sm font-semibold text-foreground">{item.trend.topic}</p>
-                            <Badge variant={actionVariant(item.actionPriority)}>{item.actionPriorityLabel}</Badge>
+                            <Badge variant={actionVariant(item.actionPriority)}>{actionPriorityText(item.actionPriority)}</Badge>
                             <Badge variant="muted">Score {item.actionScore}</Badge>
                           </div>
                           <p className="mt-2 text-sm leading-6 text-muted-foreground/76">{item.summary}</p>

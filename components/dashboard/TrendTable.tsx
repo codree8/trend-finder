@@ -200,8 +200,7 @@ export function TrendTable({
                     colSpan={12}
                     className="py-8 text-center text-sm text-muted-foreground/70"
                   >
-                    No real trend rows yet. Scan data first, then this table
-                    will populate from trend_snapshots and topic_mentions.
+                    No trend rows yet. Run a scan first, then this table will show the strongest current signals.
                   </td>
                 </tr>
               )}

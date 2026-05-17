@@ -356,7 +356,7 @@ export function DashboardView() {
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
               {isPitchMode
                 ? "A clean product radar for showing what is rising, what is worth acting on, and what should stay out of the content queue."
-                : "Trend Finder reads real snapshots from Postgres: raw signals become topic clusters, clusters become scored trend snapshots, and lifecycle logic separates fresh acceleration from stale stored noise."}
+                : "Trend Finder turns real source signals into simple decisions: act on this, watch it, research it first, or avoid it for now."}
             </p>
             <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground/70">
               <span className="rounded-full border border-border/10 bg-card/60 px-3 py-1.5">
@@ -373,9 +373,9 @@ export function DashboardView() {
               </span>
               {data.latestScan ? (
                 <span className="rounded-full border border-border/10 bg-card/60 px-3 py-1.5">
-                  {data.latestScan.fetchedSignals} fetched ·{" "}
-                  {data.latestScan.insertedSignals} inserted ·{" "}
-                  {data.latestScan.skippedDuplicates} duplicates skipped
+                  {data.latestScan.fetchedSignals} signals found ·{" "}
+                  {data.latestScan.insertedSignals} new ·{" "}
+                  {data.latestScan.skippedDuplicates} duplicates filtered
                 </span>
               ) : null}
             </div>
@@ -403,16 +403,42 @@ export function DashboardView() {
           <ProductStateCard
             variant="loading"
             title="Loading trend radar"
-            description="Reading the latest stored snapshots, source breakdown and signal timeline."
+            description="Reading the latest signal set, source mix and movement timeline."
           />
         ) : null}
 
         <KpiCards kpis={data.kpis} />
 
+        {!isLoading && !error && data.trends.length > 0 ? (
+          <section className="rounded-[1.75rem] border border-border/10 bg-card/62 p-4 shadow-card">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-secondary">
+                  Recommended flow
+                </p>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground/76">
+                  Open a trend, save what matters, then move to the queue, brief and reports when you are ready to act or share the readout.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2 text-sm">
+                <a className="rounded-full border border-secondary/20 bg-secondary/10 px-4 py-2 font-medium text-secondary transition hover:bg-secondary/15" href="/action-queue">
+                  Open Action Queue
+                </a>
+                <a className="rounded-full border border-border/10 bg-muted/35 px-4 py-2 font-medium text-foreground transition hover:bg-muted/50" href="/daily-brief">
+                  Open Daily Brief
+                </a>
+                <a className="rounded-full border border-border/10 bg-muted/35 px-4 py-2 font-medium text-foreground transition hover:bg-muted/50" href="/reports">
+                  Build Report
+                </a>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         {!isLoading && !error && data.trends.length === 0 ? (
           <ProductStateCard
-            title="No trend snapshots yet"
-            description="Run a scan first, then this page will show ranked topics, hidden gems, source coverage and creator opportunities."
+            title="No trends yet"
+            description="Run a scan first. Then this page will show ranked topics, hidden gems, source coverage and creator opportunities."
             secondaryAction={<a href="/settings">Check product setup</a>}
           />
         ) : null}

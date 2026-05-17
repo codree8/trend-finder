@@ -208,8 +208,7 @@ export function WatchlistView() {
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
               Watchlist now compares saved baseline metrics against current
-              snapshots, then flags rising opportunities, cooling signals,
-              quality warnings and fresh evidence.
+              saved baselines, then flags rising opportunities, cooling signals, quality warnings and fresh evidence.
             </p>
           </div>
 
@@ -247,7 +246,7 @@ export function WatchlistView() {
           <Card>
             <CardContent className="flex items-center p-6 text-sm text-muted-foreground/75">
               <Loader2 className="mr-2 h-4 w-4 animate-spin text-secondary" />
-              Loading saved trend deltas from the database...
+              Loading saved trend movement...
             </CardContent>
           </Card>
         ) : null}

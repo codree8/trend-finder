@@ -55,24 +55,24 @@ const groupMeta: Record<
   }
 > = {
   act_now: {
-    title: "Act Now",
+    title: "Act on this",
     description: "Strong enough to deserve attention before the window closes.",
     icon: Target,
   },
   monitor: {
-    title: "Monitor",
+    title: "Watch this",
     description:
       "Real signal, but it needs more confirmation or better timing.",
     icon: Eye,
   },
   review: {
-    title: "Review",
+    title: "Research first",
     description:
-      "Promising on paper, but quality/noise pressure needs inspection.",
+      "Promising on paper, but quality or noise pressure still needs inspection.",
     icon: ShieldAlert,
   },
   ignore: {
-    title: "Ignore",
+    title: "Avoid this",
     description: "Too stale, noisy or weak to deserve current attention.",
     icon: XCircle,
   },
@@ -266,15 +266,13 @@ export function ActionQueueView() {
         <section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.32em] text-secondary">
-              Action Queue / Priority Radar
+              Action Queue / Decision Radar
             </p>
             <h1 className="mt-3 max-w-4xl text-balance text-4xl font-semibold tracking-[-0.04em] text-foreground md:text-5xl">
               Decide what deserves attention now.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
-              This layer ranks trends by timing, creator opportunity, quality,
-              lifecycle, freshness and watchlist movement. Less dashboard
-              staring, more decision-making. Revolutionary stuff, allegedly.
+              This page turns the radar into a simple decision list: act on the strongest topics, watch the promising ones, research the uncertain ones and avoid noisy signals for now.
             </p>
           </div>
 
@@ -293,14 +291,14 @@ export function ActionQueueView() {
         </section>
 
         <section className="grid gap-3 md:grid-cols-5">
-          <SummaryCard label="Act now" value={summary.actNow} icon={Target} />
-          <SummaryCard label="Monitor" value={summary.monitor} icon={Eye} />
+          <SummaryCard label="Act on this" value={summary.actNow} icon={Target} />
+          <SummaryCard label="Watch this" value={summary.monitor} icon={Eye} />
           <SummaryCard
-            label="Review"
+            label="Research"
             value={summary.review}
             icon={ShieldAlert}
           />
-          <SummaryCard label="Ignore" value={summary.ignore} icon={XCircle} />
+          <SummaryCard label="Avoid this" value={summary.ignore} icon={XCircle} />
           <SummaryCard
             label="High urgency"
             value={summary.highUrgency}
@@ -308,7 +306,7 @@ export function ActionQueueView() {
           />
         </section>
 
-        {qaSummary ? <PriorityQaPanel qa={qaSummary} /> : null}
+        {qaSummary ? <DecisionSafetyPanel qa={qaSummary} /> : null}
 
         {error ? (
           <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm leading-6 text-red-100">
@@ -320,7 +318,7 @@ export function ActionQueueView() {
           <Card>
             <CardContent className="flex items-center p-6 text-sm text-muted-foreground/75">
               <Loader2 className="mr-2 h-4 w-4 animate-spin text-secondary" />
-              Building the priority radar from current trend snapshots...
+              Building the decision queue from current trend signals...
             </CardContent>
           </Card>
         ) : null}
@@ -335,8 +333,8 @@ export function ActionQueueView() {
                 <div>
                   <CardTitle>No action candidates yet</CardTitle>
                   <CardDescription>
-                    Run a scan or widen the time window. The queue needs trend
-                    snapshots before it can rank anything.
+                    Run a scan or widen the time window. The queue needs enough
+                    signal before it can recommend anything useful.
                   </CardDescription>
                 </div>
               </div>
@@ -375,7 +373,7 @@ export function ActionQueueView() {
   );
 }
 
-function PriorityQaPanel({ qa }: { qa: ActionQueueQaSummary }) {
+function DecisionSafetyPanel({ qa }: { qa: ActionQueueQaSummary }) {
   return (
     <Card className="border-border/10 bg-card/70 shadow-card">
       <CardHeader>
@@ -383,13 +381,11 @@ function PriorityQaPanel({ qa }: { qa: ActionQueueQaSummary }) {
           <div>
             <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
               <ShieldAlert className="h-4 w-4" />
-              Priority QA & tuning
+              Decision safety check
             </div>
             <CardTitle className="mt-3 text-xl">{qa.statusLabel}</CardTitle>
             <CardDescription className="mt-2 max-w-3xl">
-              Calibration checks whether Act Now is rare enough, whether risky
-              candidates are being held back and whether review pressure is
-              getting too heavy.
+              This keeps the queue conservative: bold only when evidence is strong, cautious when signal is thin, and quiet when noise is high.
             </CardDescription>
           </div>
           <Badge variant={qaVariant(qa.status)}>{qa.statusLabel}</Badge>
@@ -397,13 +393,13 @@ function PriorityQaPanel({ qa }: { qa: ActionQueueQaSummary }) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 md:grid-cols-4">
-          <QaMetric label="Act Now share" value={`${qa.actNowShare}%`} />
+          <QaMetric label="Act share" value={`${qa.actNowShare}%`} />
           <QaMetric
-            label="Blocked candidates"
+            label="Held back"
             value={String(qa.blockedActNowCandidates)}
           />
           <QaMetric
-            label="Avg action score"
+            label="Avg priority"
             value={String(qa.averageActionScore)}
           />
           <QaMetric
@@ -415,7 +411,7 @@ function PriorityQaPanel({ qa }: { qa: ActionQueueQaSummary }) {
         <div className="grid gap-3 lg:grid-cols-2">
           <div className="rounded-2xl border border-border/10 bg-muted/30 p-4">
             <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-secondary">
-              Tuning notes
+              Why the queue is cautious
             </div>
             <ul className="space-y-1.5 text-sm leading-6 text-muted-foreground/76">
               {qa.tuningNotes.map((note) => (
@@ -426,7 +422,7 @@ function PriorityQaPanel({ qa }: { qa: ActionQueueQaSummary }) {
 
           <div className="rounded-2xl border border-primary/15 bg-primary/10 p-4">
             <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-              QA warnings
+              Review notes
             </div>
             {qa.warnings.length > 0 ? (
               <ul className="space-y-2 text-sm leading-6 text-red-100/82">
@@ -441,8 +437,7 @@ function PriorityQaPanel({ qa }: { qa: ActionQueueQaSummary }) {
               </ul>
             ) : (
               <p className="text-sm leading-6 text-muted-foreground/72">
-                No calibration warnings. The queue is conservative enough for
-                now.
+                No review notes. The queue is conservative enough for now.
               </p>
             )}
           </div>
@@ -564,7 +559,7 @@ function ActionCard({
             <div className="mb-3 flex flex-wrap gap-2">
               <Badge variant={priorityVariant(item.actionPriority)}>
                 <PriorityIcon className="mr-1.5 h-3.5 w-3.5" />
-                {item.actionPriorityLabel}
+                {groupMeta[item.actionPriority].title}
               </Badge>
               <Badge variant={urgencyVariant(item.urgencyLevel)}>
                 {item.urgencyLevel} urgency
@@ -584,7 +579,7 @@ function ActionCard({
                 {scoreBandLabel(item.calibration.scoreBand)}
               </Badge>
               {item.calibration.isBlockedFromActNow ? (
-                <Badge variant="accent">Act Now blocked</Badge>
+                <Badge variant="accent">Needs more confirmation</Badge>
               ) : null}
               {item.isSaved ? (
                 <Badge variant="secondary">
@@ -623,7 +618,7 @@ function ActionCard({
           {item.recommendedNextStep}
           {item.calibration.tuningNotes.length > 0 ? (
             <p className="mt-2 text-xs leading-5 text-muted-foreground/65">
-              Calibration: {item.calibration.tuningNotes[0]}
+              Decision note: {item.calibration.tuningNotes[0]}
             </p>
           ) : null}
         </div>

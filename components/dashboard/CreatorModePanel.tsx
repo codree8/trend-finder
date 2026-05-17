@@ -81,8 +81,7 @@ export function CreatorModePanel({
         </CardHeader>
         <CardContent>
           <div className="rounded-2xl border border-border/10 bg-muted/45 p-4 text-sm leading-6 text-muted-foreground/75">
-            No creator opportunity yet. Run a scan and this panel will rank the
-            strongest real database trends for creators, founders and builders.
+            No creator opportunity yet. Run a scan and this panel will rank the strongest current ideas for creators, founders and builders.
           </div>
         </CardContent>
       </Card>

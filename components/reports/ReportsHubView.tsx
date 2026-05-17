@@ -161,12 +161,12 @@ export function ReportsHubView() {
       const response = await fetch(`/api/daily-brief?window=${selectedWindow}`, { cache: "no-store" });
       const payload = await response.json();
       if (!response.ok || !payload.ok) {
-        throw new Error(payload.message ?? "Report model could not be loaded.");
+        throw new Error(payload.message ?? "Report could not be loaded.");
       }
       setBrief(payload as DailyBriefResponse);
     } catch (loadError) {
       setBrief(null);
-      setError(loadError instanceof Error ? loadError.message : "Report model could not be loaded.");
+      setError(loadError instanceof Error ? loadError.message : "Report could not be loaded.");
     } finally {
       setIsLoading(false);
     }
@@ -254,7 +254,7 @@ export function ReportsHubView() {
       {
         id: "print",
         title: "Print-ready version",
-        description: "Use when you want a browser print layout before exporting manually.",
+        description: "Use when you want a browser print layout before saving the report manually.",
         href: buildDailyBriefPdfPrepUrl(selectedWindow, { template: preferences.reportTemplate }),
         icon: Printer,
       },
@@ -278,7 +278,7 @@ export function ReportsHubView() {
       return {
         label: "Blocked",
         variant: "danger" as const,
-        detail: "Research Memo QA is blocked. Fix the evidence/caveat boundary before export.",
+        detail: "Research memo needs review. Strengthen the evidence and caveat framing before export.",
       };
     }
     if (document.integrity.validationWarnings.length > 0) {
@@ -291,7 +291,7 @@ export function ReportsHubView() {
     if (document.integrity.blockCount < 3) {
       return { label: "Thin", variant: "accent" as const, detail: "Report loaded, but content density is light." };
     }
-    return { label: "Ready", variant: "secondary" as const, detail: "Report model is ready for manual export." };
+    return { label: "Ready", variant: "secondary" as const, detail: "Report is ready for manual export." };
   }, [document, preferences.reportTemplate, researchMemoQa]);
 
   async function handleCopy() {
@@ -326,10 +326,10 @@ export function ReportsHubView() {
               Product / Reports
             </p>
             <h1 className="mt-3 max-w-4xl text-balance text-4xl font-semibold tracking-[-0.04em] text-foreground md:text-5xl">
-              Export the intelligence, not the engine room.
+              Turn the radar into a usable report.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
-              Choose a report template, review the important sections, and export manually. Diagnostics are kept in Admin so this page stays usable.
+              Choose a report template, review the important sections, copy the summary, save a local snapshot, or open an export.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -356,13 +356,13 @@ export function ReportsHubView() {
         ) : null}
 
         {isLoading ? (
-          <ProductStateCard variant="loading" title="Loading report model" description="Reading the same Daily Brief model used for PDF, HTML, JSON and copy outputs." />
+          <ProductStateCard variant="loading" title="Loading report model" description="Reading the Daily Brief content used for PDF, HTML, JSON and copy outputs." />
         ) : null}
 
         {!isLoading && !error && !brief ? (
           <ProductStateCard
             title="No report yet"
-            description="Run a scan first, then return here. Reports need current Daily Brief data before they become useful."
+            description="Run a scan first, then return here. Reports need enough current signal data before they become useful."
             action={<Link href="/dashboard">Open dashboard</Link>}
           />
         ) : null}
@@ -420,7 +420,7 @@ export function ReportsHubView() {
               <CardHeader>
                 <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
                   <Download className="h-4 w-4" />
-                  Export paths
+                  Export options
                 </div>
                 <CardTitle>{template.label}</CardTitle>
                 <CardDescription>{template.bestFor}</CardDescription>
@@ -440,7 +440,7 @@ export function ReportsHubView() {
                 </div>
                 <CardTitle>Sections included in this product view</CardTitle>
                 <CardDescription>
-                  The canonical export can still include the full model. This view highlights the sections selected by your report preferences.
+                  This view highlights the sections selected by your report preferences. Export links remain unchanged.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -470,7 +470,7 @@ export function ReportsHubView() {
                 <CardHeader>
                   <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
                     <Microscope className="h-4 w-4" />
-                    Research Memo QA
+                    Research memo check
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <CardTitle>{researchMemoQa.statusLabel}</CardTitle>
@@ -512,11 +512,11 @@ export function ReportsHubView() {
               <CardHeader>
                 <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
                   <ShieldCheck className="h-4 w-4" />
-                  Integrity summary
+                  Report summary
                 </div>
-                <CardTitle>Ready for manual review</CardTitle>
+                <CardTitle>Ready for review</CardTitle>
                 <CardDescription>
-                  {document.integrity.sectionCount} sections · {document.integrity.blockCount} blocks · {document.integrity.trendReferenceCount} trend references
+                  {document.integrity.sectionCount} sections · {document.integrity.blockCount} blocks · {document.integrity.trendReferenceCount} trend mentions
                 </CardDescription>
               </CardHeader>
               {document.integrity.validationWarnings.length > 0 ? (

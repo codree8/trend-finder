@@ -82,7 +82,7 @@ export function TrendTimeline({ data }: { data: TrendTimelinePoint[] }) {
             </ResponsiveContainer>
           ) : (
             <div className="flex h-full items-center justify-center rounded-2xl border border-border/10 bg-[#160d0d]/38 text-sm text-muted-foreground/70">
-              Timeline will fill after snapshots are created across scans.
+              Timeline will fill after you run more than one scan.
             </div>
           )}
         </div>

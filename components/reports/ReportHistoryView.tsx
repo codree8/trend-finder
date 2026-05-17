@@ -81,10 +81,10 @@ export function ReportHistoryView() {
               Reports / History
             </p>
             <h1 className="mt-3 max-w-4xl text-balance text-4xl font-semibold tracking-[-0.04em] text-foreground md:text-5xl">
-              Saved report snapshots, without a database yet.
+              Saved report snapshots in this browser.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
-              Saved reports are stored locally in this browser. This gives you report history UX now without adding schema, migrations or user accounts.
+              Saved reports are stored locally in this browser. This gives you history for local workflow without adding accounts or server persistence yet.
             </p>
           </div>
           <Button asChild variant="secondary">
@@ -95,7 +95,7 @@ export function ReportHistoryView() {
         {items.length === 0 ? (
           <ProductStateCard
             title="No saved reports yet"
-            description="Open Reports Hub, load a brief and save a snapshot. The history will appear here for quick copy and review."
+            description="Open Reports, load a brief and save a snapshot. The history will appear here for quick copy and review."
             secondaryAction={<Link href="/reports">Go to reports</Link>}
           />
         ) : (
@@ -107,7 +107,7 @@ export function ReportHistoryView() {
               </div>
               <CardTitle>{items.length} local snapshot{items.length === 1 ? "" : "s"}</CardTitle>
               <CardDescription>
-                Local history is useful for pitch prep and manual handoff. Move it to database later only when user accounts exist.
+                Local history is useful for pitch prep and manual handoff. Add server-backed history later only when accounts exist.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">

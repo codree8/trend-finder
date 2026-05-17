@@ -65,7 +65,7 @@ const workspaceOptions: Array<{ value: WorkspaceView; label: string; helper: str
   {
     value: "admin",
     label: "Admin",
-    helper: "Developer diagnostics visible from the sidebar.",
+    helper: "System checks visible from the sidebar.",
   },
 ];
 
@@ -172,7 +172,7 @@ const sourceWeightOptions: Array<{
   { key: "github", label: "GitHub", helper: "Open-source builder signals." },
   { key: "hackerNews", label: "Hacker News", helper: "Builder discussion and early debate." },
   { key: "rss", label: "RSS / Blogs", helper: "Editorial and company-published signals." },
-  { key: "reddit", label: "Reddit", helper: "Community demand and noisy early chatter." },
+  { key: "reddit", label: "Reddit", helper: "Model-supported only for now; not an active scanner source." },
   { key: "youtube", label: "YouTube", helper: "Creator saturation and audience pull." },
   { key: "arxiv", label: "arXiv", helper: "Research-grade early signal." },
 ];
@@ -523,9 +523,7 @@ export function ProductSettingsView() {
               Control the product, not the machine room.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
-              These preferences are local UI settings. They do not add auth,
-              database writes or background delivery. Boring on purpose,
-              which is exactly how settings should behave.
+              These preferences are browser-local UI settings. They change the product experience only; they do not add login, persistence, or background behavior.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -553,8 +551,7 @@ export function ProductSettingsView() {
             </div>
             <CardTitle>Default workspace and lens</CardTitle>
             <CardDescription>
-              Product is the normal user-facing experience. Admin is only a UI
-              diagnostics workspace, not a security boundary.
+              Product is the normal user-facing experience. Admin is only a UI workspace for checks and boundaries, not a security layer.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -787,13 +784,13 @@ export function ProductSettingsView() {
               </div>
               <CardTitle>Admin boundaries are visible</CardTitle>
               <CardDescription>
-                Your default workspace is Admin, so diagnostics and product-boundary navigation are
+                Your default workspace is Admin, so system checks and product-boundary navigation are
                 available in the sidebar.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Button asChild variant="secondary">
-                <Link href="/admin/automation">Open system boundaries</Link>
+                <Link href="/admin/system-boundaries">Open system boundaries</Link>
               </Button>
             </CardContent>
           </Card>
@@ -807,7 +804,7 @@ export function ProductSettingsView() {
             </div>
             <CardTitle>Topics you want the radar to favor</CardTitle>
             <CardDescription>
-              This is a local product preference layer. It adjusts dashboard ranking and filtering without deleting data.
+              This is a browser-local preference layer. It adjusts product ranking and filtering without deleting anything.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -908,7 +905,7 @@ export function ProductSettingsView() {
             </div>
             <CardTitle>How much each source should influence ranking</CardTitle>
             <CardDescription>
-              This affects client-side product ranking and the calibration lab. It does not rewrite historical snapshots.
+              This affects product ranking in the browser and the admin scoring lab. It does not rewrite source data.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">

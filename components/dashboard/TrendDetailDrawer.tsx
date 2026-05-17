@@ -600,7 +600,7 @@ export function TrendDetailDrawer({
           {detailState.status === "loading" ? (
             <div className="flex min-h-[360px] items-center justify-center rounded-3xl border border-border/10 bg-card/50 text-sm text-muted-foreground/75">
               <Loader2 className="mr-2 h-4 w-4 animate-spin text-secondary" />
-              Loading real trend intelligence from database...
+              Loading trend intelligence...
             </div>
           ) : null}
 
@@ -1011,7 +1011,7 @@ function ActionPrioritySection({
         </p>
         {recommendation.calibration.tuningNotes.length > 0 ? (
           <p className="mt-2 text-xs leading-5 text-muted-foreground/65">
-            Calibration: {recommendation.calibration.tuningNotes[0]}
+            Why this is not automatic: {recommendation.calibration.tuningNotes[0]}
           </p>
         ) : null}
       </div>
@@ -1606,7 +1606,7 @@ function ValidationConsistencySection({
           <Badge variant="muted">{consistency.score}/100</Badge>
         </div>
         <h3 className="text-lg font-semibold tracking-[-0.03em] text-foreground">
-          Evidence-to-action QA
+          Evidence-to-action check
         </h3>
         <p className="mt-3 text-sm leading-6 text-muted-foreground/78">{consistency.summary}</p>
         <p className="mt-3 rounded-2xl border border-border/10 bg-muted/25 p-3 text-sm leading-6 text-muted-foreground/72">
@@ -1718,7 +1718,7 @@ function ProductTrendDecisionSection({
           <MovementCard label="Diversity" value={String(sourceQuality.sourceDiversityScore)} helper="source spread" />
           <MovementCard label="Connector" value={String(sourceQuality.connectorReliabilityScore)} helper="reliability" />
           <MovementCard label="Research share" value={`${researchSignal.researchSourceShare}%`} helper="arXiv/research pressure" />
-          <MovementCard label="Single-source risk" value={sourceQuality.singleSourceRisk} helper="admin diagnostic" />
+          <MovementCard label="Single-source risk" value={sourceQuality.singleSourceRisk} helper="admin-only check" />
         </div>
       ) : null}
     </section>
@@ -2160,8 +2160,7 @@ function ScoringTransparencySection({
             Scoring transparency
           </div>
           <p className="mt-2 text-sm leading-6 text-muted-foreground/75">
-            Why this trend is ranked this way. This is the debug panel for the
-            scoring brain, not a motivational poster with numbers glued on top.
+            Why this trend is ranked this way. This admin-only view keeps scoring reasons visible without mixing them into the product pages.
           </p>
         </div>
         <Badge variant={confidenceVariant(transparency.confidence)}>
@@ -2177,9 +2176,9 @@ function ScoringTransparencySection({
           className={confidenceTone(transparency.confidence)}
         />
         <MovementCard
-          label="Raw score"
+          label="Base score"
           value={String(transparency.rawTrendScore)}
-          helper="snapshot score"
+          helper="before adjustments"
         />
         <MovementCard
           label="Adjusted"

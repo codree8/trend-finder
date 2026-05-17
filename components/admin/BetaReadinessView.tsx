@@ -23,13 +23,13 @@ const checks: ReadinessCheck[] = [
     title: "Product/Admin separation",
     status: "Ready",
     detail: "Product pages focus on decisions and exports. Admin pages hold diagnostics and system boundaries.",
-    route: "/admin/automation",
+    route: "/admin/system-boundaries",
   },
   {
     group: "Navigation",
     title: "Product links",
     status: "Review",
-    detail: "Click through dashboard, watchlist, action queue, daily brief, reports, history, demo and settings locally.",
+    detail: "Click through dashboard, watchlist, action queue, daily brief, reports, history and settings locally.",
     route: "/dashboard",
   },
   {
@@ -76,10 +76,10 @@ const checks: ReadinessCheck[] = [
   },
   {
     group: "Boundary",
-    title: "No background delivery",
+    title: "No background workflow",
     status: "Ready",
-    detail: "No product route exposes live delivery controls. Reports and scans remain user-triggered.",
-    route: "/admin/automation",
+    detail: "No product route exposes background delivery controls. Reports and scans remain user-triggered.",
+    route: "/admin/system-boundaries",
   },
   {
     group: "Boundary",

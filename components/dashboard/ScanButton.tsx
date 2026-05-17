@@ -88,7 +88,7 @@ export function ScanButton() {
         0;
       const successMessage =
         data.scanSummary?.message ??
-        `Scan completed: ${fetchedSignals} fetched, ${insertedSignals} inserted, ${skippedDuplicates} duplicates skipped, ${topicClusters} topic clusters, ${snapshotsCreated} snapshots created.`;
+        `Scan completed: ${fetchedSignals} signals found, ${insertedSignals} new, ${skippedDuplicates} duplicates filtered, ${topicClusters} topics grouped, ${snapshotsCreated} trend updates prepared.`;
 
       setState("success");
       setMessage(successMessage);

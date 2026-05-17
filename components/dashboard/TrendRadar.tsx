@@ -50,8 +50,7 @@ export function TrendRadar({ data }: { data: TrendRadarPoint[] }) {
             </ResponsiveContainer>
           ) : (
             <div className="flex h-full items-center justify-center text-center text-sm leading-6 text-muted-foreground/70">
-              Run a scan to generate the first radar profile from real database
-              snapshots.
+              Run a scan to generate the first radar profile from current signals.
             </div>
           )}
         </div>
