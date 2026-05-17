@@ -64,7 +64,6 @@ const windowOptions: DashboardWindow[] = ["24h", "7d", "30d"];
 
 type CopyState = "idle" | "copied" | "failed";
 type SaveState = "idle" | "saved" | "failed";
-type ReportsHubMode = "product" | "automation-admin";
 
 type ExportCard = {
   id: DefaultExportFormat | "print";
@@ -134,7 +133,7 @@ function ExportCardView({ card, isDefault }: { card: ExportCard; isDefault: bool
   );
 }
 
-export function ReportsHubView({ mode = "product" }: { mode?: ReportsHubMode }) {
+export function ReportsHubView() {
   const [preferences, setPreferences] = useState<ProductPreferences>(defaultProductPreferences);
   const [selectedWindow, setSelectedWindow] = useState<DashboardWindow>(getInitialWindow);
   const [brief, setBrief] = useState<DailyBriefResponse | null>(null);
@@ -143,7 +142,6 @@ export function ReportsHubView({ mode = "product" }: { mode?: ReportsHubMode }) 
   const [copyState, setCopyState] = useState<CopyState>("idle");
   const [saveState, setSaveState] = useState<SaveState>("idle");
 
-  const isAdminFallback = mode === "automation-admin";
   const template = getReportTemplate(preferences.reportTemplate);
   const document = brief?.reportDocument ?? null;
 
@@ -226,7 +224,7 @@ export function ReportsHubView({ mode = "product" }: { mode?: ReportsHubMode }) 
         id: "html",
         format: "html",
         title: "HTML preview",
-        description: "Open the report in a clean browser view before sending or saving anything.",
+        description: "Open the report in a clean browser view before saving or presenting it.",
         href: buildDailyBriefHtmlExportUrl(selectedWindow),
         icon: Eye,
       },
@@ -296,18 +294,6 @@ export function ReportsHubView({ mode = "product" }: { mode?: ReportsHubMode }) 
     } catch {
       setSaveState("failed");
     }
-  }
-
-  if (isAdminFallback) {
-    return (
-      <AppShell>
-        <ProductStateCard
-          title="Automation diagnostics moved"
-          description="This project now keeps the product reports page user-facing. Use the dedicated Admin boundaries page for removed automation/email/scheduling notes."
-          action={<Link href="/admin/automation">Open Admin boundaries</Link>}
-        />
-      </AppShell>
-    );
   }
 
   return (

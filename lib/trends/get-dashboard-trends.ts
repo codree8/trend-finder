@@ -13,6 +13,8 @@ import {
 } from "@/lib/trends/lifecycle";
 import { buildCreatorOpportunity } from "@/lib/trends/creator-opportunity";
 import { buildTopicQuality } from "@/lib/trends/topic-quality";
+import { buildSourceQualitySummary } from "@/lib/product/source-quality";
+import { buildProductTrendIntelligence } from "@/lib/product/intelligence-scoring";
 import {
   canonicalKeyFromTopicText,
   mergeAliases,
@@ -403,8 +405,15 @@ function buildDashboardTrend(
       })),
     ],
   });
+  const sourceQuality = buildSourceQualitySummary({
+    sources,
+    topSignals,
+    mentionCount: row.mentionCount,
+    sourceCount: row.sourceCount,
+    freshnessScore: lifecycle.freshnessScore,
+  });
 
-  return {
+  const trend = {
     id: canonicalKeyForRow(row),
     topicId: row.topicId,
     slug: row.slug,
@@ -434,6 +443,13 @@ function buildDashboardTrend(
     lifecycle,
     creatorOpportunity,
     topicQuality,
+    sourceQuality,
+    productIntelligence: null as never,
+  };
+
+  return {
+    ...trend,
+    productIntelligence: buildProductTrendIntelligence(trend),
   };
 }
 

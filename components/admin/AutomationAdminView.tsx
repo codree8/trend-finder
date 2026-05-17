@@ -6,19 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const removedItems = [
-  "Daily Brief scheduled delivery",
-  "internal email test preparation",
-  "recipient/provider configuration",
-  "manual approval send workflow",
-  "automation dry-run email preview",
-  "Vercel scheduled scan config",
+  "Background delivery surface",
+  "External delivery setup screens",
+  "Approval-to-deliver workflow",
+  "Live delivery preview controls",
+  "Vercel job schedule configuration",
 ];
 
 const keptItems = [
   "Manual scan button and /api/scan",
-  "manual report exports",
+  "Manual report exports",
   "PDF, HTML, JSON and print-ready views",
-  "local report history",
+  "Local report history",
   "Admin scoring and deployment diagnostics",
 ];
 
@@ -32,40 +31,40 @@ export function AutomationAdminView() {
               Admin / System Boundaries
             </p>
             <h1 className="mt-3 max-w-4xl text-balance text-4xl font-semibold tracking-[-0.04em] text-foreground md:text-5xl">
-              Email delivery and scheduling are intentionally removed.
+              Trend Finder is local-first and manual-only.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
-              Trend Finder is staying local/manual for now. This page is the boundary note: no auth, no background delivery, no scheduled report sending, and no hidden “enable live” switch.
+              This page documents the product boundary: no login layer, no background delivery, no hidden live switch, and no database-backed report ownership yet.
             </p>
           </div>
-          <Badge variant="danger">Automation disabled by product decision</Badge>
+          <Badge variant="danger">Delivery boundary enforced</Badge>
         </section>
 
         <section className="grid gap-4 lg:grid-cols-3">
           <Card className="border-primary/20 bg-primary/10">
             <CardHeader>
               <Ban className="h-5 w-5 text-primary" />
-              <CardTitle>No email feature</CardTitle>
+              <CardTitle>No delivery feature</CardTitle>
               <CardDescription>
-                The app no longer exposes email test, recipient, provider, or delivery workflow UI.
+                The app exposes manual review and export only. Nothing leaves the product without the user opening or copying it.
               </CardDescription>
             </CardHeader>
           </Card>
           <Card className="border-primary/20 bg-primary/10">
             <CardHeader>
               <Trash2 className="h-5 w-5 text-primary" />
-              <CardTitle>No scheduled jobs</CardTitle>
+              <CardTitle>No background jobs</CardTitle>
               <CardDescription>
-                Vercel scheduling config is removed from the packaged changes. Manual scans remain available.
+                Hosted job configuration is removed from the packaged changes. Manual scans remain available.
               </CardDescription>
             </CardHeader>
           </Card>
           <Card className="border-secondary/20 bg-secondary/10">
             <CardHeader>
               <ShieldCheck className="h-5 w-5 text-secondary" />
-              <CardTitle>Manual-only exports</CardTitle>
+              <CardTitle>Manual exports</CardTitle>
               <CardDescription>
-                Reports are generated and opened by the user. Nothing is sent or scheduled from the app.
+                Reports are generated and opened by the user through visible product pages.
               </CardDescription>
             </CardHeader>
           </Card>
@@ -111,12 +110,12 @@ export function AutomationAdminView() {
             </div>
             <CardTitle>Keep Product simple, keep Admin diagnostic.</CardTitle>
             <CardDescription>
-              Product pages should answer: what matters, what should I do, what can I export? Admin pages should answer: why did the system rank it this way, is it ready to deploy, what boundary is enforced?
+              Product pages answer: what matters, what should I do, what can I export? Admin pages answer: why did the system rank it this way, is it ready to present, and what boundary is enforced?
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
             <Button asChild variant="secondary">
-              <Link href="/daily-brief">Open simplified Daily Brief</Link>
+              <Link href="/daily-brief">Open Daily Brief</Link>
             </Button>
             <Button asChild variant="outline">
               <Link href="/admin/scoring-lab">Open Scoring Lab</Link>

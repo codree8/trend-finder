@@ -147,12 +147,139 @@ export function getTemplateHeroBlocks(
     .slice(0, limit);
 }
 
+function blockText(block: DailyBriefReportBlock) {
+  const lines = [
+    `### ${block.title}`,
+    block.body ?? block.description ?? "",
+    ...(block.metrics?.map((metric) => `- ${metric.label}: ${metric.value}${metric.helper ? ` — ${metric.helper}` : ""}`) ?? []),
+    ...(block.trendRefs?.slice(0, 5).map((trend) => `- ${trend.topic}: ${trend.helper}`) ?? []),
+    ...(block.bullets?.slice(0, 6).map((bullet) => `- ${bullet}`) ?? []),
+  ];
+
+  return lines.filter(Boolean).join("\n");
+}
+
+function sectionText(section: DailyBriefReportSection, blockLimit = 2) {
+  return [
+    `## ${section.title}`,
+    section.description,
+    ...section.blocks.slice(0, blockLimit).map(blockText),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function topTrendRefs(document: DailyBriefReportDocument, matcher: string, limit = 3) {
+  return document.sections
+    .filter((section) => sectionMatches(section, matcher))
+    .flatMap((section) => section.blocks)
+    .flatMap((block) => block.trendRefs ?? [])
+    .slice(0, limit);
+}
+
 export function buildTemplateMarkdown(
   document: DailyBriefReportDocument,
   templateId: ReportTemplateId,
 ) {
   const template = getReportTemplate(templateId);
-  const sections = getTemplateOrderedSections(document, templateId).slice(0, 5);
+  const sections = getTemplateOrderedSections(document, templateId);
+  const priority = topTrendRefs(document, "priority_actions", 3);
+  const creators = topTrendRefs(document, "creator_opportunities", 4);
+  const hidden = topTrendRefs(document, "hidden_gems", 4);
+  const avoid = topTrendRefs(document, "topics_to_avoid", 4);
+
+  if (templateId === "creator") {
+    return [
+      `# ${template.label}: ${document.title}`,
+      "",
+      template.headline,
+      "",
+      `**Recommended focus:** ${document.quickCopy.focusToday}`,
+      "",
+      "## Content angles",
+      ...(creators.length > 0
+        ? creators.map((trend) => `- ${trend.topic}: ${trend.helper}`)
+        : document.quickCopy.bullets.map((bullet) => `- ${bullet}`)),
+      "",
+      "## Hooks to test",
+      ...(hidden.length > 0
+        ? hidden.map((trend) => `- Why ${trend.topic.toLowerCase()} matters before it becomes obvious.`)
+        : ["- Use the strongest signal as a practical explainer, not a generic AI reaction." ]),
+      "",
+      "## Suggested formats and timing",
+      ...sections
+        .filter((section) => sectionMatches(section, "creator_opportunities"))
+        .flatMap((section) => section.blocks.slice(0, 3).map(blockText)),
+      "",
+      "## Topics to avoid",
+      ...(avoid.length > 0
+        ? avoid.map((trend) => `- ${trend.topic}: ${trend.helper}`)
+        : [`- ${document.quickCopy.avoid}`]),
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  if (templateId === "research") {
+    return [
+      `# ${template.label}: ${document.title}`,
+      "",
+      template.headline,
+      "",
+      `**Confidence:** ${document.metadata.postureConfidence}/100 (${document.metadata.postureLabel})`,
+      `**Source coverage:** ${document.metadata.sourceCoverageLabel}`,
+      "",
+      "## Evidence-first read",
+      document.quickCopy.summary,
+      "",
+      "## Source quality and uncertainty",
+      ...(document.integrity.validationWarnings.length > 0
+        ? document.integrity.validationWarnings.map((warning) => `- ${warning}`)
+        : ["- No report-model validation warning is currently attached."]),
+      "",
+      ...sections.slice(0, 5).map((section) => sectionText(section, 3)),
+      "",
+      "## What needs more validation",
+      ...(avoid.length > 0
+        ? avoid.map((trend) => `- ${trend.topic}: ${trend.helper}`)
+        : [`- ${document.quickCopy.monitor}`]),
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+  }
+
+  if (templateId === "pitch") {
+    const top = priority[0] ?? hidden[0] ?? creators[0] ?? null;
+    return [
+      `# ${template.label}: ${document.title}`,
+      "",
+      "## Opportunity framing",
+      top
+        ? `${top.topic} is the cleanest current example of how Trend Finder turns early signals into a decision.`
+        : document.quickCopy.summary,
+      "",
+      "## Problem",
+      "AI trend discovery is noisy: most tools show lists, not confidence, evidence quality, action timing and avoidance logic.",
+      "",
+      "## Why now",
+      document.quickCopy.focusToday,
+      "",
+      "## Market signal / early evidence",
+      ...(priority.length > 0
+        ? priority.map((trend) => `- ${trend.topic}: ${trend.helper}`)
+        : document.quickCopy.bullets.map((bullet) => `- ${bullet}`)),
+      "",
+      "## Suggested narrative",
+      "Trend Finder is an intelligence radar: scan real sources, score early movement, separate watch/act/avoid, then export a usable brief.",
+      "",
+      "## Caveats",
+      ...(document.integrity.validationWarnings.length > 0
+        ? document.integrity.validationWarnings.map((warning) => `- ${warning}`)
+        : ["- This is based on the current local scan data; no fake demo claims are added."]),
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
 
   return [
     `# ${template.label}: ${document.title}`,
@@ -161,21 +288,21 @@ export function buildTemplateMarkdown(
     "",
     document.quickCopy.summary,
     "",
+    "## Top 3 moves",
+    ...(priority.length > 0
+      ? priority.map((trend) => `- ${trend.topic}: ${trend.helper}`)
+      : document.quickCopy.bullets.slice(0, 3).map((bullet) => `- ${bullet}`)),
+    "",
     `**Focus:** ${document.quickCopy.focusToday}`,
     `**Monitor:** ${document.quickCopy.monitor}`,
     `**Avoid:** ${document.quickCopy.avoid}`,
     "",
-    ...sections.flatMap((section) => [
-      `## ${section.title}`,
-      section.description,
-      ...section.blocks.slice(0, 2).flatMap((block) => [
-        "",
-        `### ${block.title}`,
-        block.body ?? block.description ?? "",
-        ...(block.bullets?.slice(0, 4).map((bullet) => `- ${bullet}`) ?? []),
-      ]),
-      "",
-    ]),
+    "## Risks and caveats",
+    ...(avoid.length > 0
+      ? avoid.map((trend) => `- ${trend.topic}: ${trend.helper}`)
+      : document.integrity.validationWarnings.map((warning) => `- ${warning}`)),
+    "",
+    ...sections.slice(0, 4).map((section) => sectionText(section, 2)),
   ]
     .filter((line) => line !== undefined && line !== null)
     .join("\n");

@@ -10,6 +10,7 @@ import {
   BrainCircuit,
   CheckCircle2,
   RefreshCcw,
+  ShieldAlert,
   SlidersHorizontal,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
@@ -27,9 +28,25 @@ import {
   type SourceWeightPreferences,
 } from "@/lib/preferences/product-preferences";
 import { productPreferenceScore, sourceWeightMultiplier } from "@/lib/product/apply-product-preferences";
+import { buildTrendCalibrationBreakdown } from "@/lib/product/intelligence-scoring";
 import type { DashboardTrend, DashboardTrendsResponse, DashboardWindow } from "@/lib/trends/types";
 
 const windows: DashboardWindow[] = ["24h", "7d", "30d"];
+const qaNotesStorageKey = "trend-finder-admin-qa-notes-v1";
+const qaNoteOptions = [
+  "Strong signal",
+  "Watch only",
+  "Likely noise",
+  "Needs more sources",
+  "Good creator opportunity",
+  "Good startup opportunity",
+  "Too saturated",
+  "Thin evidence",
+] as const;
+
+type QaNote = (typeof qaNoteOptions)[number];
+type QaNotesState = Record<string, QaNote>;
+
 const sourceRows: Array<{ key: SourceWeightKey; label: string }> = [
   { key: "github", label: "GitHub" },
   { key: "hackerNews", label: "Hacker News" },
@@ -98,8 +115,8 @@ const presets: CalibrationPreset[] = [
 ];
 
 function scoreDeltaLabel(value: number) {
-  if (value > 0) return `+${value}`;
-  return String(value);
+  if (value > 0) return `+${Math.round(value)}`;
+  return String(Math.round(value));
 }
 
 function sourceKeyLabel(sources: string[]) {
@@ -112,20 +129,49 @@ function movementIcon(delta: number) {
   return <Activity className="h-4 w-4 text-muted-foreground" />;
 }
 
-function explanationFor(trend: DashboardTrend, multiplier: number, delta: number) {
-  const notes: string[] = [];
-  if (multiplier > 1.08) notes.push("boosted by source quality weights");
-  if (multiplier < 0.92) notes.push("reduced by source quality weights");
-  if (trend.status === "Hidden Gem") notes.push("hidden-gem preference adds pressure");
-  if (trend.topicQuality.gateStatus !== "pass") notes.push("quality gate still needs review");
-  if (delta === 0) notes.push("ranking stayed close to canonical score");
-  return notes.join(" · ");
+function readQaNotes(): QaNotesState {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(qaNotesStorageKey);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return Object.fromEntries(
+      Object.entries(parsed).filter(([, value]) =>
+        qaNoteOptions.includes(value as QaNote),
+      ),
+    ) as QaNotesState;
+  } catch {
+    return {};
+  }
+}
+
+function writeQaNotes(nextNotes: QaNotesState) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(qaNotesStorageKey, JSON.stringify(nextNotes));
+}
+
+function qaNoteVariant(note: QaNote | undefined) {
+  if (!note) return "muted" as const;
+  if (note === "Strong signal" || note === "Good creator opportunity" || note === "Good startup opportunity") return "secondary" as const;
+  if (note === "Likely noise" || note === "Too saturated" || note === "Thin evidence") return "danger" as const;
+  return "accent" as const;
+}
+
+function scoreBand(value: number) {
+  if (value >= 70) return "secondary" as const;
+  if (value >= 45) return "accent" as const;
+  return "danger" as const;
+}
+
+function firstOrFallback(items: string[], fallback: string) {
+  return items.length > 0 ? items[0] : fallback;
 }
 
 export function ScoringCalibrationLabView() {
   const [preferences, setPreferences] = useState<ProductPreferences>(defaultProductPreferences);
   const [windowValue, setWindowValue] = useState<DashboardWindow>("7d");
   const [trends, setTrends] = useState<DashboardTrend[]>([]);
+  const [qaNotes, setQaNotes] = useState<QaNotesState>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastAppliedPreset, setLastAppliedPreset] = useState<string | null>(null);
@@ -155,6 +201,7 @@ export function ScoringCalibrationLabView() {
     }
 
     handlePreferenceChange();
+    setQaNotes(readQaNotes());
     window.addEventListener(productPreferencesChangedEvent, handlePreferenceChange);
     window.addEventListener("storage", handlePreferenceChange);
     return () => {
@@ -175,21 +222,24 @@ export function ScoringCalibrationLabView() {
   const calibratedRows = useMemo(() => {
     return trends
       .map((trend) => {
-        const adjustedScore = productPreferenceScore(trend, preferences);
+        const adjustedScore = Math.max(0, productPreferenceScore(trend, preferences));
         const multiplier = sourceWeightMultiplier(trend.sources, preferences.sourceWeights);
-        const visibleScore = adjustedScore < 0 ? 0 : adjustedScore;
-        const delta = adjustedScore < 0 ? -trend.trendScore : adjustedScore - trend.trendScore;
+        const breakdown = buildTrendCalibrationBreakdown(trend, preferences);
+        const beforeRank = beforeRows.findIndex((item) => item.id === trend.id) + 1;
+
         return {
           trend,
-          adjustedScore: visibleScore,
-          delta,
+          adjustedScore,
+          delta: adjustedScore - trend.trendScore,
           multiplier,
-          explanation: explanationFor(trend, multiplier, delta),
+          breakdown,
+          beforeRank: beforeRank || null,
         };
       })
       .sort((a, b) => b.adjustedScore - a.adjustedScore || b.trend.trendScore - a.trend.trendScore)
-      .slice(0, 10);
-  }, [preferences, trends]);
+      .slice(0, 10)
+      .map((row, index) => ({ ...row, afterRank: index + 1 }));
+  }, [beforeRows, preferences, trends]);
 
   const calibrationNotes = useMemo(() => {
     const notes: string[] = [];
@@ -237,19 +287,26 @@ export function ScoringCalibrationLabView() {
     applyPreset(preset);
   }
 
+  function setTrendQaNote(trend: DashboardTrend, note: QaNote) {
+    const key = trend.canonicalKey || trend.id;
+    const next = { ...qaNotes, [key]: note };
+    setQaNotes(next);
+    writeQaNotes(next);
+  }
+
   return (
     <AppShell>
       <div className="space-y-6">
         <section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.32em] text-secondary">
-              Admin / Scoring Calibration v2
+              Admin / Scoring Calibration v3
             </p>
             <h1 className="mt-3 max-w-4xl text-balance text-4xl font-semibold tracking-[-0.04em] text-foreground md:text-5xl">
-              Tune the product ranking before touching canonical scoring.
+              Explain the rank before touching the model.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
-              Preview presets, source weights, before/after ranking and calibration notes. This is still product-layer pressure: no database rewrite, no snapshot mutation.
+              This lab previews product-layer calibration: source quality, freshness, lifecycle, quality gate, creator opportunity, diversity, penalties and hidden-gem pressure. Stored snapshots are not rewritten.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -273,7 +330,7 @@ export function ScoringCalibrationLabView() {
             </div>
             <CardTitle>Pick the lens you are optimizing for</CardTitle>
             <CardDescription>
-              Presets update source weights and interest profile keywords. They are reversible local preferences, not model migrations.
+              Presets update local source weights and interest keywords only. They do not change database scores.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
@@ -335,7 +392,7 @@ export function ScoringCalibrationLabView() {
 
         <Card className="border-border/10 bg-[#160d0d]/62">
           <CardHeader>
-            <CardTitle>Calibration notes</CardTitle>
+            <CardTitle>Current calibration notes</CardTitle>
             <CardDescription>What the current preference layer is doing to ranking.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-2 md:grid-cols-2">
@@ -391,19 +448,20 @@ export function ScoringCalibrationLabView() {
                 <CardDescription>Preview of how Settings and presets change product ranking.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
-                {calibratedRows.map((row, index) => (
+                {calibratedRows.map((row) => (
                   <div key={row.trend.id} className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <p className="truncate text-sm font-semibold text-foreground">{index + 1}. {row.trend.topic}</p>
+                          <p className="truncate text-sm font-semibold text-foreground">{row.afterRank}. {row.trend.topic}</p>
                           <Badge variant={row.delta >= 0 ? "secondary" : "accent"}>{scoreDeltaLabel(row.delta)}</Badge>
+                          {row.beforeRank ? <Badge variant="muted">before #{row.beforeRank}</Badge> : null}
                         </div>
-                        <p className="mt-1 text-xs text-muted-foreground/65">{row.explanation}</p>
+                        <p className="mt-1 text-xs text-muted-foreground/65">{row.breakdown.movementExplanation}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         {movementIcon(row.delta)}
-                        <Badge variant="secondary">{row.adjustedScore}</Badge>
+                        <Badge variant="secondary">{Math.round(row.adjustedScore)}</Badge>
                       </div>
                     </div>
                     <p className="mt-2 text-xs text-muted-foreground/60">
@@ -416,6 +474,92 @@ export function ScoringCalibrationLabView() {
           </section>
         ) : null}
 
+        {calibratedRows.length > 0 ? (
+          <Card className="border-border/10 bg-[#160d0d]/62">
+            <CardHeader>
+              <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+                <ShieldAlert className="h-4 w-4" />
+                Per-trend QA and score breakdown
+              </div>
+              <CardTitle>Why each trend moved</CardTitle>
+              <CardDescription>
+                Admin-only notes are stored locally in the browser. Use them to mark quality without touching historical snapshots.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {calibratedRows.map((row) => {
+                const noteKey = row.trend.canonicalKey || row.trend.id;
+                const selectedNote = qaNotes[noteKey];
+                const breakdownItems = [
+                  ["Source", row.breakdown.sourceContribution],
+                  ["Freshness", row.breakdown.freshnessContribution],
+                  ["Lifecycle", row.breakdown.lifecycleContribution],
+                  ["Quality gate", row.breakdown.qualityGateContribution],
+                  ["Creator", row.breakdown.creatorOpportunityContribution],
+                  ["Diversity", row.breakdown.sourceDiversityContribution],
+                  ["Weak evidence", -row.breakdown.weakEvidencePenalty],
+                  ["Noise", -row.breakdown.noiseRiskPenalty],
+                  ["Saturation", -row.breakdown.mainstreamSaturationPenalty],
+                  ["Hidden gem", row.breakdown.hiddenGemBoost],
+                ] as const;
+
+                return (
+                  <div key={row.trend.id} className="rounded-3xl border border-border/10 bg-[#0f0808]/35 p-4">
+                    <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="muted">#{row.afterRank}</Badge>
+                          <Badge variant={qaNoteVariant(selectedNote)}>{selectedNote ?? "No QA note"}</Badge>
+                          <p className="text-sm font-semibold text-foreground">{row.trend.topic}</p>
+                        </div>
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground/76">
+                          {row.breakdown.explanation} {row.breakdown.movementExplanation}
+                        </p>
+                      </div>
+                      <select
+                        value={selectedNote ?? ""}
+                        onChange={(event) => setTrendQaNote(row.trend, event.target.value as QaNote)}
+                        className="rounded-xl border border-border/10 bg-[#160d0d] px-3 py-2 text-sm text-foreground outline-none"
+                      >
+                        <option value="" disabled>Choose QA note</option>
+                        {qaNoteOptions.map((option) => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-5">
+                      {breakdownItems.map(([label, value]) => (
+                        <div key={label} className="rounded-2xl border border-border/10 bg-muted/20 p-3">
+                          <p className="text-[0.66rem] uppercase tracking-[0.18em] text-muted-foreground/55">{label}</p>
+                          <p className="mt-1 text-lg font-semibold text-foreground">{value > 0 ? "+" : ""}{Math.round(value)}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-3">
+                      <div className="rounded-2xl border border-border/10 bg-[#160d0d]/50 p-3">
+                        <Badge variant={scoreBand(row.trend.sourceQuality.crossSourceConfirmationScore)}>Source contribution</Badge>
+                        <p className="mt-2 text-xs leading-5 text-muted-foreground/72">{row.trend.sourceQuality.summary}</p>
+                      </div>
+                      <div className="rounded-2xl border border-border/10 bg-[#160d0d]/50 p-3">
+                        <Badge variant={scoreBand(row.trend.topicQuality.score)}>Positive driver</Badge>
+                        <p className="mt-2 text-xs leading-5 text-muted-foreground/72">
+                          {firstOrFallback(row.breakdown.positiveDrivers, "No dominant positive driver yet.")}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-border/10 bg-[#160d0d]/50 p-3">
+                        <Badge variant={row.breakdown.negativePressure.length > 0 ? "accent" : "secondary"}>Calibration action</Badge>
+                        <p className="mt-2 text-xs leading-5 text-muted-foreground/72">{row.breakdown.recommendedCalibrationAction}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        ) : null}
+
         <Card className="border-primary/15 bg-primary/10">
           <CardHeader>
             <div className="flex items-center gap-2 text-sm font-semibold text-primary">
@@ -424,7 +568,7 @@ export function ScoringCalibrationLabView() {
             </div>
             <CardTitle>No historical rewrite</CardTitle>
             <CardDescription>
-              This lab changes local product preferences only. Canonical scoring changes should be a separate model version with test fixtures and migration notes.
+              This lab changes local product preferences and browser QA notes only. Canonical scoring changes should be a separate model version with test fixtures and migration notes.
             </CardDescription>
           </CardHeader>
           <CardContent>

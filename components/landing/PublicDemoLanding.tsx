@@ -43,6 +43,9 @@ export function PublicDemoLanding() {
                 <Link href="/reports">Reports</Link>
               </Button>
               <Button asChild variant="ghost" size="sm">
+                <Link href="/demo">Demo flow</Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm">
                 <Link href="/settings">Settings</Link>
               </Button>
               <Button asChild variant="secondary" size="sm">
@@ -70,7 +73,7 @@ export function PublicDemoLanding() {
                   <Link href="/daily-brief">View Daily Brief</Link>
                 </Button>
                 <Button asChild size="lg" variant="ghost">
-                  <Link href="/reports">Export report</Link>
+                  <Link href="/demo">60-second demo</Link>
                 </Button>
               </div>
               <div className="mt-6 flex flex-wrap gap-2 text-xs text-muted-foreground/70">

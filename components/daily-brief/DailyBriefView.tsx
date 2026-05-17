@@ -201,6 +201,64 @@ export function DailyBriefView() {
     return getTemplateHeroBlocks(brief.reportDocument, preferences.reportTemplate, 4);
   }, [brief, preferences.reportTemplate]);
 
+  const memoCards = useMemo(() => {
+    if (!brief) return [];
+
+    const topAction = brief.topPriorityActions[0] ?? null;
+    const bestCreator = brief.creatorOpportunities[0] ?? null;
+    const bestGem = brief.hiddenGemsWorthWatching[0] ?? null;
+    const avoid = brief.topicsToAvoid[0] ?? null;
+
+    return [
+      {
+        label: "Today’s best move",
+        value: topAction
+          ? topAction.recommendedNextStep
+          : brief.recommendedFocus.focusToday,
+      },
+      {
+        label: "What changed",
+        value:
+          brief.watchlistMovement[0]?.delta.summary ??
+          brief.intelligenceNarratives.find((item) => item.id === "market-posture")?.verdict ??
+          "No major saved-trend movement yet. Use the current scan as the baseline.",
+      },
+      {
+        label: "Act on now",
+        value: topAction
+          ? `${topAction.trend.topic}: ${topAction.summary}`
+          : "No topic cleared the Act Now bar. That is a result, not a failure.",
+      },
+      {
+        label: "Watch",
+        value: bestGem
+          ? `${bestGem.topic}: ${bestGem.productIntelligence.classificationLabel}`
+          : brief.recommendedFocus.monitor,
+      },
+      {
+        label: "Avoid",
+        value: avoid
+          ? `${avoid.trend.topic}: ${avoid.reason}`
+          : brief.recommendedFocus.avoid,
+      },
+      {
+        label: "Best creator opportunity",
+        value: bestCreator
+          ? `${bestCreator.topic}: ${bestCreator.creatorOpportunity.bestAngle}`
+          : "No clean creator lane yet. Better silence than content soup.",
+      },
+      {
+        label: "Best startup/research angle",
+        value: (topAction?.trend ?? bestGem)?.productIntelligence.startupAngle ??
+          "Wait for stronger evidence before framing a startup or research thesis.",
+      },
+      {
+        label: "Confidence + caveat",
+        value: `${brief.briefPosture.confidence}/100 confidence. ${brief.overallWarnings[0] ?? "No major caveat beyond normal source validation."}`,
+      },
+    ];
+  }, [brief]);
+
   const exportLinks = useMemo(
     () => [
       {
@@ -345,6 +403,29 @@ export function DailyBriefView() {
               <MetricCard label="Creator opportunities" value={brief.radarStats.creatorOpportunities} helper="Topics with content timing upside." />
               <MetricCard label="Avoid" value={brief.radarStats.topicsToAvoid} helper="Noisy, weak or over-saturated topics." />
             </section>
+
+            <Card className="border-secondary/15 bg-[#160d0d]/62">
+              <CardHeader>
+                <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+                  <Target className="h-4 w-4" />
+                  Intelligence memo
+                </div>
+                <CardTitle>What matters now, not every metric the system knows.</CardTitle>
+                <CardDescription>
+                  A product-facing readout shaped by source quality, trend quality, watchlist movement and the active report template.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 md:grid-cols-2">
+                {memoCards.map((item) => (
+                  <div key={item.label} className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">
+                      {item.label}
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-foreground/88">{item.value}</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
 
             <Card className="border-border/10 bg-[#160d0d]/62">
               <CardHeader>

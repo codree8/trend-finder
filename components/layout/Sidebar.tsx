@@ -81,6 +81,7 @@ const productRouteItems: NavItem[] = [
   { href: "/action-queue", label: "Action Queue", icon: ListChecks },
   { href: "/daily-brief", label: "Daily Brief", icon: Newspaper },
   { href: "/reports", label: "Reports", icon: FileText },
+  { href: "/demo", label: "Demo Flow", icon: Rocket },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -91,6 +92,7 @@ const adminRouteItems: NavItem[] = [
   { href: "/admin/beta-readiness", label: "Beta QA", icon: ListChecks },
   { href: "/admin/scoring-lab", label: "Scoring Lab", icon: SlidersHorizontal },
   { href: "/admin/deployment-readiness", label: "Deployment", icon: Rocket },
+  { href: "/demo", label: "Demo Flow", icon: Sparkles },
   { href: "/admin/automation", label: "Boundaries", icon: ShieldCheck },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

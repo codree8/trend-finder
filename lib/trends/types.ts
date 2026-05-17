@@ -134,6 +134,61 @@ export type DashboardTopSignal = {
   engagement: number;
 };
 
+
+export type SourceQualityCategory =
+  | "code"
+  | "builder-community"
+  | "editorial"
+  | "social"
+  | "video"
+  | "research"
+  | "unknown";
+
+export type SourceQualityContribution = {
+  source: string;
+  category: SourceQualityCategory;
+  signalCount: number;
+  share: number;
+  trustScore: number;
+  connectorReliability: number;
+  warning: string | null;
+};
+
+export type SourceQualitySummary = {
+  sourceTrustScore: number;
+  sourceFreshnessScore: number;
+  sourceDiversityScore: number;
+  connectorReliabilityScore: number;
+  crossSourceConfirmationScore: number;
+  duplicateSourcePressure: number;
+  singleSourceRisk: "low" | "medium" | "high";
+  overrepresentedSourceWarning: string | null;
+  weakSourceWarning: string | null;
+  primarySourceCategory: SourceQualityCategory;
+  confirmedSourceCount: number;
+  contribution: SourceQualityContribution[];
+  summary: string;
+};
+
+export type ProductTrendClassification = "Act" | "Watch" | "Avoid";
+
+export type ProductTrendIntelligence = {
+  signalStrength: number;
+  evidenceQuality: number;
+  sourceConfidence: number;
+  classification: ProductTrendClassification;
+  classificationLabel: string;
+  whyNow: string;
+  whyItMatters: string;
+  creatorAngle: string;
+  startupAngle: string;
+  noiseRisk: string;
+  saturationRisk: string;
+  recommendedNextAction: string;
+  evidenceQualitySummary: string;
+  sourceContributionSummary: string;
+};
+
 export type DashboardTrend = {
   id: string;
   topicId: number;
@@ -164,6 +219,8 @@ export type DashboardTrend = {
   lifecycle: TrendLifecycle;
   creatorOpportunity: CreatorOpportunity;
   topicQuality: TopicQuality;
+  sourceQuality: SourceQualitySummary;
+  productIntelligence: ProductTrendIntelligence;
 };
 
 export type SourceBreakdownItem = {
@@ -784,6 +841,8 @@ export type TrendDetailIntelligence = {
   scoringTransparency: TrendScoringTransparency;
   creatorOpportunity: CreatorOpportunity;
   topicQuality: TopicQuality;
+  sourceQuality: SourceQualitySummary;
+  productIntelligence: ProductTrendIntelligence;
   snapshots: TrendDetailSnapshot[];
 };
 

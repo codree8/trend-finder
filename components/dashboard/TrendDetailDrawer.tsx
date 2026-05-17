@@ -35,6 +35,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { WatchlistButton } from "@/components/watchlist/WatchlistButton";
+import {
+  productPreferencesChangedEvent,
+  readPreferredWorkspaceView,
+  type WorkspaceView,
+} from "@/lib/preferences/product-preferences";
 import { buildTrendActionRecommendation } from "@/lib/trends/action-priority";
 import type {
   CreatorContentRisk,
@@ -428,6 +433,21 @@ export function TrendDetailDrawer({
     data: null,
     error: null,
   });
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("product");
+
+  useEffect(() => {
+    function handlePreferenceChange() {
+      setWorkspaceView(readPreferredWorkspaceView());
+    }
+
+    handlePreferenceChange();
+    window.addEventListener(productPreferencesChangedEvent, handlePreferenceChange);
+    window.addEventListener("storage", handlePreferenceChange);
+    return () => {
+      window.removeEventListener(productPreferencesChangedEvent, handlePreferenceChange);
+      window.removeEventListener("storage", handlePreferenceChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (!slug) {
@@ -519,6 +539,7 @@ export function TrendDetailDrawer({
     [detail?.intelligence.snapshots],
   );
   const isOpen = Boolean(slug);
+  const showAdminDiagnostics = workspaceView === "admin";
 
   if (!isOpen) return null;
 
@@ -621,6 +642,8 @@ export function TrendDetailDrawer({
                 />
               ) : null}
 
+              <ProductTrendDecisionSection trend={detail.trend} showAdminDiagnostics={showAdminDiagnostics} />
+
               <section className="rounded-3xl border border-border/10 bg-card/72 p-5 shadow-card">
                 <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-secondary">
                   <Compass className="h-4 w-4" />
@@ -669,27 +692,33 @@ export function TrendDetailDrawer({
                 </p>
               </section>
 
-              <TopicQualitySection quality={detail.intelligence.topicQuality} />
+              {showAdminDiagnostics ? (
+                <TopicQualitySection quality={detail.intelligence.topicQuality} />
+              ) : null}
 
               <CreatorOpportunitySection
                 opportunity={detail.intelligence.creatorOpportunity}
               />
 
-              <TopicIdentitySection
-                canonicalKey={detail.intelligence.topicIdentity.canonicalKey}
-                aliases={detail.intelligence.topicIdentity.aliases}
-                relatedLabels={detail.intelligence.topicIdentity.relatedLabels}
-                mergedTopicCount={
-                  detail.intelligence.topicIdentity.mergedTopicCount
-                }
-                signalCount={detail.intelligence.signals.length}
-              />
+              {showAdminDiagnostics ? (
+                <TopicIdentitySection
+                  canonicalKey={detail.intelligence.topicIdentity.canonicalKey}
+                  aliases={detail.intelligence.topicIdentity.aliases}
+                  relatedLabels={detail.intelligence.topicIdentity.relatedLabels}
+                  mergedTopicCount={
+                    detail.intelligence.topicIdentity.mergedTopicCount
+                  }
+                  signalCount={detail.intelligence.signals.length}
+                />
+              ) : null}
 
               <EvidenceLayerSection evidence={detail.intelligence.evidence} />
 
-              <ScoringTransparencySection
-                transparency={detail.intelligence.scoringTransparency}
-              />
+              {showAdminDiagnostics ? (
+                <ScoringTransparencySection
+                  transparency={detail.intelligence.scoringTransparency}
+                />
+              ) : null}
 
               <section className="rounded-3xl border border-border/10 bg-card/72 p-5 shadow-card">
                 <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-secondary">
@@ -1149,6 +1178,81 @@ function WatchlistDeltaSection({ item }: { item: SavedTrendWithCurrent }) {
           )}
         </div>
       </div>
+    </section>
+  );
+}
+
+
+function productDecisionVariant(classification: DashboardTrend["productIntelligence"]["classification"]) {
+  if (classification === "Act") return "secondary" as const;
+  if (classification === "Watch") return "accent" as const;
+  return "danger" as const;
+}
+
+function ProductTrendDecisionSection({
+  trend,
+  showAdminDiagnostics,
+}: {
+  trend: DashboardTrend;
+  showAdminDiagnostics: boolean;
+}) {
+  const intelligence = trend.productIntelligence;
+  const sourceQuality = trend.sourceQuality;
+  const primarySource = sourceQuality.contribution[0];
+
+  return (
+    <section className="rounded-3xl border border-secondary/15 bg-card/76 p-5 shadow-card signal-glow">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <Badge variant={productDecisionVariant(intelligence.classification)}>
+              {intelligence.classificationLabel}
+            </Badge>
+            <Badge variant="muted">{intelligence.classification}</Badge>
+          </div>
+          <h3 className="text-xl font-semibold tracking-[-0.03em] text-foreground">
+            Product read: {intelligence.recommendedNextAction}
+          </h3>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground/78">
+            {intelligence.whyItMatters}
+          </p>
+        </div>
+        <div className="grid min-w-[220px] grid-cols-3 gap-2 text-center text-xs">
+          <span className="rounded-2xl border border-border/10 bg-muted/35 p-3">
+            <strong className="block text-lg text-secondary">{intelligence.signalStrength}</strong>
+            Signal
+          </span>
+          <span className="rounded-2xl border border-border/10 bg-muted/35 p-3">
+            <strong className="block text-lg text-secondary">{intelligence.evidenceQuality}</strong>
+            Evidence
+          </span>
+          <span className="rounded-2xl border border-border/10 bg-muted/35 p-3">
+            <strong className="block text-lg text-secondary">{intelligence.sourceConfidence}</strong>
+            Sources
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
+        <MovementCard label="Why now?" value="Fresh movement" helper={intelligence.whyNow} />
+        <MovementCard label="Creator angle" value="Good creator angle" helper={intelligence.creatorAngle} />
+        <MovementCard label="Startup angle" value="Research angle" helper={intelligence.startupAngle} />
+        <MovementCard label="Risk check" value={intelligence.noiseRisk} helper={`${intelligence.saturationRisk}. ${intelligence.evidenceQualitySummary}`} />
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-border/10 bg-muted/25 p-4 text-sm leading-6 text-muted-foreground/78">
+        <strong className="text-foreground">Source contribution:</strong> {intelligence.sourceContributionSummary}
+        {primarySource ? ` Primary source group: ${primarySource.source} (${primarySource.signalCount} signal${primarySource.signalCount === 1 ? "" : "s"}).` : ""}
+      </div>
+
+      {showAdminDiagnostics ? (
+        <div className="mt-4 grid gap-2 md:grid-cols-4">
+          <MovementCard label="Trust" value={String(sourceQuality.sourceTrustScore)} helper="source trust" />
+          <MovementCard label="Diversity" value={String(sourceQuality.sourceDiversityScore)} helper="source spread" />
+          <MovementCard label="Connector" value={String(sourceQuality.connectorReliabilityScore)} helper="reliability" />
+          <MovementCard label="Single-source risk" value={sourceQuality.singleSourceRisk} helper="admin diagnostic" />
+        </div>
+      ) : null}
     </section>
   );
 }

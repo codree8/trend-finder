@@ -400,7 +400,7 @@ export function buildDailyBriefServerPdfReliabilityQa({
   const tuningNotes = [
     "Keep HTML as the full-fidelity export; the server PDF is intentionally compact for reliability.",
     "Use the PDF health endpoint after major reportDocument changes, especially when new sections or block types are added.",
-    "Do not add email/cron delivery until PDF health stays stable across 24h, 7d and 30d windows.",
+    "Do not add background delivery until PDF health stays stable across 24h, 7d and 30d windows.",
   ];
 
   if (truncation.truncatedBlocks > 0 || truncation.truncatedListItems > 0) {

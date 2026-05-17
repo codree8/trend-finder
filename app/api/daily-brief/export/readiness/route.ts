@@ -51,7 +51,7 @@ export async function GET(request: Request) {
           "Cache-Control": "no-store",
           "X-Export-System-Readiness": readiness.status,
           "X-Export-System-Readiness-Score": String(readiness.score),
-          "X-Automation-Readiness": readiness.automationStatus,
+          "X-Local-Boundary": String(readiness.localBoundaryScore),
           "X-Critical-Blockers": String(readiness.metrics.criticalBlockers),
         },
       },

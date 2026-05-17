@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, ClipboardCheck, ExternalLink, Gauge, LayoutDashboard, TriangleAlert } from "lucide-react";
+import { CheckCircle2, ClipboardCheck, ExternalLink, Gauge, LayoutDashboard, TriangleAlert, XCircle } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-type CheckStatus = "ready" | "review" | "manual";
+type CheckStatus = "Ready" | "Review" | "Blocked";
 
 type ReadinessCheck = {
   group: string;
@@ -21,76 +21,96 @@ const checks: ReadinessCheck[] = [
   {
     group: "Navigation",
     title: "Product/Admin separation",
-    status: "ready",
+    status: "Ready",
     detail: "Product pages focus on decisions and exports. Admin pages hold diagnostics and system boundaries.",
     route: "/admin/automation",
   },
   {
     group: "Navigation",
-    title: "Sidebar active states",
-    status: "manual",
-    detail: "Click through Product and Admin routes locally and confirm active state follows the current page.",
+    title: "Product links",
+    status: "Review",
+    detail: "Click through dashboard, watchlist, action queue, daily brief, reports, history, demo and settings locally.",
     route: "/dashboard",
   },
   {
+    group: "Navigation",
+    title: "Admin links",
+    status: "Review",
+    detail: "Check scoring lab, beta readiness, deployment readiness and boundaries routes from the sidebar.",
+    route: "/admin/scoring-lab",
+  },
+  {
     group: "Product",
-    title: "Daily Brief simplified",
-    status: "ready",
-    detail: "The user-facing brief now avoids diagnostics and shows actions, gems, movement, focus and exports.",
+    title: "Daily Brief memo",
+    status: "Ready",
+    detail: "The brief presents best move, act/watch/avoid guidance, confidence and caveat without diagnostic overload.",
     route: "/daily-brief",
   },
   {
     group: "Product",
-    title: "Reports simplified",
-    status: "ready",
-    detail: "Reports Hub now shows template-aware export paths, save snapshot and report integrity without admin noise.",
+    title: "Reports templates",
+    status: "Ready",
+    detail: "Reports change structure for executive, creator, research and pitch views while keeping manual export links.",
     route: "/reports",
   },
   {
     group: "Data",
     title: "Real data usefulness",
-    status: "review",
-    detail: "Run a fresh scan and inspect if hidden gems, action queue and creator opportunities are actually useful, not just technically valid.",
+    status: "Review",
+    detail: "Run a fresh scan and inspect whether hidden gems, action queue and creator opportunities are useful, not merely valid.",
     route: "/dashboard",
   },
   {
     group: "Preferences",
-    title: "Settings persistence",
-    status: "manual",
-    detail: "Change report template, source weights, dashboard visibility and refresh. Values should persist without hydration errors.",
+    title: "Hydration-safe local preferences",
+    status: "Ready",
+    detail: "Preferences are read after mount or through safe fallbacks, so refresh should not change the initial server/client shape.",
     route: "/settings",
   },
   {
     group: "Reports",
     title: "Local report history",
-    status: "ready",
-    detail: "Saved reports remain local for now. Database-backed report history is intentionally deferred until auth/user modeling exists.",
+    status: "Ready",
+    detail: "Saved reports remain browser-local for now. Database-backed ownership is intentionally deferred.",
     route: "/reports/history",
   },
   {
-    group: "Safety",
-    title: "Email/scheduling removed",
-    status: "ready",
-    detail: "No product path exposes delivery, provider, recipient or scheduled report controls.",
+    group: "Boundary",
+    title: "No background delivery",
+    status: "Ready",
+    detail: "No product route exposes live delivery controls. Reports and scans remain user-triggered.",
     route: "/admin/automation",
   },
   {
-    group: "Deploy",
-    title: "Vercel readiness",
-    status: "review",
-    detail: "Run lint, TypeScript and build locally. Verify env vars before any deployment.",
+    group: "Boundary",
+    title: "No auth requirement",
+    status: "Ready",
+    detail: "The project remains a local tool with UI-only Product/Admin separation.",
+    route: "/settings",
+  },
+  {
+    group: "Release",
+    title: "API and build checks",
+    status: "Review",
+    detail: "Verify /api/trends, export routes, lint, TypeScript and build before calling this beta-ready.",
     route: "/admin/deployment-readiness",
   },
 ];
 
 function statusVariant(status: CheckStatus) {
-  if (status === "ready") return "secondary" as const;
-  if (status === "review") return "accent" as const;
-  return "muted" as const;
+  if (status === "Ready") return "secondary" as const;
+  if (status === "Review") return "accent" as const;
+  return "danger" as const;
+}
+
+function StatusIcon({ status }: { status: CheckStatus }) {
+  if (status === "Ready") return <CheckCircle2 className="mt-0.5 h-5 w-5 text-secondary" />;
+  if (status === "Blocked") return <XCircle className="mt-0.5 h-5 w-5 text-primary" />;
+  return <TriangleAlert className="mt-0.5 h-5 w-5 text-accent" />;
 }
 
 function score() {
-  const ready = checks.filter((check) => check.status === "ready").length;
+  const ready = checks.filter((check) => check.status === "Ready").length;
   return Math.round((ready / checks.length) * 100);
 }
 
@@ -109,11 +129,11 @@ export function BetaReadinessView() {
               Make it feel like a product before calling it beta.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
-              This is the real product QA pass: navigation, simplified pages, useful data, local preferences, export paths and deployment readiness.
+              This is the real QA pass: navigation, simplified pages, useful data, safe preferences, empty states, API handling and manual export paths.
             </p>
           </div>
           <div className="rounded-2xl border border-secondary/20 bg-secondary/10 p-4 text-center">
-            <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground/60">Current score</p>
+            <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground/60">Readiness</p>
             <p className="mt-1 text-3xl font-semibold text-secondary">{readinessScore}%</p>
           </div>
         </section>
@@ -130,14 +150,14 @@ export function BetaReadinessView() {
             <CardHeader>
               <Gauge className="h-5 w-5 text-secondary" />
               <CardTitle>Real signal quality</CardTitle>
-              <CardDescription>The next judgement is whether the ranking feels useful, not only whether it compiles.</CardDescription>
+              <CardDescription>The next judgement is usefulness, not only whether the code compiles.</CardDescription>
             </CardHeader>
           </Card>
           <Card className="border-secondary/15 bg-[#160d0d]/66">
             <CardHeader>
               <ClipboardCheck className="h-5 w-5 text-secondary" />
-              <CardTitle>Manual release</CardTitle>
-              <CardDescription>Local-first, manual-only, no auth, no scheduled sending, no background surprises.</CardDescription>
+              <CardTitle>Local release</CardTitle>
+              <CardDescription>Manual-first, no auth layer, no background surprises.</CardDescription>
             </CardHeader>
           </Card>
         </section>
@@ -145,17 +165,13 @@ export function BetaReadinessView() {
         <Card className="border-border/10 bg-[#160d0d]/62">
           <CardHeader>
             <CardTitle>QA checklist</CardTitle>
-            <CardDescription>Use this as your click-through order before deployment or demo recording.</CardDescription>
+            <CardDescription>Use this as your click-through order before demo recording or local production use.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {checks.map((check) => (
               <div key={`${check.group}-${check.title}`} className="flex flex-col gap-3 rounded-2xl border border-border/10 bg-[#0f0808]/35 p-4 xl:flex-row xl:items-start xl:justify-between">
                 <div className="flex gap-3">
-                  {check.status === "ready" ? (
-                    <CheckCircle2 className="mt-0.5 h-5 w-5 text-secondary" />
-                  ) : (
-                    <TriangleAlert className="mt-0.5 h-5 w-5 text-accent" />
-                  )}
+                  <StatusIcon status={check.status} />
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="muted">{check.group}</Badge>
