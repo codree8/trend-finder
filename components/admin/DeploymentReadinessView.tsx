@@ -140,7 +140,7 @@ export function DeploymentReadinessView() {
             <CardHeader>
               <PlugZap className="h-5 w-5 text-secondary" />
               <CardTitle>Connector boundary</CardTitle>
-              <CardDescription>YouTube is optional and feature-flagged. Reddit/arXiv remain model-supported, not active scanner sources.</CardDescription>
+              <CardDescription>YouTube is optional and feature-flagged. arXiv is now an active keyless research connector. Reddit remains model-supported but not active yet.</CardDescription>
             </CardHeader>
           </Card>
         </section>

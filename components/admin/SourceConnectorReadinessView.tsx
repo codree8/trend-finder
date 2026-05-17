@@ -79,7 +79,7 @@ export function SourceConnectorReadinessView({ readiness }: Props) {
               <KeyRound className="h-5 w-5 text-accent" />
               <CardTitle>Optional config</CardTitle>
               <CardDescription>
-                YouTube is feature-flagged. GitHub can scan without a token, but a token makes it more reliable.
+                YouTube is feature-flagged because of quota. arXiv is keyless and can be disabled with ENABLE_ARXIV_CONNECTOR=false if you want a quieter local scan.
               </CardDescription>
             </CardHeader>
           </Card>
@@ -115,7 +115,7 @@ export function SourceConnectorReadinessView({ readiness }: Props) {
         <Card className="border-border/10 bg-[#160d0d]/62">
           <CardHeader>
             <CardTitle>Connector readiness matrix</CardTitle>
-            <CardDescription>Active means the source is used by POST /api/scan right now.</CardDescription>
+            <CardDescription>Active means the source is used by POST /api/scan right now. arXiv is treated as early research evidence, not a popularity source.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {readiness.items.map((item) => (

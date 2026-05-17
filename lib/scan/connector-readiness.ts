@@ -68,12 +68,21 @@ export function shouldUseYouTubeConnector() {
   return isYouTubeConnectorEnabled() && hasYouTubeApiKey();
 }
 
+export function isArxivConnectorEnabled() {
+  return envFlag("ENABLE_ARXIV_CONNECTOR", true);
+}
+
+export function shouldUseArxivConnector() {
+  return isArxivConnectorEnabled();
+}
+
 export function getConnectorReadinessItems(): ConnectorReadinessItem[] {
   const githubHasToken = hasEnv("GITHUB_TOKEN");
   const youtubeEnabled = isYouTubeConnectorEnabled();
   const youtubeConfigured = hasYouTubeApiKey();
   const redditEnabled = envFlag("ENABLE_REDDIT_CONNECTOR", false);
   const redditConfigured = hasEnv("REDDIT_CLIENT_ID") && hasEnv("REDDIT_CLIENT_SECRET");
+  const arxivEnabled = isArxivConnectorEnabled();
 
   return [
     item({
@@ -168,15 +177,19 @@ export function getConnectorReadinessItems(): ConnectorReadinessItem[] {
       id: "arxiv",
       name: "arXiv",
       category: "research",
-      status: "not-implemented",
-      stage: "disabled",
-      active: false,
-      enabled: false,
+      status: arxivEnabled ? "active" : "configured-disabled",
+      stage: arxivEnabled ? "active" : "disabled",
+      active: arxivEnabled,
+      enabled: arxivEnabled,
+      configured: true,
       modelSupported: true,
-      implemented: false,
+      implemented: true,
       missingEnvVars: [],
-      reliabilityScore: 0,
-      note: "Supported by the source quality model, but no connector is wired into scan orchestration yet.",
+      reliabilityScore: arxivEnabled ? 86 : 0,
+      quotaNote: "No API key required. Uses one Atom API request per scan with local in-process throttling.",
+      note: arxivEnabled
+        ? "Active. Research preprints are scanned as early evidence, not as mainstream popularity signals."
+        : "Implemented but disabled by ENABLE_ARXIV_CONNECTOR=false.",
     }),
   ];
 }
