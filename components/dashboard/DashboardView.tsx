@@ -12,11 +12,15 @@ import { TrendTable } from "@/components/dashboard/TrendTable";
 import { CreatorModePanel } from "@/components/dashboard/CreatorModePanel";
 import { ScanHealthPanel } from "@/components/dashboard/ScanHealthPanel";
 import { TrendDetailDrawer } from "@/components/dashboard/TrendDetailDrawer";
-import { TREND_SCAN_COMPLETED_EVENT } from "@/components/dashboard/ScanButton";
+import {
+  ScanButton,
+  TREND_SCAN_COMPLETED_EVENT,
+} from "@/components/dashboard/ScanButton";
 import { ProductExperienceBanner } from "@/components/product/ProductExperienceBanner";
 import { ProductOnboardingCard } from "@/components/product/ProductOnboardingCard";
 import { ProductStateCard } from "@/components/common/ProductStateCard";
 import { Button } from "@/components/ui/button";
+import { isAiCategory } from "@/lib/config/ai-categories";
 import {
   defaultProductPreferences,
   productPreferencesChangedEvent,
@@ -342,6 +346,8 @@ export function DashboardView() {
     preferences.interestProfile.minimumTrendScore > 0 ||
     preferences.interestProfile.excludeKeywords.length > 0;
   const hasActiveViewFilter = mode !== "All" || category !== "All";
+  const activeCategory = isAiCategory(category) ? category : null;
+  const hasCategoryFilter = activeCategory !== null;
 
   function resetVisibleTrendFilters() {
     setMode("All");
@@ -368,11 +374,13 @@ export function DashboardView() {
         ? `No ${mode.toLowerCase()} signals in this view`
         : "No trends visible with the current settings";
 
-  const emptyFilteredDescription = hasActiveViewFilter
-    ? "The radar has trends, but this filter is too narrow for the current scan. Switch back to All to see the full signal set."
-    : hasActiveProfileFilter
-      ? "Your score threshold or excluded keywords are hiding the current signal set. Show all trends resets only the local filters, not the saved data."
-      : "The radar has data, but the current view is hiding it. Show all trends returns to the default product view.";
+  const emptyFilteredDescription = hasCategoryFilter
+    ? `This scan did not find enough reliable ${activeCategory} signals for the current view. Run a focused category scan or switch back to All trends.`
+    : hasActiveViewFilter
+      ? "The radar has trends, but this view is too narrow for the current scan. Switch back to All to see the full signal set."
+      : hasActiveProfileFilter
+        ? "Your score threshold or excluded keywords are hiding the current signal set. Show all trends resets only the local filters, not the saved data."
+        : "The radar has data, but the current view is hiding it. Show all trends returns to the default product view.";
 
   return (
     <AppShell>
@@ -418,14 +426,38 @@ export function DashboardView() {
               ) : null}
             </div>
           </div>
-          <TrendFilters
-            mode={mode}
-            setMode={setMode}
-            window={trendWindow}
-            setWindow={setTrendWindow}
-            category={category}
-            setCategory={setCategory}
-          />
+          <div className="flex flex-col gap-3 xl:items-end">
+            <TrendFilters
+              mode={mode}
+              setMode={setMode}
+              window={trendWindow}
+              setWindow={setTrendWindow}
+              category={category}
+              setCategory={setCategory}
+            />
+            {activeCategory ? (
+              <div className="flex max-w-xl flex-col gap-3 rounded-2xl border border-secondary/15 bg-secondary/10 p-3 text-sm shadow-card backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium text-foreground">
+                    Focused category scan available
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground/76">
+                    Scan the {activeCategory} keyword pack when this filter needs
+                    more signal coverage.
+                  </p>
+                </div>
+                <ScanButton
+                  scanMode="category"
+                  category={activeCategory}
+                  label={`Scan ${activeCategory}`}
+                  loadingLabel="Scanning"
+                  variant="secondary"
+                  showMessage={false}
+                  className="shrink-0"
+                />
+              </div>
+            ) : null}
+          </div>
         </section>
 
         {error ? (
@@ -486,9 +518,36 @@ export function DashboardView() {
             title={emptyFilteredTitle}
             description={emptyFilteredDescription}
             action={
-              <Button type="button" size="sm" variant="secondary" onClick={resetVisibleTrendFilters}>
-                Show all trends
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                {activeCategory ? (
+                  <>
+                    <ScanButton
+                      scanMode="category"
+                      category={activeCategory}
+                      label={`Scan ${activeCategory}`}
+                      loadingLabel="Scanning"
+                      variant="secondary"
+                      showMessage={false}
+                    />
+                    <ScanButton
+                      scanMode="deep"
+                      category={activeCategory}
+                      label={`Deep scan ${activeCategory}`}
+                      loadingLabel="Deep scanning"
+                      variant="outline"
+                      showMessage={false}
+                    />
+                  </>
+                ) : null}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={activeCategory ? "ghost" : "secondary"}
+                  onClick={resetVisibleTrendFilters}
+                >
+                  Show all trends
+                </Button>
+              </div>
             }
             secondaryAction={<a href="/settings">Open settings</a>}
           />

@@ -2,14 +2,17 @@
 
 import { useState } from "react";
 import { Loader2, Radar } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, type ButtonProps } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import type { AiCategory } from "@/lib/config/ai-categories";
+import type { ScanMode } from "@/lib/config/scan-keyword-limits";
 
 type ScanState = "idle" | "loading" | "success" | "error";
 
 type ScanApiResponse = {
   ok?: boolean;
   message?: string;
-  scanMode?: "balanced" | "category" | "deep";
+  scanMode?: ScanMode;
   scanModeLabel?: string;
   selectedCategory?: string | null;
   keywordCount?: number;
@@ -39,9 +42,51 @@ type ScanApiResponse = {
   };
 };
 
+type ScanCompletedEventDetail = {
+  fetchedSignals: number;
+  insertedSignals: number;
+  skippedDuplicates: number;
+  topicClusters: number;
+  snapshotsCreated: number;
+  scanMode?: ScanMode;
+  scanModeLabel?: string;
+  selectedCategory?: string | null;
+  keywordCount?: number;
+};
+
+type ScanButtonProps = {
+  scanMode?: ScanMode;
+  category?: AiCategory | null;
+  windowDays?: number;
+  label?: string;
+  loadingLabel?: string;
+  showMessage?: boolean;
+  messageClassName?: string;
+  onScanComplete?: (detail: ScanCompletedEventDetail) => void;
+} & Pick<ButtonProps, "size" | "variant" | "className">;
+
 export const TREND_SCAN_COMPLETED_EVENT = "trend-finder:scan-completed";
 
-export function ScanButton() {
+function defaultScanLabel(scanMode: ScanMode, category?: AiCategory | null) {
+  if (scanMode === "deep" && category) return `Deep scan ${category}`;
+  if (scanMode === "category" && category) return `Scan ${category}`;
+
+  return "Scan Trends Now";
+}
+
+export function ScanButton({
+  scanMode = "balanced",
+  category = null,
+  windowDays = 30,
+  label,
+  loadingLabel = "Scanning",
+  showMessage = true,
+  messageClassName,
+  onScanComplete,
+  size = "sm",
+  variant = "default",
+  className,
+}: ScanButtonProps = {}) {
   const [state, setState] = useState<ScanState>("idle");
   const [message, setMessage] = useState<string>("");
 
@@ -53,7 +98,11 @@ export function ScanButton() {
       const response = await fetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ windowDays: 30, scanMode: "balanced" }),
+        body: JSON.stringify({
+          windowDays,
+          scanMode,
+          ...(category ? { category } : {}),
+        }),
       });
       const data = (await response.json()) as ScanApiResponse;
 
@@ -90,7 +139,7 @@ export function ScanButton() {
         data.persistence?.snapshotsCreated ??
         data.persistence?.storedSnapshots ??
         0;
-      const scanLabel = data.scanModeLabel ?? "Balanced AI scan";
+      const scanLabel = data.scanModeLabel ?? defaultScanLabel(scanMode, category);
       const keywordText = data.keywordCount
         ? ` across ${data.keywordCount} scan keywords`
         : "";
@@ -98,23 +147,24 @@ export function ScanButton() {
         data.scanSummary?.message ??
         `${scanLabel} completed: ${fetchedSignals} signals checked${keywordText}, ${insertedSignals} new, ${skippedDuplicates} duplicates filtered, ${topicClusters} topics grouped, ${snapshotsCreated} trend updates prepared.`;
 
+      const detail: ScanCompletedEventDetail = {
+        fetchedSignals,
+        insertedSignals,
+        skippedDuplicates,
+        topicClusters,
+        snapshotsCreated,
+        scanMode: data.scanMode,
+        scanModeLabel: data.scanModeLabel,
+        selectedCategory: data.selectedCategory,
+        keywordCount: data.keywordCount,
+      };
+
       setState("success");
       setMessage(successMessage);
+      onScanComplete?.(detail);
 
       window.dispatchEvent(
-        new CustomEvent(TREND_SCAN_COMPLETED_EVENT, {
-          detail: {
-            fetchedSignals,
-            insertedSignals,
-            skippedDuplicates,
-            topicClusters,
-            snapshotsCreated,
-            scanMode: data.scanMode,
-            scanModeLabel: data.scanModeLabel,
-            selectedCategory: data.selectedCategory,
-            keywordCount: data.keywordCount,
-          },
-        }),
+        new CustomEvent(TREND_SCAN_COMPLETED_EVENT, { detail }),
       );
     } catch (error) {
       setState("error");
@@ -123,22 +173,26 @@ export function ScanButton() {
   }
 
   return (
-    <div className="flex items-center gap-3">
-      {message ? (
+    <div className={cn("flex items-center gap-3", className)}>
+      {showMessage && message ? (
         <span
-          className={`hidden max-w-[520px] truncate text-xs md:inline ${state === "error" ? "text-primary" : "text-secondary"}`}
+          className={cn(
+            "hidden max-w-[520px] truncate text-xs md:inline",
+            state === "error" ? "text-primary" : "text-secondary",
+            messageClassName,
+          )}
           title={message}
         >
           {message}
         </span>
       ) : null}
-      <Button size="sm" onClick={handleScan} disabled={state === "loading"}>
+      <Button size={size} variant={variant} onClick={handleScan} disabled={state === "loading"}>
         {state === "loading" ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
           <Radar className="mr-2 h-4 w-4" />
         )}
-        Scan Trends Now
+        {state === "loading" ? loadingLabel : (label ?? defaultScanLabel(scanMode, category))}
       </Button>
     </div>
   );
