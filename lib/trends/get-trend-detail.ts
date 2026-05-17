@@ -22,6 +22,7 @@ import { buildCreatorOpportunity } from "@/lib/trends/creator-opportunity";
 import { buildTopicQuality } from "@/lib/trends/topic-quality";
 import { buildSourceQualitySummary } from "@/lib/product/source-quality";
 import { buildProductTrendIntelligence } from "@/lib/product/intelligence-scoring";
+import { buildResearchSignalCalibration } from "@/lib/product/research-signal-calibration";
 import {
   canonicalKeyFromTopicText,
   mergeAliases,
@@ -137,6 +138,8 @@ function formatSource(source: string) {
   if (normalized.toLowerCase() === "hn") return "HN";
   if (normalized.toLowerCase() === "rss") return "RSS";
   if (normalized.toLowerCase() === "github") return "GitHub";
+  if (normalized.toLowerCase() === "arxiv") return "arXiv";
+  if (normalized.toLowerCase() === "youtube") return "YouTube";
   return normalized;
 }
 
@@ -360,6 +363,18 @@ function buildDashboardTrend(
     sourceCount: snapshot.sourceCount,
     freshnessScore: lifecycle.freshnessScore,
   });
+  const researchSignal = buildResearchSignalCalibration({
+    topic: topic.name,
+    category,
+    sources,
+    topSignals,
+    sourceQuality,
+    hiddenGemScore,
+    saturation,
+    mentionCount: snapshot.mentionCount,
+    sourceCount: snapshot.sourceCount,
+    lifecycleStatus: lifecycle.status,
+  });
 
   const trend = {
     id: canonicalKeyForTopic(topic),
@@ -392,6 +407,7 @@ function buildDashboardTrend(
     creatorOpportunity,
     topicQuality,
     sourceQuality,
+    researchSignal,
     productIntelligence: null as never,
   };
 
@@ -749,6 +765,7 @@ export async function getTrendDetail(
       creatorOpportunity: trend.creatorOpportunity,
       topicQuality: trend.topicQuality,
       sourceQuality: trend.sourceQuality,
+      researchSignal: trend.researchSignal,
       productIntelligence: trend.productIntelligence,
       snapshots: snapshotHistory,
     },

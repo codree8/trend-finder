@@ -207,6 +207,7 @@ export function DailyBriefView() {
     const topAction = brief.topPriorityActions[0] ?? null;
     const bestCreator = brief.creatorOpportunities[0] ?? null;
     const bestGem = brief.hiddenGemsWorthWatching[0] ?? null;
+    const bestResearch = brief.researchSignals[0] ?? null;
     const avoid = brief.topicsToAvoid[0] ?? null;
 
     return [
@@ -248,8 +249,14 @@ export function DailyBriefView() {
           : "No clean creator lane yet. Better silence than content soup.",
       },
       {
+        label: "Best research signal",
+        value: bestResearch
+          ? `${bestResearch.topic}: ${bestResearch.researchSignal.summary}`
+          : "No arXiv-backed candidate is changing today's focus yet.",
+      },
+      {
         label: "Best startup/research angle",
-        value: (topAction?.trend ?? bestGem)?.productIntelligence.startupAngle ??
+        value: (topAction?.trend ?? bestResearch ?? bestGem)?.productIntelligence.startupAngle ??
           "Wait for stronger evidence before framing a startup or research thesis.",
       },
       {
@@ -397,10 +404,11 @@ export function DailyBriefView() {
               </CardHeader>
             </Card>
 
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
               <MetricCard label="Priority actions" value={brief.radarStats.actNow} helper="Items worth acting on now." />
               <MetricCard label="Hidden gems" value={brief.radarStats.hiddenGems} helper="Early signals with room before saturation." />
               <MetricCard label="Creator opportunities" value={brief.radarStats.creatorOpportunities} helper="Topics with content timing upside." />
+              <MetricCard label="Research signals" value={brief.radarStats.researchSignals} helper="arXiv-backed candidates to validate." />
               <MetricCard label="Avoid" value={brief.radarStats.topicsToAvoid} helper="Noisy, weak or over-saturated topics." />
             </section>
 

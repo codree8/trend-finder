@@ -18,6 +18,7 @@ type TuneDailyBriefNarrativesInput = {
   watchlistMovement: SavedTrendWithCurrent[];
   hiddenGems: DashboardTrend[];
   creatorOpportunities: DashboardTrend[];
+  researchSignals: DashboardTrend[];
   topicsToAvoid: DailyBriefTopicToAvoid[];
   overallWarnings: string[];
 };
@@ -146,6 +147,10 @@ function buildContextIndex(input: TuneDailyBriefNarrativesInput) {
     registerTrend(map, trend, {});
   }
 
+  for (const trend of input.researchSignals) {
+    registerTrend(map, trend, {});
+  }
+
   for (const item of input.watchlistMovement) {
     registerTrend(map, item.currentTrend, { watchlistItem: item });
   }
@@ -229,6 +234,16 @@ function tuneNarrative(args: {
     if (trend.sourceCount < 2) {
       penalty += narrative.tone === "opportunity" ? 12 : 6;
       reasons.push("Source confirmation is thin: fewer than two sources.");
+    }
+
+    if (trend.researchSignal.confidenceImpact === "caution") {
+      penalty += narrative.tone === "opportunity" ? 12 : 6;
+      reasons.push("Research signal is isolated or overrepresented.");
+    }
+
+    if (trend.researchSignal.confidenceImpact === "boost") {
+      bonus += 5;
+      reasons.push("Research signal is supported outside arXiv.");
     }
 
     if (trend.mentionCount < 3) {

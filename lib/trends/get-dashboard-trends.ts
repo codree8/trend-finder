@@ -15,6 +15,7 @@ import { buildCreatorOpportunity } from "@/lib/trends/creator-opportunity";
 import { buildTopicQuality } from "@/lib/trends/topic-quality";
 import { buildSourceQualitySummary } from "@/lib/product/source-quality";
 import { buildProductTrendIntelligence } from "@/lib/product/intelligence-scoring";
+import { buildResearchSignalCalibration } from "@/lib/product/research-signal-calibration";
 import { getConnectorReadinessSummary } from "@/lib/scan/connector-readiness";
 import {
   canonicalKeyFromTopicText,
@@ -148,6 +149,8 @@ function formatSource(source: string) {
   if (normalized.toLowerCase() === "hn") return "HN";
   if (normalized.toLowerCase() === "rss") return "RSS";
   if (normalized.toLowerCase() === "github") return "GitHub";
+  if (normalized.toLowerCase() === "arxiv") return "arXiv";
+  if (normalized.toLowerCase() === "youtube") return "YouTube";
   return normalized;
 }
 
@@ -438,6 +441,18 @@ function buildDashboardTrend(
     sourceCount: row.sourceCount,
     freshnessScore: lifecycle.freshnessScore,
   });
+  const researchSignal = buildResearchSignalCalibration({
+    topic: row.name,
+    category,
+    sources,
+    topSignals,
+    sourceQuality,
+    hiddenGemScore,
+    saturation,
+    mentionCount: row.mentionCount,
+    sourceCount: row.sourceCount,
+    lifecycleStatus: lifecycle.status,
+  });
 
   const trend = {
     id: canonicalKeyForRow(row),
@@ -470,6 +485,7 @@ function buildDashboardTrend(
     creatorOpportunity,
     topicQuality,
     sourceQuality,
+    researchSignal,
     productIntelligence: null as never,
   };
 
@@ -642,10 +658,18 @@ function qualityAdjustedTrendRank(trend: DashboardTrend) {
   const suppressPenalty = trend.topicQuality.gateStatus === "suppress" ? 28 : 0;
   const watchPenalty = trend.topicQuality.gateStatus === "watch" ? 8 : 0;
 
+  const researchLift =
+    trend.researchSignal.confidenceImpact === "boost"
+      ? Math.min(6, trend.researchSignal.score * 0.06)
+      : trend.researchSignal.confidenceImpact === "caution"
+        ? -Math.min(8, trend.researchSignal.researchOnlyPenalty * 0.35)
+        : Math.min(3, trend.researchSignal.score * 0.025);
+
   return (
-    trend.trendScore * 0.78 +
+    trend.trendScore * 0.76 +
     trend.topicQuality.score * 0.16 +
-    trend.lifecycle.freshnessScore * 0.06 -
+    trend.lifecycle.freshnessScore * 0.06 +
+    researchLift -
     suppressPenalty -
     watchPenalty
   );
@@ -797,7 +821,9 @@ export async function getDashboardTrends(
     trend.hiddenGemScore * 0.42 +
     trend.creatorOpportunity.score * 0.34 +
     trend.lifecycle.freshnessScore * 0.16 +
-    Math.max(0, 100 - trend.saturation) * 0.08 -
+    Math.max(0, 100 - trend.saturation) * 0.08 +
+    (trend.researchSignal.confidenceImpact === "boost" ? Math.min(6, trend.researchSignal.score * 0.06) : 0) -
+    (trend.researchSignal.confidenceImpact === "caution" ? Math.min(6, trend.researchSignal.researchOnlyPenalty * 0.3) : 0) -
     Math.max(0, trend.saturation - 70) * 0.35;
 
   const qualityCheckedTrends = trends.filter(promotableTrend);

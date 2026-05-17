@@ -117,6 +117,7 @@ function sourceBaseScore(source: string) {
   const normalized = source.toLowerCase();
   if (normalized.includes("hacker news")) return 88;
   if (normalized.includes("github")) return 80;
+  if (normalized.includes("arxiv")) return 86;
   if (normalized.includes("rss")) return 74;
   if (normalized.includes("reddit")) return 66;
   if (normalized.includes("youtube")) return 64;

@@ -108,7 +108,10 @@ function buildRawActionScore(
     trend.topicQuality.score * 0.28 +
     lifecycleFit(trend.lifecycle.status) * 0.12 +
     evidenceFit(trend) * 0.08 +
-    watchlistFit(watchStatus) * 0.04;
+    watchlistFit(watchStatus) * 0.04 +
+    (trend.researchSignal.confidenceImpact === "boost"
+      ? Math.min(6, trend.researchSignal.score * 0.05)
+      : 0);
 
   let penalty = 0;
 
@@ -133,6 +136,8 @@ function buildRawActionScore(
   }
   if (trend.sourceCount < 2) penalty += 10;
   if (trend.mentionCount < 2) penalty += 6;
+  if (trend.researchSignal.evidenceLevel === "research_only") penalty += 14;
+  if (trend.researchSignal.evidenceLevel === "overweighted") penalty += 8;
   if (watchStatus === "attention") penalty += 16;
   if (watchStatus === "cooling") penalty += 10;
   if (watchStatus === "stale") penalty += 22;
@@ -197,6 +202,16 @@ function buildActNowBlockers(
       "Evidence is not strong enough yet; needs cross-source confirmation or rising watchlist movement.",
     );
   }
+  if (trend.researchSignal.evidenceLevel === "research_only") {
+    blockers.push(
+      "Research signal is isolated; needs builder, market or community confirmation before Act Now.",
+    );
+  }
+  if (trend.researchSignal.evidenceLevel === "overweighted") {
+    blockers.push(
+      "Research source is overrepresented; wait for external confirmation before promotion.",
+    );
+  }
   if (
     watchStatus === "attention" ||
     watchStatus === "cooling" ||
@@ -247,6 +262,11 @@ function buildPromotionSignals(
       `Hidden-gem profile is ${trend.hiddenGemScore}/100 with ${trend.saturation}/100 saturation.`,
     );
   }
+  if (trend.researchSignal.evidenceLevel === "research_backed") {
+    signals.push(
+      `Research signal is backed by ${trend.researchSignal.nonResearchSourceCount} non-research source${trend.researchSignal.nonResearchSourceCount === 1 ? "" : "s"}.`,
+    );
+  }
   if (watchlistItem?.delta.watchStatus === "rising") {
     signals.push(`Watchlist delta is rising: ${watchlistItem.delta.summary}`);
   }
@@ -291,6 +311,9 @@ function buildDemotionSignals(
   }
   if (trend.sourceCount < 2) {
     pushUnique(warnings, "Only one source is confirming the topic.");
+  }
+  if (trend.researchSignal.confidenceImpact === "caution") {
+    pushUnique(warnings, trend.researchSignal.caveat);
   }
   if (
     isLifecycleClosed(trend.lifecycle.status) ||
@@ -379,6 +402,11 @@ function buildCalibration(
   if (trend.sourceCount < 2) {
     tuningNotes.push(
       "Single-source topics are deliberately held back to avoid false positives.",
+    );
+  }
+  if (trend.researchSignal.confidenceImpact === "caution") {
+    tuningNotes.push(
+      "Research-only or overrepresented research signals are held below Act Now until another source class confirms them.",
     );
   }
   if (trend.lifecycle.status === "Peaking") {
@@ -475,6 +503,10 @@ function nextStep(
   calibration: TrendActionCalibration,
 ) {
   if (priority === "act_now") {
+    if (trend.researchSignal.evidenceLevel === "research_backed") {
+      return `Open intelligence, cite the research support, then turn the “${trend.creatorOpportunity.bestAngle}” angle into a timely ${trend.creatorOpportunity.recommendedFormat.toLowerCase()}.`;
+    }
+
     return `Open intelligence and turn the “${trend.creatorOpportunity.bestAngle}” angle into a timely ${trend.creatorOpportunity.recommendedFormat.toLowerCase()}.`;
   }
 

@@ -497,6 +497,8 @@ export function ScoringCalibrationLabView() {
                   ["Quality gate", row.breakdown.qualityGateContribution],
                   ["Creator", row.breakdown.creatorOpportunityContribution],
                   ["Diversity", row.breakdown.sourceDiversityContribution],
+                  ["Research", row.breakdown.researchSignalContribution],
+                  ["Research-only", -row.breakdown.researchOnlyPenalty],
                   ["Weak evidence", -row.breakdown.weakEvidencePenalty],
                   ["Noise", -row.breakdown.noiseRiskPenalty],
                   ["Saturation", -row.breakdown.mainstreamSaturationPenalty],
@@ -537,10 +539,16 @@ export function ScoringCalibrationLabView() {
                       ))}
                     </div>
 
-                    <div className="mt-4 grid gap-3 md:grid-cols-3">
+                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                       <div className="rounded-2xl border border-border/10 bg-[#160d0d]/50 p-3">
                         <Badge variant={scoreBand(row.trend.sourceQuality.crossSourceConfirmationScore)}>Source contribution</Badge>
                         <p className="mt-2 text-xs leading-5 text-muted-foreground/72">{row.trend.sourceQuality.summary}</p>
+                      </div>
+                      <div className="rounded-2xl border border-border/10 bg-[#160d0d]/50 p-3">
+                        <Badge variant={scoreBand(row.trend.researchSignal.score)}>Research signal</Badge>
+                        <p className="mt-2 text-xs leading-5 text-muted-foreground/72">
+                          {row.trend.researchSignal.summary} {row.trend.researchSignal.caveat}
+                        </p>
                       </div>
                       <div className="rounded-2xl border border-border/10 bg-[#160d0d]/50 p-3">
                         <Badge variant={scoreBand(row.trend.topicQuality.score)}>Positive driver</Badge>

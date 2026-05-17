@@ -67,6 +67,7 @@ export const reportTemplates: Record<ReportTemplateId, ReportTemplateDefinition>
     sectionPriority: [
       "executive_summary",
       "watchlist_movement",
+      "research_signal",
       "hidden_gems",
       "topics_to_avoid",
       "recommended_focus",
@@ -99,6 +100,7 @@ const sectionIdAliases: Record<string, string[]> = {
   hidden_gems: ["hidden", "gem"],
   creator_opportunities: ["creator", "opportun"],
   topics_to_avoid: ["avoid", "noise", "risk"],
+  research_signal: ["research", "arxiv", "evidence"],
   recommended_focus: ["focus", "recommend"],
 };
 
@@ -186,6 +188,7 @@ export function buildTemplateMarkdown(
   const priority = topTrendRefs(document, "priority_actions", 3);
   const creators = topTrendRefs(document, "creator_opportunities", 4);
   const hidden = topTrendRefs(document, "hidden_gems", 4);
+  const research = topTrendRefs(document, "research_signal", 4);
   const avoid = topTrendRefs(document, "topics_to_avoid", 4);
 
   if (templateId === "creator") {
@@ -236,6 +239,11 @@ export function buildTemplateMarkdown(
       ...(document.integrity.validationWarnings.length > 0
         ? document.integrity.validationWarnings.map((warning) => `- ${warning}`)
         : ["- No report-model validation warning is currently attached."]),
+      "",
+      "## Research signals",
+      ...(research.length > 0
+        ? research.map((trend) => `- ${trend.topic}: ${trend.helper}`)
+        : ["- No arXiv-backed candidate is changing this memo yet."]),
       "",
       ...sections.slice(0, 5).map((section) => sectionText(section, 3)),
       "",

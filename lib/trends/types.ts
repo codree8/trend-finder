@@ -172,6 +172,32 @@ export type SourceQualitySummary = {
   summary: string;
 };
 
+
+export type ResearchEvidenceLevel =
+  | "none"
+  | "early_research"
+  | "research_backed"
+  | "research_only"
+  | "overweighted";
+
+export type ResearchSignalCalibration = {
+  score: number;
+  evidenceLevel: ResearchEvidenceLevel;
+  confidenceImpact: "boost" | "neutral" | "caution";
+  researchSignalCount: number;
+  arxivSignalCount: number;
+  researchSourceShare: number;
+  nonResearchSourceCount: number;
+  crossSourceLift: number;
+  hiddenGemLift: number;
+  researchOnlyPenalty: number;
+  summary: string;
+  caveat: string;
+  recommendedUse: string;
+  drivers: string[];
+  warnings: string[];
+};
+
 export type ProductTrendClassification = "Act" | "Watch" | "Avoid";
 
 export type ProductTrendIntelligence = {
@@ -189,6 +215,8 @@ export type ProductTrendIntelligence = {
   recommendedNextAction: string;
   evidenceQualitySummary: string;
   sourceContributionSummary: string;
+  researchSummary: string;
+  researchCaveat: string;
 };
 
 export type DashboardTrend = {
@@ -222,6 +250,7 @@ export type DashboardTrend = {
   creatorOpportunity: CreatorOpportunity;
   topicQuality: TopicQuality;
   sourceQuality: SourceQualitySummary;
+  researchSignal: ResearchSignalCalibration;
   productIntelligence: ProductTrendIntelligence;
 };
 
@@ -472,6 +501,7 @@ export type DailyBriefRadarStats = {
   watchlistMoving: number;
   watchlistNeedsAttention: number;
   topicsToAvoid: number;
+  researchSignals: number;
   sourceCoverageLabel: string;
   latestScanAt: string | null;
 };
@@ -614,6 +644,7 @@ export type DailyBriefReportBlockType =
   | "trend_list"
   | "watchlist_movement"
   | "avoid_list"
+  | "research_signal"
   | "focus"
   | "warning_list";
 
@@ -692,6 +723,7 @@ export type DailyBriefResponse = {
   watchlistMovement: SavedTrendWithCurrent[];
   hiddenGemsWorthWatching: DashboardTrend[];
   creatorOpportunities: DashboardTrend[];
+  researchSignals: DashboardTrend[];
   topicsToAvoid: DailyBriefTopicToAvoid[];
   overallWarnings: string[];
   recommendedFocus: DailyBriefRecommendedFocus;
@@ -845,6 +877,7 @@ export type TrendDetailIntelligence = {
   creatorOpportunity: CreatorOpportunity;
   topicQuality: TopicQuality;
   sourceQuality: SourceQualitySummary;
+  researchSignal: ResearchSignalCalibration;
   productIntelligence: ProductTrendIntelligence;
   snapshots: TrendDetailSnapshot[];
 };

@@ -30,6 +30,7 @@ type BuildDailyBriefReportDocumentInput = {
   watchlistMovement: SavedTrendWithCurrent[];
   hiddenGemsWorthWatching: DashboardTrend[];
   creatorOpportunities: DashboardTrend[];
+  researchSignals: DashboardTrend[];
   topicsToAvoid: DailyBriefTopicToAvoid[];
   overallWarnings: string[];
   recommendedFocus: DailyBriefRecommendedFocus;
@@ -191,6 +192,16 @@ function buildValidationWarnings(input: BuildDailyBriefReportDocumentInput) {
     );
   }
 
+  const cautiousResearch = input.researchSignals.filter(
+    (trend) => trend.researchSignal.confidenceImpact === "caution",
+  ).length;
+
+  if (cautiousResearch > 0) {
+    warnings.push(
+      `${cautiousResearch} research signal(s) are isolated or overweighted; keep adoption claims cautious.`,
+    );
+  }
+
   return compactUnique(warnings, 6);
 }
 
@@ -288,6 +299,12 @@ export function buildDailyBriefReportDocument(
               input.radarStats.creatorOpportunities,
               "Best creator opportunities",
               "positive",
+            ),
+            metric(
+              "Research",
+              input.radarStats.researchSignals,
+              "arXiv-backed candidates",
+              "warning",
             ),
             metric(
               "Avoid",
@@ -407,6 +424,20 @@ export function buildDailyBriefReportDocument(
           ),
           tone: "positive",
           exportPriority: 20,
+        }),
+        block({
+          id: "research-signals",
+          type: "research_signal",
+          title: "Research Signals To Validate",
+          description:
+            "arXiv evidence is useful early signal, but it is deliberately separated from adoption proof.",
+          trendRefs: trendRefsFromTrends(
+            input.researchSignals,
+            (trend) =>
+              `${trend.researchSignal.summary} ${trend.researchSignal.recommendedUse}`,
+          ),
+          tone: "warning",
+          exportPriority: 25,
         }),
         block({
           id: "topics-to-avoid",

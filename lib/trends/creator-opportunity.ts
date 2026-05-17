@@ -97,7 +97,9 @@ function sourceQualityScore(sources: string[]) {
     const normalized = source.toLowerCase();
     if (normalized.includes("hacker news")) return 86;
     if (normalized.includes("github")) return 82;
+    if (normalized.includes("arxiv")) return 86;
     if (normalized.includes("rss")) return 74;
+    if (normalized.includes("youtube")) return 64;
     return 64;
   });
 
@@ -250,6 +252,7 @@ function audienceFit(input: CreatorOpportunityInput): CreatorAudienceFit[] {
     category.includes("research") ||
     category.includes("local llm") ||
     category.includes("security") ||
+    input.sources.some((source) => source.toLowerCase().includes("arxiv")) ||
     input.sourceDiversity >= 72
   ) {
     fits.add("researchers");

@@ -19,6 +19,8 @@ export type ProductTrendIntelligence = {
   recommendedNextAction: string;
   evidenceQualitySummary: string;
   sourceContributionSummary: string;
+  researchSummary: string;
+  researchCaveat: string;
 };
 
 export type TrendCalibrationBreakdown = {
@@ -31,6 +33,8 @@ export type TrendCalibrationBreakdown = {
   qualityGateContribution: number;
   creatorOpportunityContribution: number;
   sourceDiversityContribution: number;
+  researchSignalContribution: number;
+  researchOnlyPenalty: number;
   weakEvidencePenalty: number;
   noiseRiskPenalty: number;
   mainstreamSaturationPenalty: number;
@@ -59,16 +63,25 @@ export function buildProductTrendIntelligence(
   const signalStrength = clampScore(
     trend.trendScore * 0.5 + trend.velocity * 0.22 + trend.lifecycle.freshnessScore * 0.28,
   );
+  const researchEvidenceLift =
+    trend.researchSignal.confidenceImpact === "boost"
+      ? trend.researchSignal.score * 0.08
+      : trend.researchSignal.confidenceImpact === "caution"
+        ? -trend.researchSignal.researchOnlyPenalty * 0.45
+        : trend.researchSignal.score * 0.03;
   const evidenceQuality = clampScore(
-    trend.topicQuality.score * 0.55 +
-      trend.sourceQuality.sourceTrustScore * 0.2 +
-      trend.sourceQuality.crossSourceConfirmationScore * 0.25,
+    trend.topicQuality.score * 0.52 +
+      trend.sourceQuality.sourceTrustScore * 0.19 +
+      trend.sourceQuality.crossSourceConfirmationScore * 0.23 +
+      researchEvidenceLift,
   );
   const sourceConfidence = clampScore(
-    trend.sourceQuality.sourceTrustScore * 0.38 +
-      trend.sourceQuality.connectorReliabilityScore * 0.22 +
-      trend.sourceQuality.crossSourceConfirmationScore * 0.25 +
-      trend.sourceQuality.sourceDiversityScore * 0.15,
+    trend.sourceQuality.sourceTrustScore * 0.36 +
+      trend.sourceQuality.connectorReliabilityScore * 0.2 +
+      trend.sourceQuality.crossSourceConfirmationScore * 0.24 +
+      trend.sourceQuality.sourceDiversityScore * 0.14 +
+      (trend.researchSignal.confidenceImpact === "boost" ? 6 : 0) -
+      (trend.researchSignal.confidenceImpact === "caution" ? 6 : 0),
   );
   const shouldAvoid =
     trend.topicQuality.gateStatus === "suppress" ||
@@ -76,6 +89,7 @@ export function buildProductTrendIntelligence(
     trend.lifecycle.status === "Stale" ||
     trend.lifecycle.status === "Dormant" ||
     (trend.saturation >= 86 && trend.hiddenGemScore < 65) ||
+    (trend.researchSignal.evidenceLevel === "research_only" && trend.sourceQuality.confirmedSourceCount <= 1) ||
     evidenceQuality < 42;
   const shouldAct =
     !shouldAvoid &&
@@ -118,18 +132,24 @@ export function buildProductTrendIntelligence(
     whyNow: trend.whyNow,
     whyItMatters:
       classification === "Act"
-        ? `${trend.topic} has enough freshness, evidence and source confidence to turn into a concrete move.`
+        ? trend.researchSignal.confidenceImpact === "boost"
+          ? `${trend.topic} has enough freshness, evidence, source confidence and research support to turn into a concrete move.`
+          : `${trend.topic} has enough freshness, evidence and source confidence to turn into a concrete move.`
         : classification === "Watch"
           ? `${trend.topic} has useful early movement, but the safer play is to confirm evidence before spending serious attention.`
-          : `${trend.topic} is not clean enough for today's focus. The risk is higher than the opportunity.` ,
+          : `${trend.topic} is not clean enough for today's focus. The risk is higher than the opportunity.`,
     creatorAngle:
       trend.creatorOpportunity.contentRisk === "high"
         ? "Creator angle exists, but it needs a sharper evidence-backed hook first."
         : trend.creatorOpportunity.bestAngle,
     startupAngle:
-      trend.saturation <= 68 && trend.sourceQuality.crossSourceConfirmationScore >= 58
-        ? `Good startup research angle: inspect who is adopting ${trend.topic.toLowerCase()} and what workflow pain it reveals.`
-        : `Startup angle is watch-only: validate demand and source diversity before framing ${trend.topic.toLowerCase()} as an opportunity.`,
+      trend.researchSignal.evidenceLevel === "research_backed"
+        ? `Good research-backed startup angle: validate which workflow pain could turn ${trend.topic.toLowerCase()} from paper signal into applied demand.`
+        : trend.researchSignal.evidenceLevel === "research_only"
+          ? `Research-only angle: useful for exploration, but validate adoption before treating ${trend.topic.toLowerCase()} as a startup opportunity.`
+          : trend.saturation <= 68 && trend.sourceQuality.crossSourceConfirmationScore >= 58
+            ? `Good startup research angle: inspect who is adopting ${trend.topic.toLowerCase()} and what workflow pain it reveals.`
+            : `Startup angle is watch-only: validate demand and source diversity before framing ${trend.topic.toLowerCase()} as an opportunity.`,
     noiseRisk,
     saturationRisk,
     recommendedNextAction:
@@ -145,6 +165,8 @@ export function buildProductTrendIntelligence(
           ? "Evidence quality is usable, but not bulletproof."
           : "Evidence quality is thin; do not over-interpret it.",
     sourceContributionSummary: trend.sourceQuality.summary,
+    researchSummary: trend.researchSignal.summary,
+    researchCaveat: trend.researchSignal.caveat,
   };
 }
 
@@ -172,6 +194,16 @@ export function buildTrendCalibrationBreakdown(
   const qualityGateContribution = clampScore(trend.topicQuality.score * 0.18);
   const creatorOpportunityContribution = clampScore(trend.creatorOpportunity.score * 0.16);
   const sourceDiversityContribution = clampScore(trend.sourceQuality.sourceDiversityScore * 0.1);
+  const researchSignalContribution =
+    trend.researchSignal.confidenceImpact === "boost"
+      ? clampScore(trend.researchSignal.score * 0.12)
+      : trend.researchSignal.evidenceLevel === "early_research"
+        ? clampScore(trend.researchSignal.score * 0.06)
+        : 0;
+  const researchOnlyPenalty =
+    trend.researchSignal.confidenceImpact === "caution"
+      ? Math.max(6, trend.researchSignal.researchOnlyPenalty)
+      : 0;
   const weakEvidencePenalty =
     trend.mentionCount <= 2 || trend.sourceQuality.singleSourceRisk !== "low" ? 10 : 0;
   const noiseRiskPenalty =
@@ -192,11 +224,13 @@ export function buildTrendCalibrationBreakdown(
     trend.creatorOpportunity.score >= 72 ? "Creator opportunity is strong." : "",
     trend.sourceQuality.crossSourceConfirmationScore >= 70 ? "Cross-source confirmation is healthy." : "",
     hiddenGemBoost > 0 ? "Hidden-gem preference boosts the rank." : "",
+    researchSignalContribution > 0 ? "Research signal supports the rank without becoming the whole story." : "",
   ].filter(Boolean);
   const negativePressure = [
     weakEvidencePenalty > 0 ? "Evidence is thin or single-source." : "",
     noiseRiskPenalty > 0 ? "Noise risk is reducing confidence." : "",
     mainstreamSaturationPenalty > 0 ? "Saturation is pulling it down." : "",
+    researchOnlyPenalty > 0 ? "Research-only evidence prevents over-promotion." : "",
     preferenceScore < 0 ? "Current preference filters hide this trend." : "",
   ].filter(Boolean);
   const movementExplanation =
@@ -222,6 +256,8 @@ export function buildTrendCalibrationBreakdown(
     qualityGateContribution,
     creatorOpportunityContribution,
     sourceDiversityContribution,
+    researchSignalContribution,
+    researchOnlyPenalty,
     weakEvidencePenalty,
     noiseRiskPenalty,
     mainstreamSaturationPenalty,

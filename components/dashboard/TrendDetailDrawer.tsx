@@ -1189,6 +1189,12 @@ function productDecisionVariant(classification: DashboardTrend["productIntellige
   return "danger" as const;
 }
 
+function researchSignalVariant(impact: DashboardTrend["researchSignal"]["confidenceImpact"]) {
+  if (impact === "boost") return "secondary" as const;
+  if (impact === "caution") return "accent" as const;
+  return "muted" as const;
+}
+
 function ProductTrendDecisionSection({
   trend,
   showAdminDiagnostics,
@@ -1198,6 +1204,7 @@ function ProductTrendDecisionSection({
 }) {
   const intelligence = trend.productIntelligence;
   const sourceQuality = trend.sourceQuality;
+  const researchSignal = trend.researchSignal;
   const primarySource = sourceQuality.contribution[0];
 
   return (
@@ -1245,11 +1252,28 @@ function ProductTrendDecisionSection({
         {primarySource ? ` Primary source group: ${primarySource.source} (${primarySource.signalCount} signal${primarySource.signalCount === 1 ? "" : "s"}).` : ""}
       </div>
 
+      <div className="mt-4 rounded-2xl border border-secondary/10 bg-[#0f0808]/35 p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={researchSignalVariant(researchSignal.confidenceImpact)}>Research signal</Badge>
+          <Badge variant="muted">{researchSignal.score}/100</Badge>
+          <Badge variant="muted">{researchSignal.evidenceLevel.replace(/_/g, " ")}</Badge>
+        </div>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground/78">
+          {intelligence.researchSummary} {intelligence.researchCaveat}
+        </p>
+        {researchSignal.recommendedUse ? (
+          <p className="mt-2 text-xs leading-5 text-muted-foreground/62">
+            {researchSignal.recommendedUse}
+          </p>
+        ) : null}
+      </div>
+
       {showAdminDiagnostics ? (
         <div className="mt-4 grid gap-2 md:grid-cols-4">
           <MovementCard label="Trust" value={String(sourceQuality.sourceTrustScore)} helper="source trust" />
           <MovementCard label="Diversity" value={String(sourceQuality.sourceDiversityScore)} helper="source spread" />
           <MovementCard label="Connector" value={String(sourceQuality.connectorReliabilityScore)} helper="reliability" />
+          <MovementCard label="Research share" value={`${researchSignal.researchSourceShare}%`} helper="arXiv/research pressure" />
           <MovementCard label="Single-source risk" value={sourceQuality.singleSourceRisk} helper="admin diagnostic" />
         </div>
       ) : null}
