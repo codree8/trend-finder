@@ -502,6 +502,18 @@ export type LatestScanStatus = {
   topicClusters: number;
   snapshotsCreated: number;
   failedSources: number;
+  scanMode: string | null;
+  requestedScanMode: string | null;
+  selectedCategory: string | null;
+  scanModeLabel: string | null;
+  keywordCount: number;
+  sourceKeywordCounts: Record<string, number>;
+  sourceKeywordCaps: Record<string, number>;
+  categoryCoverage: Array<{
+    category: string;
+    selectedKeywords: number;
+    totalKeywords: number;
+  }>;
   sourceCoverage: ScanSourceCoverage;
   warnings: string[];
   connectorReadiness?: ConnectorReadinessSummary;

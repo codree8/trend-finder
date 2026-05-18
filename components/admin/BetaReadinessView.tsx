@@ -61,6 +61,20 @@ const checks: ReadinessCheck[] = [
     route: "/dashboard",
   },
   {
+    group: "Data",
+    title: "Category keyword coverage",
+    status: "Ready",
+    detail: "All product categories are backed by keyword packs and visible from Admin Source Connectors.",
+    route: "/admin/source-connectors",
+  },
+  {
+    group: "Data",
+    title: "Noise suppression",
+    status: "Ready",
+    detail: "Suppressed and rejected trends are hidden from product routes while remaining inspectable in Admin Scoring Lab.",
+    route: "/admin/scoring-lab",
+  },
+  {
     group: "Preferences",
     title: "Hydration-safe local preferences",
     status: "Ready",

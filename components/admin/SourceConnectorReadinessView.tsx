@@ -1,5 +1,6 @@
 import { CheckCircle2, KeyRound, PlugZap, ShieldAlert, TriangleAlert } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import { KeywordCoveragePanel } from "@/components/admin/KeywordCoveragePanel";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ConnectorReadinessItem, ConnectorReadinessSummary } from "@/lib/scan/connector-readiness";
@@ -102,6 +103,8 @@ export function SourceConnectorReadinessView({ readiness }: Props) {
             </CardHeader>
           </Card>
         </section>
+
+        <KeywordCoveragePanel />
 
         <Card className="border-border/10 bg-[#160d0d]/62">
           <CardHeader>

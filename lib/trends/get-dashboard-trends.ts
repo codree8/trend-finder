@@ -190,6 +190,48 @@ function stringArrayFromPayload(payload: unknown, key: string) {
     : [];
 }
 
+function numberRecordFromPayload(payload: unknown, key: string) {
+  const value = asRecord(payload)[key];
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).filter(
+      (entry): entry is [string, number] =>
+        typeof entry[1] === "number" && Number.isFinite(entry[1]),
+    ),
+  );
+}
+
+function categoryCoverageFromPayload(payload: unknown) {
+  const value = asRecord(payload).categoryCoverage;
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => {
+      const record = asRecord(item);
+      const category = typeof record.category === "string" ? record.category : null;
+      const selectedKeywords =
+        typeof record.selectedKeywords === "number"
+          ? record.selectedKeywords
+          : null;
+      const totalKeywords =
+        typeof record.totalKeywords === "number" ? record.totalKeywords : null;
+
+      if (!category || selectedKeywords == null || totalKeywords == null) {
+        return null;
+      }
+
+      return { category, selectedKeywords, totalKeywords };
+    })
+    .filter(
+      (item): item is {
+        category: string;
+        selectedKeywords: number;
+        totalKeywords: number;
+      } => item !== null,
+    );
+}
+
 function stringArrayFromJson(value: unknown) {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
@@ -688,6 +730,8 @@ function buildLatestScan(
     numberFromPayload(row.rawPayload, "snapshotsCreated") ||
     numberFromPayload(row.rawPayload, "storedSnapshots");
 
+  const payload = asRecord(row.rawPayload);
+
   return {
     status: row.status,
     summary: row.summary,
@@ -700,6 +744,24 @@ function buildLatestScan(
     topicClusters,
     snapshotsCreated,
     failedSources: numberFromPayload(row.rawPayload, "failedSources"),
+    scanMode: typeof payload.scanMode === "string" ? payload.scanMode : null,
+    requestedScanMode:
+      typeof payload.requestedScanMode === "string"
+        ? payload.requestedScanMode
+        : null,
+    selectedCategory:
+      typeof payload.selectedCategory === "string"
+        ? payload.selectedCategory
+        : null,
+    scanModeLabel:
+      typeof payload.scanModeLabel === "string" ? payload.scanModeLabel : null,
+    keywordCount: numberFromPayload(row.rawPayload, "keywordCount"),
+    sourceKeywordCounts: numberRecordFromPayload(
+      row.rawPayload,
+      "sourceKeywordCounts",
+    ),
+    sourceKeywordCaps: numberRecordFromPayload(row.rawPayload, "sourceKeywordCaps"),
+    categoryCoverage: categoryCoverageFromPayload(row.rawPayload),
     sourceCoverage: sourceCoverageFromPayload(row.rawPayload),
     warnings: stringArrayFromPayload(row.rawPayload, "warnings"),
     connectorReadiness: connectorReadinessFromPayload(row.rawPayload),

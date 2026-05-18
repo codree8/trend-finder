@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProductStateCard } from "@/components/common/ProductStateCard";
+import { SuppressedNoiseSummary } from "@/components/admin/SuppressedNoiseSummary";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +34,7 @@ import type {
   DashboardTrend,
   DashboardTrendsResponse,
   DashboardWindow,
+  LatestScanStatus,
   TrendVisibilitySummary,
 } from "@/lib/trends/types";
 
@@ -198,6 +200,7 @@ export function ScoringCalibrationLabView() {
   const [trends, setTrends] = useState<DashboardTrend[]>([]);
   const [visibilitySummary, setVisibilitySummary] =
     useState<TrendVisibilitySummary>(() => emptyVisibilitySummary());
+  const [latestScan, setLatestScan] = useState<LatestScanStatus | null>(null);
   const [qaNotes, setQaNotes] = useState<QaNotesState>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -219,9 +222,11 @@ export function ScoringCalibrationLabView() {
       const data = payload as DashboardTrendsResponse;
       setTrends(data.trends.slice(0, 24));
       setVisibilitySummary(data.visibilitySummary);
+      setLatestScan(data.latestScan);
     } catch (loadError) {
       setTrends([]);
       setVisibilitySummary(emptyVisibilitySummary());
+      setLatestScan(null);
       setError(loadError instanceof Error ? loadError.message : "Failed to load calibration sample.");
     } finally {
       setIsLoading(false);
@@ -437,55 +442,7 @@ export function ScoringCalibrationLabView() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/10 bg-[#160d0d]/62">
-          <CardHeader>
-            <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
-              <ShieldAlert className="h-4 w-4" />
-              Noise suppression summary
-            </div>
-            <CardTitle>What the product radar hides</CardTitle>
-            <CardDescription>
-              Product views hide suppressed and rejected trends. This admin lab
-              loads the full sample so weak signals can still be inspected.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
-            {[
-              ["Evaluated", visibilitySummary.totalEvaluated],
-              ["Visible", visibilitySummary.productVisible],
-              ["Research-only", visibilitySummary.researchOnly],
-              ["Suppressed", visibilitySummary.suppressed],
-              ["Rejected", visibilitySummary.rejected],
-              ["Hidden", visibilitySummary.hiddenFromProduct],
-            ].map(([label, value]) => (
-              <div
-                key={label}
-                className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
-              >
-                <p className="text-[0.66rem] uppercase tracking-[0.18em] text-muted-foreground/55">
-                  {label}
-                </p>
-                <p className="mt-1 text-2xl font-semibold text-foreground">
-                  {value}
-                </p>
-              </div>
-            ))}
-            {visibilitySummary.topSuppressionReasons.length > 0 ? (
-              <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3 md:col-span-3 xl:col-span-6">
-                <p className="text-[0.66rem] uppercase tracking-[0.18em] text-muted-foreground/55">
-                  Top suppression reasons
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {visibilitySummary.topSuppressionReasons.map((item) => (
-                    <Badge key={item.reason} variant="accent">
-                      {item.reason}: {item.count}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
+        <SuppressedNoiseSummary summary={visibilitySummary} latestScan={latestScan} />
 
 
         {error ? <ProductStateCard variant="error" title="Calibration sample failed" description={error} /> : null}
