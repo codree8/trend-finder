@@ -45,21 +45,36 @@ http://localhost:3000/dashboard
 
 ## Environment
 
-Copy `.env.example` to `.env.local`.
+This project uses local environment variables for database access and optional source connectors.
+
+Create a local `.env.local` file in the project root:
 
 ```bash
-cp .env.example .env.local
-```
+touch .env.local
 
-For a UI-only run, env values are not required. For persistence and live scans, configure:
-
-```env
+# Required for database-backed scans, dashboard data, watchlist, reports and history.(neon)
 DATABASE_URL=
-GITHUB_TOKEN=
-CRON_SECRET=
-```
 
-`GITHUB_TOKEN` is optional but strongly recommended because unauthenticated GitHub API limits are much lower.
+# Optional but recommended.
+# Improves GitHub API reliability and reduces rate-limit issues.
+GITHUB_TOKEN="your_github_token_here"
+
+# Optional.
+# YouTube is implemented but disabled by default to protect quota.
+# Enable only after adding a valid YouTube Data API key.
+ENABLE_YOUTUBE_CONNECTOR=false
+YOUTUBE_API_KEY="your_youtube_api_key_here"
+
+# Optional.
+# arXiv requires no API key. Enabled by default because it uses one lightweight
+# public Atom API request per scan. Set false if you want only product/community sources.
+ENABLE_ARXIV_CONNECTOR=true
+
+# Future / disabled connector.
+# Reddit is not active in the current production flow yet.
+ENABLE_REDDIT_CONNECTOR=false
+REDDIT_CLIENT_ID=""
+REDDIT_CLIENT_SECRET=""
 
 ## Current Pages
 
