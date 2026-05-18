@@ -19,6 +19,11 @@ import { buildResearchSignalCalibration } from "@/lib/product/research-signal-ca
 import { buildSignalAgingProfile } from "@/lib/product/signal-aging";
 import { buildTrendValidationState } from "@/lib/product/trend-validation-state";
 import { buildEvidenceActionConsistencyQa } from "@/lib/product/evidence-action-consistency";
+import {
+  buildTrendVisibility,
+  buildTrendVisibilitySummary,
+  isProductVisibleTrend,
+} from "@/lib/scoring/visibility-gate";
 import { getConnectorReadinessSummary } from "@/lib/scan/connector-readiness";
 import {
   canonicalKeyFromTopicText,
@@ -199,7 +204,6 @@ function canonicalKeyForRow(
   );
 }
 
-
 function connectorReadinessFromPayload(payload: unknown) {
   const readiness = asRecord(asRecord(payload).connectorReadiness);
   const items = readiness.items;
@@ -213,13 +217,19 @@ function connectorReadinessFromPayload(payload: unknown) {
     ...readiness,
     items,
     warnings: Array.isArray(readiness.warnings)
-      ? readiness.warnings.filter((item): item is string => typeof item === "string")
+      ? readiness.warnings.filter(
+          (item): item is string => typeof item === "string",
+        )
       : [],
     activeSources: Array.isArray(readiness.activeSources)
-      ? readiness.activeSources.filter((item): item is string => typeof item === "string")
+      ? readiness.activeSources.filter(
+          (item): item is string => typeof item === "string",
+        )
       : [],
     inactiveSupportedSources: Array.isArray(readiness.inactiveSupportedSources)
-      ? readiness.inactiveSupportedSources.filter((item): item is string => typeof item === "string")
+      ? readiness.inactiveSupportedSources.filter(
+          (item): item is string => typeof item === "string",
+        )
       : [],
   };
 }
@@ -515,6 +525,7 @@ function buildDashboardTrend(
     productIntelligence: null as never,
     trendValidation: null as never,
     actionConsistency: null as never,
+    visibility: null as never,
   };
   const withProductIntelligence = {
     ...trend,
@@ -525,9 +536,14 @@ function buildDashboardTrend(
     trendValidation: buildTrendValidationState(withProductIntelligence),
   };
 
-  return {
+  const withActionConsistency = {
     ...withValidation,
     actionConsistency: buildEvidenceActionConsistencyQa(withValidation),
+  };
+
+  return {
+    ...withActionConsistency,
+    visibility: buildTrendVisibility(withActionConsistency),
   };
 }
 
@@ -713,13 +729,17 @@ function qualityAdjustedTrendRank(trend: DashboardTrend) {
 
 function promotableTrend(trend: DashboardTrend) {
   return (
-    trend.topicQuality.gateStatus !== "suppress" &&
-    trend.topicQuality.isActionableTrend
+    trend.visibility.isProductVisible && trend.topicQuality.isActionableTrend
   );
 }
 
+export type GetDashboardTrendsOptions = {
+  includeSuppressed?: boolean;
+};
+
 export async function getDashboardTrends(
   requestedWindow: DashboardWindow = "7d",
+  options: GetDashboardTrendsOptions = {},
 ): Promise<DashboardTrendsResponse> {
   const db = getDb();
 
@@ -836,7 +856,7 @@ export async function getDashboardTrends(
     current.push(mention);
     mentionsByTopic.set(mention.topicId, current);
   }
-  const trends = latestRows
+  const allTrends = latestRows
     .map((row) =>
       buildDashboardTrend(
         row,
@@ -847,6 +867,10 @@ export async function getDashboardTrends(
       ),
     )
     .sort((a, b) => qualityAdjustedTrendRank(b) - qualityAdjustedTrendRank(a));
+  const visibilitySummary = buildTrendVisibilitySummary(allTrends);
+  const trends = options.includeSuppressed
+    ? allTrends
+    : allTrends.filter(isProductVisibleTrend);
 
   const sourceBreakdown = sourceRows.map((row) => ({
     source: formatSource(row.source),
@@ -858,8 +882,12 @@ export async function getDashboardTrends(
     trend.creatorOpportunity.score * 0.34 +
     trend.lifecycle.freshnessScore * 0.16 +
     Math.max(0, 100 - trend.saturation) * 0.08 +
-    (trend.researchSignal.confidenceImpact === "boost" ? Math.min(6, trend.researchSignal.score * 0.06) : 0) -
-    (trend.researchSignal.confidenceImpact === "caution" ? Math.min(6, trend.researchSignal.researchOnlyPenalty * 0.3) : 0) -
+    (trend.researchSignal.confidenceImpact === "boost"
+      ? Math.min(6, trend.researchSignal.score * 0.06)
+      : 0) -
+    (trend.researchSignal.confidenceImpact === "caution"
+      ? Math.min(6, trend.researchSignal.researchOnlyPenalty * 0.3)
+      : 0) -
     Math.max(0, trend.saturation - 70) * 0.35;
 
   const qualityCheckedTrends = trends.filter(promotableTrend);
@@ -924,5 +952,6 @@ export async function getDashboardTrends(
       trend: creatorOpportunities[0] ?? null,
       opportunities: creatorOpportunities,
     },
+    visibilitySummary,
   };
 }

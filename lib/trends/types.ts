@@ -122,7 +122,6 @@ export type TopicQuality = {
   warnings: string[];
 };
 
-
 export type SignalAgingBand = "fresh" | "active" | "cooling" | "stale";
 
 export type SignalAgingStatus =
@@ -219,6 +218,61 @@ export type EvidenceToActionConsistencyQa = {
   recommendedFix: string;
 };
 
+export type TrendVisibilityStatus =
+  | "priority"
+  | "strong"
+  | "watch"
+  | "research_only"
+  | "suppressed"
+  | "rejected";
+
+export type TrendVisibilityDecision = "act" | "watch" | "research" | "hide";
+
+export type TrendVisibilityReasonCode =
+  | "strong_composite_signal"
+  | "priority_signal"
+  | "watchable_signal"
+  | "research_only_signal"
+  | "early_hidden_gem_exception"
+  | "low_composite_score"
+  | "weak_source_coverage"
+  | "weak_topic_quality"
+  | "high_noise_risk"
+  | "quality_gate_suppressed"
+  | "stale_or_dormant"
+  | "too_saturated"
+  | "evidence_action_blocked"
+  | "validation_ignored"
+  | "no_usable_evidence"
+  | "generic_or_vague_topic";
+
+export type TrendVisibility = {
+  status: TrendVisibilityStatus;
+  statusLabel: string;
+  decision: TrendVisibilityDecision;
+  decisionLabel: string;
+  visibilityScore: number;
+  isProductVisible: boolean;
+  isSuppressed: boolean;
+  hiddenGemException: boolean;
+  primaryReason: string;
+  reasons: string[];
+  reasonCodes: TrendVisibilityReasonCode[];
+  warnings: string[];
+  recommendedAction: string;
+};
+
+export type TrendVisibilitySummary = {
+  totalEvaluated: number;
+  productVisible: number;
+  hiddenFromProduct: number;
+  byStatus: Record<TrendVisibilityStatus, number>;
+  suppressed: number;
+  rejected: number;
+  researchOnly: number;
+  topSuppressionReasons: Array<{ reason: string; count: number }>;
+};
+
 export type DashboardKpi = {
   label: string;
   value: string;
@@ -232,7 +286,6 @@ export type DashboardTopSignal = {
   url: string;
   engagement: number;
 };
-
 
 export type SourceQualityCategory =
   | "code"
@@ -268,7 +321,6 @@ export type SourceQualitySummary = {
   contribution: SourceQualityContribution[];
   summary: string;
 };
-
 
 export type ResearchEvidenceLevel =
   | "none"
@@ -410,6 +462,7 @@ export type DashboardTrend = {
   productIntelligence: ProductTrendIntelligence;
   trendValidation: TrendValidationState;
   actionConsistency: EvidenceToActionConsistencyQa;
+  visibility: TrendVisibility;
 };
 
 export type SourceBreakdownItem = {
@@ -470,6 +523,7 @@ export type DashboardTrendsResponse = {
     trend: DashboardTrend | null;
     opportunities: DashboardTrend[];
   };
+  visibilitySummary: TrendVisibilitySummary;
 };
 
 export type DashboardTrendsErrorResponse = {

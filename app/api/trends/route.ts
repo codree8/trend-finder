@@ -11,7 +11,10 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const window = normalizeDashboardWindow(searchParams.get("window"));
-    const data = await getDashboardTrends(window);
+    const includeSuppressed =
+      searchParams.get("includeSuppressed") === "1" ||
+      searchParams.get("includeSuppressed") === "true";
+    const data = await getDashboardTrends(window, { includeSuppressed });
 
     return NextResponse.json(data, {
       headers: {

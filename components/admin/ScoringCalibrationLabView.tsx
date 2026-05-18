@@ -29,7 +29,12 @@ import {
 } from "@/lib/preferences/product-preferences";
 import { productPreferenceScore, sourceWeightMultiplier } from "@/lib/product/apply-product-preferences";
 import { buildTrendCalibrationBreakdown } from "@/lib/product/intelligence-scoring";
-import type { DashboardTrend, DashboardTrendsResponse, DashboardWindow } from "@/lib/trends/types";
+import type {
+  DashboardTrend,
+  DashboardTrendsResponse,
+  DashboardWindow,
+  TrendVisibilitySummary,
+} from "@/lib/trends/types";
 
 const windows: DashboardWindow[] = ["24h", "7d", "30d"];
 const qaNotesStorageKey = "trend-finder-admin-qa-notes-v1";
@@ -167,10 +172,32 @@ function firstOrFallback(items: string[], fallback: string) {
   return items.length > 0 ? items[0] : fallback;
 }
 
+function emptyVisibilitySummary(): TrendVisibilitySummary {
+  return {
+    totalEvaluated: 0,
+    productVisible: 0,
+    hiddenFromProduct: 0,
+    byStatus: {
+      priority: 0,
+      strong: 0,
+      watch: 0,
+      research_only: 0,
+      suppressed: 0,
+      rejected: 0,
+    },
+    suppressed: 0,
+    rejected: 0,
+    researchOnly: 0,
+    topSuppressionReasons: [],
+  };
+}
+
 export function ScoringCalibrationLabView() {
   const [preferences, setPreferences] = useState<ProductPreferences>(defaultProductPreferences);
   const [windowValue, setWindowValue] = useState<DashboardWindow>("7d");
   const [trends, setTrends] = useState<DashboardTrend[]>([]);
+  const [visibilitySummary, setVisibilitySummary] =
+    useState<TrendVisibilitySummary>(() => emptyVisibilitySummary());
   const [qaNotes, setQaNotes] = useState<QaNotesState>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -181,14 +208,20 @@ export function ScoringCalibrationLabView() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/trends?window=${windowValue}`, { cache: "no-store" });
+      const response = await fetch(
+        `/api/trends?window=${windowValue}&includeSuppressed=1`,
+        { cache: "no-store" },
+      );
       const payload = await response.json();
       if (!response.ok || !payload.ok) {
         throw new Error(payload.message ?? "Failed to load calibration sample.");
       }
-      setTrends((payload as DashboardTrendsResponse).trends.slice(0, 24));
+      const data = payload as DashboardTrendsResponse;
+      setTrends(data.trends.slice(0, 24));
+      setVisibilitySummary(data.visibilitySummary);
     } catch (loadError) {
       setTrends([]);
+      setVisibilitySummary(emptyVisibilitySummary());
       setError(loadError instanceof Error ? loadError.message : "Failed to load calibration sample.");
     } finally {
       setIsLoading(false);
@@ -403,6 +436,57 @@ export function ScoringCalibrationLabView() {
             ))}
           </CardContent>
         </Card>
+
+        <Card className="border-border/10 bg-[#160d0d]/62">
+          <CardHeader>
+            <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
+              <ShieldAlert className="h-4 w-4" />
+              Noise suppression summary
+            </div>
+            <CardTitle>What the product radar hides</CardTitle>
+            <CardDescription>
+              Product views hide suppressed and rejected trends. This admin lab
+              loads the full sample so weak signals can still be inspected.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+            {[
+              ["Evaluated", visibilitySummary.totalEvaluated],
+              ["Visible", visibilitySummary.productVisible],
+              ["Research-only", visibilitySummary.researchOnly],
+              ["Suppressed", visibilitySummary.suppressed],
+              ["Rejected", visibilitySummary.rejected],
+              ["Hidden", visibilitySummary.hiddenFromProduct],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
+              >
+                <p className="text-[0.66rem] uppercase tracking-[0.18em] text-muted-foreground/55">
+                  {label}
+                </p>
+                <p className="mt-1 text-2xl font-semibold text-foreground">
+                  {value}
+                </p>
+              </div>
+            ))}
+            {visibilitySummary.topSuppressionReasons.length > 0 ? (
+              <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3 md:col-span-3 xl:col-span-6">
+                <p className="text-[0.66rem] uppercase tracking-[0.18em] text-muted-foreground/55">
+                  Top suppression reasons
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {visibilitySummary.topSuppressionReasons.map((item) => (
+                    <Badge key={item.reason} variant="accent">
+                      {item.reason}: {item.count}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+
 
         {error ? <ProductStateCard variant="error" title="Calibration sample failed" description={error} /> : null}
         {isLoading ? <ProductStateCard variant="loading" title="Loading calibration sample" description="Reading current trend snapshots for a safe ranking preview." /> : null}

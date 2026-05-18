@@ -78,6 +78,23 @@ const emptyDashboardData = (
   timeline: [],
   radar: [],
   creatorMode: { trend: null, opportunities: [] },
+  visibilitySummary: {
+    totalEvaluated: 0,
+    productVisible: 0,
+    hiddenFromProduct: 0,
+    byStatus: {
+      priority: 0,
+      strong: 0,
+      watch: 0,
+      research_only: 0,
+      suppressed: 0,
+      rejected: 0,
+    },
+    suppressed: 0,
+    rejected: 0,
+    researchOnly: 0,
+    topSuppressionReasons: [],
+  },
 });
 
 const modeCategoryMap: Record<Exclude<DashboardMode, "All">, string[]> = {

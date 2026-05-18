@@ -27,6 +27,7 @@ import { buildSignalAgingProfile } from "@/lib/product/signal-aging";
 import { buildTrendValidationState } from "@/lib/product/trend-validation-state";
 import { buildEvidenceActionConsistencyQa } from "@/lib/product/evidence-action-consistency";
 import { buildTrendSourceEvidenceInspector } from "@/lib/product/source-evidence-inspector";
+import { buildTrendVisibility } from "@/lib/scoring/visibility-gate";
 import {
   canonicalKeyFromTopicText,
   mergeAliases,
@@ -438,6 +439,7 @@ function buildDashboardTrend(
     productIntelligence: null as never,
     trendValidation: null as never,
     actionConsistency: null as never,
+    visibility: null as never,
   };
   const withProductIntelligence = {
     ...trend,
@@ -448,9 +450,14 @@ function buildDashboardTrend(
     trendValidation: buildTrendValidationState(withProductIntelligence),
   };
 
-  return {
+  const withActionConsistency = {
     ...withValidation,
     actionConsistency: buildEvidenceActionConsistencyQa(withValidation),
+  };
+
+  return {
+    ...withActionConsistency,
+    visibility: buildTrendVisibility(withActionConsistency),
   };
 }
 
