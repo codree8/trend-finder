@@ -127,6 +127,8 @@ function trendIdentity(trend: DashboardTrend | null) {
 
 function isUsableOpportunity(trend: DashboardTrend) {
   return (
+    trend.visibility.isProductVisible &&
+    !trend.visibility.isSuppressed &&
     trend.topicQuality.gateStatus !== "suppress" &&
     trend.topicQuality.noiseRisk !== "high" &&
     trend.topicQuality.isActionableTrend &&
@@ -140,10 +142,24 @@ function isUsableOpportunity(trend: DashboardTrend) {
 
 function buildTopPriorityActions(items: ActionQueueItem[]) {
   return items
-    .filter(
-      (item) =>
-        item.actionPriority === "act_now" || item.actionPriority === "monitor",
-    )
+    .filter((item) => {
+      if (!item.trend.visibility.isProductVisible || item.trend.visibility.isSuppressed) {
+        return false;
+      }
+
+      if (item.actionPriority === "act_now") {
+        return (
+          item.trend.visibility.status === "priority" ||
+          item.trend.visibility.status === "strong"
+        );
+      }
+
+      if (item.actionPriority === "monitor") {
+        return item.trend.visibility.status === "watch";
+      }
+
+      return false;
+    })
     .filter((item) => item.trend.topicQuality.gateStatus !== "suppress")
     .slice(0, MAX_PRIORITY_ACTIONS);
 }
@@ -260,7 +276,12 @@ function researchCandidateScore(trend: DashboardTrend) {
 
 function buildResearchSignals(trends: DashboardTrend[]) {
   return trends
-    .filter((trend) => trend.researchSignal.researchSignalCount > 0)
+    .filter((trend) => trend.visibility.isProductVisible && !trend.visibility.isSuppressed)
+    .filter(
+      (trend) =>
+        trend.researchSignal.researchSignalCount > 0 ||
+        trend.visibility.status === "research_only",
+    )
     .filter((trend) => trend.topicQuality.gateStatus !== "suppress")
     .sort((a, b) => researchCandidateScore(b) - researchCandidateScore(a))
     .slice(0, MAX_RESEARCH_SIGNALS);
@@ -336,6 +357,14 @@ function warningsForAvoidTrend(trend: DashboardTrend) {
 }
 
 function shouldAvoidTrend(trend: DashboardTrend) {
+  if (!trend.visibility.isProductVisible || trend.visibility.isSuppressed) {
+    return false;
+  }
+
+  if (trend.visibility.status === "research_only") {
+    return false;
+  }
+
   return (
     trend.topicQuality.gateStatus === "suppress" ||
     trend.topicQuality.noiseRisk === "high" ||
@@ -402,7 +431,7 @@ function buildOverallWarnings(args: {
 
   if (args.actionQueue.summary.actNow === 0) {
     warnings.push(
-      "No Act Now candidate passed the current priority calibration.",
+      "No Act on this candidate passed the current priority calibration.",
     );
   }
 
@@ -581,8 +610,8 @@ function buildBriefPosture(args: {
 
   const reasons = compactUnique([
     actNowCount > 0
-      ? `${pluralize(actNowCount, "Act Now candidate")} cleared priority tuning.`
-      : "No Act Now candidate cleared the priority tuning layer.",
+      ? `${pluralize(actNowCount, "Act on this candidate")} cleared priority tuning.`
+      : "No Act on this candidate cleared the priority tuning layer.",
     opportunityCount > 0
       ? `${pluralize(opportunityCount, "quality opportunity")} remain usable after noise suppression.`
       : "No strong creator or hidden-gem opportunity is clean enough yet.",
@@ -633,7 +662,7 @@ function buildExecutiveSummary(args: {
     ? `${topAction.topic} leads the ${args.briefPosture.label.toLowerCase()}.`
     : topGem
       ? `${topGem.topic} is the cleanest opening, but not a full-force signal yet.`
-      : `${args.briefPosture.label}: no clear Act Now winner.`;
+      : `${args.briefPosture.label}: no clear Act on this winner.`;
 
   const strongestLane = formatTrendList(
     [topAction, topCreator, topGem, topResearch],
@@ -643,7 +672,7 @@ function buildExecutiveSummary(args: {
 
   const narrative =
     args.topPriorityActions.length > 0
-      ? `In the ${args.window} window, the radar finds ${pluralize(actNow.length, "Act Now candidate")} and ${pluralize(args.topPriorityActions.length - actNow.length, "Monitor candidate")}. The strongest usable lane is ${strongestLane}. Keep ${avoidTarget} out of today's priority path unless evidence improves.`
+      ? `In the ${args.window} window, the radar finds ${pluralize(actNow.length, "Act on this candidate")} and ${pluralize(args.topPriorityActions.length - actNow.length, "Watch candidate")}. The strongest usable lane is ${strongestLane}. Keep ${avoidTarget} out of today's priority path unless evidence improves.`
       : `In the ${args.window} window, the radar is conservative. Use the brief for monitoring, watchlist inspection and noise suppression rather than aggressive publishing.`;
 
   const bullets = [
@@ -781,7 +810,7 @@ function buildIntelligenceNarratives(args: {
       id: "priority-thesis",
       eyebrow: "Fallback thesis",
       title: hiddenGem.topic,
-      verdict: "No Act Now winner, but this is the cleanest early opening.",
+      verdict: "No Act on this winner, but this is the cleanest early opening.",
       narrative: `${hiddenGem.topic} is not promoted as a hard action yet, but it is the best candidate to inspect because the hidden-gem layer sees early upside without obvious noise pressure.`,
       confidence: trendNarrativeConfidence(hiddenGem),
       tone: "monitor",
@@ -944,10 +973,10 @@ function buildRecommendedFocus(args: {
           ? `Focus today on research validation for ${researchCandidate.topic}: ${researchCandidate.researchSignal.recommendedUse}`
           : "Focus today on evidence review, not publishing. The radar is not showing a clean high-priority target.",
     monitor: watchCandidate?.currentTrend
-      ? `Monitor ${watchCandidate.currentTrend.topic}: ${watchCandidate.delta.summary}`
+      ? `Watch ${watchCandidate.currentTrend.topic}: ${watchCandidate.delta.summary}`
       : hiddenGem
-        ? `Monitor ${hiddenGem.topic}: it is early, usable and not yet over-saturated.`
-        : "Monitor the next scan for source diversity and fresh mentions before making a move.",
+        ? `Watch ${hiddenGem.topic}: it is early, usable and not yet over-saturated.`
+        : "Watch the next scan for source diversity and fresh mentions before making a move.",
     avoid: avoidCandidate
       ? `Avoid ${avoidCandidate.trend.topic}: ${avoidCandidate.reason}`
       : "Avoid forcing content from weak or generic topics just to fill the calendar.",
@@ -955,7 +984,7 @@ function buildRecommendedFocus(args: {
       `Brief posture is ${args.briefPosture.label.toLowerCase()} with ${args.briefPosture.confidence}/100 confidence.`,
       primaryAction
         ? `Action layer selected ${primaryAction.trend.topic} with ${primaryAction.actionScore}/100 action score.`
-        : "Action layer did not find a strong Act Now candidate.",
+        : "Action layer did not find a strong Act on this candidate.",
       creatorCandidate
         ? `Best creator timing: ${creatorCandidate.topic} is marked ${creatorCandidate.creatorOpportunity.recommendedTiming}.`
         : "Creator opportunity layer is not showing a low-risk winner yet.",

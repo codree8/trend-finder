@@ -84,24 +84,24 @@ export function buildActionQueueQa(
   if (actNowShare > 18 && totalItems >= 12) {
     pushWarning(warnings, {
       severity: "danger",
-      title: "Act Now lane may be too loose",
-      detail: `${actNowShare}% of visible trends are in Act Now. Keep this lane rare or it stops being a priority signal.`,
+      title: "Act on this lane may be too loose",
+      detail: `${actNowShare}% of visible trends are in Act on this. Keep this lane rare or it stops being a priority signal.`,
     });
   }
 
   if (highRiskActNowCount > 0) {
     pushWarning(warnings, {
       severity: "danger",
-      title: "Risky Act Now candidates detected",
-      detail: `${highRiskActNowCount} Act Now item${highRiskActNowCount === 1 ? "" : "s"} still has quality, confidence or warning pressure.`,
+      title: "Risky Act on this candidates detected",
+      detail: `${highRiskActNowCount} Act on this item${highRiskActNowCount === 1 ? "" : "s"} still has quality, confidence or warning pressure.`,
     });
   }
 
   if (singleSourceActNowCount > 0) {
     pushWarning(warnings, {
       severity: "warning",
-      title: "Single-source Act Now candidate",
-      detail: `${singleSourceActNowCount} Act Now item${singleSourceActNowCount === 1 ? "" : "s"} has fewer than two confirming sources.`,
+      title: "Single-source Act on this candidate",
+      detail: `${singleSourceActNowCount} Act on this item${singleSourceActNowCount === 1 ? "" : "s"} has fewer than two confirming sources.`,
     });
   }
 
@@ -109,7 +109,7 @@ export function buildActionQueueQa(
     pushWarning(warnings, {
       severity: "info",
       title: "Promotion candidates held back",
-      detail: `${blockedActNowCandidates} high-scoring item${blockedActNowCandidates === 1 ? "" : "s"} were blocked from Act Now by calibration rules. That is intentional noise suppression, not a bug.`,
+      detail: `${blockedActNowCandidates} high-scoring item${blockedActNowCandidates === 1 ? "" : "s"} were blocked from Act on this by calibration rules. That is intentional noise suppression, not a bug.`,
     });
   }
 
@@ -131,7 +131,7 @@ export function buildActionQueueQa(
 
   if (actNowItems.length === 0 && totalItems > 0) {
     tuningNotes.push(
-      "No Act Now items is acceptable; the queue is tuned to prefer false negatives over noisy recommendations.",
+      "No Act on this items is acceptable; the queue is tuned to prefer false negatives over noisy recommendations.",
     );
   }
   if (blockedActNowCandidates > 0) {
@@ -145,7 +145,7 @@ export function buildActionQueueQa(
     );
   }
   tuningNotes.push(
-    "Act Now now requires clean quality, fresh timing, reliable evidence and a strong creator window.",
+    "Act on this now requires clean quality, fresh timing, reliable evidence and a strong creator window.",
   );
 
   let status: ActionQueueQaStatus = "healthy";

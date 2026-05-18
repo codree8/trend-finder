@@ -847,6 +847,9 @@ export type DailyBriefReportTrendReference = {
   qualityScore: number;
   lifecycleStatus: string;
   helper: string;
+  visibilityStatus?: TrendVisibilityStatus;
+  visibilityLabel?: string;
+  visibilityDecision?: TrendVisibilityDecision;
 };
 
 export type DailyBriefReportBlockType =

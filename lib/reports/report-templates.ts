@@ -1,6 +1,7 @@
 import type {
   DailyBriefReportBlock,
   DailyBriefReportDocument,
+  DailyBriefReportTrendReference,
   DailyBriefReportSection,
 } from "@/lib/trends/types";
 import type { ReportTemplateId } from "@/lib/preferences/product-preferences";
@@ -112,6 +113,134 @@ function sectionMatches(section: DailyBriefReportSection, key: string) {
   return (sectionIdAliases[key] ?? [key]).some((alias) => searchable.includes(alias));
 }
 
+const templateBlockAllowlist: Record<ReportTemplateId, string[]> = {
+  executive: [
+    "executive-headline",
+    "radar-metrics",
+    "priority-actions",
+    "watchlist-movement",
+    "topics-to-avoid",
+    "focus-block",
+    "warnings",
+  ],
+  creator: [
+    "executive-headline",
+    "hidden-gems",
+    "creator-opportunities",
+    "priority-actions",
+    "topics-to-avoid",
+    "focus-block",
+    "warnings",
+  ],
+  research: [
+    "executive-headline",
+    "radar-metrics",
+    "watchlist-movement",
+    "hidden-gems",
+    "research-signals",
+    "topics-to-avoid",
+    "focus-block",
+    "warnings",
+  ],
+  pitch: [
+    "executive-headline",
+    "hidden-gems",
+    "creator-opportunities",
+    "priority-actions",
+    "focus-block",
+    "warnings",
+  ],
+};
+
+function isHiddenReportTrend(ref: DailyBriefReportTrendReference) {
+  return ref.visibilityStatus === "suppressed" || ref.visibilityStatus === "rejected";
+}
+
+function trendRefAllowedForTemplate(
+  ref: DailyBriefReportTrendReference,
+  templateId: ReportTemplateId,
+  block: DailyBriefReportBlock,
+) {
+  if (isHiddenReportTrend(ref)) return false;
+
+  if (templateId === "pitch") {
+    return ref.visibilityStatus !== "research_only";
+  }
+
+  if (templateId === "executive" && block.id === "priority-actions") {
+    return ref.visibilityDecision === "act" || ref.visibilityDecision === "watch" || !ref.visibilityDecision;
+  }
+
+  return true;
+}
+
+function blockAllowedForTemplate(
+  block: DailyBriefReportBlock,
+  templateId: ReportTemplateId,
+) {
+  const allowlist = templateBlockAllowlist[templateId];
+  if (!allowlist.includes(block.id)) return false;
+
+  if (templateId === "pitch" && block.type === "research_signal") return false;
+  if (templateId === "creator" && block.type === "research_signal") return false;
+
+  return true;
+}
+
+function filterBlockForTemplate(
+  block: DailyBriefReportBlock,
+  templateId: ReportTemplateId,
+): DailyBriefReportBlock | null {
+  if (!blockAllowedForTemplate(block, templateId)) return null;
+
+  const trendRefs = block.trendRefs?.filter((ref) =>
+    trendRefAllowedForTemplate(ref, templateId, block),
+  );
+
+  const nextBlock = trendRefs ? { ...block, trendRefs } : block;
+
+  if (
+    (nextBlock.type === "trend_list" ||
+      nextBlock.type === "avoid_list" ||
+      nextBlock.type === "research_signal" ||
+      nextBlock.type === "watchlist_movement") &&
+    (nextBlock.trendRefs?.length ?? 0) === 0
+  ) {
+    return null;
+  }
+
+  if (nextBlock.type === "warning_list" && (nextBlock.bullets?.length ?? 0) === 0) {
+    return null;
+  }
+
+  return nextBlock;
+}
+
+function filterSectionForTemplate(
+  section: DailyBriefReportSection,
+  templateId: ReportTemplateId,
+): DailyBriefReportSection | null {
+  const blocks = section.blocks
+    .map((block) => filterBlockForTemplate(block, templateId))
+    .filter((block): block is DailyBriefReportBlock => Boolean(block));
+
+  if (blocks.length === 0) return null;
+
+  return {
+    ...section,
+    blocks,
+  };
+}
+
+function applyTemplateFlowRules(
+  sections: DailyBriefReportSection[],
+  templateId: ReportTemplateId,
+) {
+  return sections
+    .map((section) => filterSectionForTemplate(section, templateId))
+    .filter((section): section is DailyBriefReportSection => Boolean(section));
+}
+
 export function getReportTemplate(id: ReportTemplateId) {
   return reportTemplates[id] ?? reportTemplates.executive;
 }
@@ -136,7 +265,7 @@ export function getTemplateOrderedSections(
     if (!selected.has(section)) ordered.push(section);
   });
 
-  return ordered;
+  return applyTemplateFlowRules(ordered, templateId);
 }
 
 export function getTemplateHeroBlocks(
@@ -222,8 +351,12 @@ export function buildTemplateReportDocument(
   templateId: ReportTemplateId,
 ): DailyBriefReportDocument {
   const template = getReportTemplate(templateId);
-  const markdown = buildTemplateMarkdown(document, templateId);
   let sections = getTemplateOrderedSections(document, templateId);
+  const markdownSource: DailyBriefReportDocument = {
+    ...document,
+    sections,
+  };
+  const markdown = buildTemplateMarkdown(markdownSource, templateId);
 
   const templateDocument: DailyBriefReportDocument = {
     ...document,
@@ -379,7 +512,7 @@ export function buildTemplateMarkdown(
       : document.quickCopy.bullets.slice(0, 3).map((bullet) => `- ${bullet}`)),
     "",
     `**Focus:** ${document.quickCopy.focusToday}`,
-    `**Monitor:** ${document.quickCopy.monitor}`,
+    `**Watch:** ${document.quickCopy.monitor}`,
     `**Avoid:** ${document.quickCopy.avoid}`,
     "",
     "## Risks and caveats",

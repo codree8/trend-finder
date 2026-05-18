@@ -47,6 +47,7 @@ import {
 } from "@/lib/trends/daily-brief-export-links";
 import {
   buildTemplateMarkdown,
+  buildTemplateReportDocument,
   getReportTemplate,
   getTemplateHeroBlocks,
 } from "@/lib/reports/report-templates";
@@ -163,6 +164,10 @@ export function DailyBriefView() {
   const [copyState, setCopyState] = useState<CopyState>("idle");
 
   const template = getReportTemplate(preferences.reportTemplate);
+  const reportDocument = useMemo(() => {
+    if (!brief) return null;
+    return buildTemplateReportDocument(brief.reportDocument, preferences.reportTemplate);
+  }, [brief, preferences.reportTemplate]);
 
   const loadBrief = useCallback(async () => {
     setIsLoading(true);
@@ -204,14 +209,14 @@ export function DailyBriefView() {
   }, [loadBrief]);
 
   const markdown = useMemo(() => {
-    if (!brief) return "";
-    return buildTemplateMarkdown(brief.reportDocument, preferences.reportTemplate);
-  }, [brief, preferences.reportTemplate]);
+    if (!reportDocument) return "";
+    return reportDocument.quickCopy.markdown || buildTemplateMarkdown(reportDocument, preferences.reportTemplate);
+  }, [reportDocument, preferences.reportTemplate]);
 
   const heroBlocks = useMemo(() => {
-    if (!brief) return [];
-    return getTemplateHeroBlocks(brief.reportDocument, preferences.reportTemplate, 4);
-  }, [brief, preferences.reportTemplate]);
+    if (!reportDocument) return [];
+    return getTemplateHeroBlocks(reportDocument, preferences.reportTemplate, 4);
+  }, [reportDocument, preferences.reportTemplate]);
 
   const memoCards = useMemo(() => {
     if (!brief) return [];
@@ -462,7 +467,7 @@ export function DailyBriefView() {
                   <p className="mt-2 text-sm leading-6 text-foreground">{brief.recommendedFocus.focusToday}</p>
                 </div>
                 <div className="rounded-2xl border border-border/10 bg-muted/25 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">Monitor</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">Watch</p>
                   <p className="mt-2 text-sm leading-6 text-foreground">{brief.recommendedFocus.monitor}</p>
                 </div>
                 <div className="rounded-2xl border border-primary/20 bg-primary/10 p-4">

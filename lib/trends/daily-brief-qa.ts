@@ -324,7 +324,7 @@ function tuneNarrative(args: {
         context.actionItem.calibration.actNowBlockers.length * 4,
       );
       penalty += blockerPenalty;
-      reasons.push("Action Queue still has Act Now blockers.");
+      reasons.push("Action Queue still has Act on this blockers.");
     }
 
     if (
@@ -333,7 +333,7 @@ function tuneNarrative(args: {
     ) {
       penalty += 7;
       reasons.push(
-        "Narrative sounds like action, but queue priority is not Act Now.",
+        "Narrative sounds like action, but queue priority is not Act on this.",
       );
     }
   }
@@ -409,7 +409,7 @@ function buildTuningNotes(args: {
 
   if (args.actNowCount === 0) {
     notes.push(
-      "No Act Now candidate is not a failure; this layer should prefer a missed opportunity over a noisy recommendation.",
+      "No Act on this candidate is not a failure; this layer should prefer a missed opportunity over a noisy recommendation.",
     );
   }
 
@@ -517,8 +517,8 @@ export function tuneDailyBriefNarratives(
   if (actNowCount > 2) {
     pushWarning(warnings, {
       severity: "danger",
-      title: "Too many Act Now items for a daily brief",
-      detail: `${actNowCount} Act Now items are visible. Daily Brief should usually force one primary lane, not a shopping list of urgency.`,
+      title: "Too many Act on this items for a daily brief",
+      detail: `${actNowCount} Act on this items are visible. Daily Brief should usually force one primary lane, not a shopping list of urgency.`,
     });
   }
 

@@ -12,10 +12,10 @@ import type {
 } from "@/lib/trends/types";
 
 const priorityLabels: Record<TrendActionPriority, string> = {
-  act_now: "Act now",
-  monitor: "Monitor",
-  review: "Review",
-  ignore: "Ignore",
+  act_now: "Act on this",
+  monitor: "Watch this",
+  review: "Research-only, validate first",
+  ignore: "Avoid this",
 };
 
 function clampScore(value: number) {
@@ -66,6 +66,24 @@ function isLifecycleClosed(status: TrendLifecycleStatus) {
 
 function isLifecycleActionable(status: TrendLifecycleStatus) {
   return status === "Emerging" || status === "Accelerating";
+}
+
+function isVisibleEnoughForAction(trend: DashboardTrend) {
+  return (
+    trend.visibility.status === "priority" || trend.visibility.status === "strong"
+  );
+}
+
+function isResearchOnlyTrend(trend: DashboardTrend) {
+  return trend.visibility.status === "research_only";
+}
+
+function visibilityActionCap(trend: DashboardTrend, score: number) {
+  if (trend.visibility.status === "rejected") return Math.min(score, 12);
+  if (trend.visibility.status === "suppressed") return Math.min(score, 24);
+  if (trend.visibility.status === "research_only") return Math.min(score, 47);
+  if (trend.visibility.status === "watch") return Math.min(score, 64);
+  return score;
 }
 
 function hasFreshEnoughSignal(trend: DashboardTrend) {
@@ -154,7 +172,7 @@ function buildRawActionScore(
   if (watchStatus === "cooling") penalty += 10;
   if (watchStatus === "stale") penalty += 22;
 
-  return clampScore(rawScore - penalty);
+  return visibilityActionCap(trend, clampScore(rawScore - penalty));
 }
 
 function buildActNowBlockers(
@@ -165,6 +183,17 @@ function buildActNowBlockers(
   const quality = trend.topicQuality;
   const latestAge = trend.lifecycle.latestSignalAgeHours;
   const watchStatus = watchlistItem?.delta.watchStatus ?? null;
+
+  if (!isVisibleEnoughForAction(trend)) {
+    blockers.push(
+      `${trend.visibility.statusLabel} — Act on this is reserved for priority or strong visibility only.`,
+    );
+  }
+  if (isResearchOnlyTrend(trend)) {
+    blockers.push(
+      "Research-only candidates need stronger non-research confirmation before they can become an action.",
+    );
+  }
 
   if (quality.gateStatus !== "pass") {
     blockers.push(`Quality gate is ${quality.gateStatus}.`);
@@ -180,7 +209,7 @@ function buildActNowBlockers(
   }
   if (trend.creatorOpportunity.score < 78) {
     blockers.push(
-      `Creator opportunity is ${trend.creatorOpportunity.score}/100; Act Now needs 78+.`,
+      `Creator opportunity is ${trend.creatorOpportunity.score}/100; Act on this needs 78+.`,
     );
   }
   if (trend.creatorOpportunity.recommendedTiming !== "Act now") {
@@ -193,17 +222,17 @@ function buildActNowBlockers(
   }
   if (trend.topicQuality.score < 72) {
     blockers.push(
-      `Quality score is ${trend.topicQuality.score}/100; Act Now needs 72+.`,
+      `Quality score is ${trend.topicQuality.score}/100; Act on this needs 72+.`,
     );
   }
   if (!isLifecycleActionable(trend.lifecycle.status)) {
     blockers.push(`Lifecycle is ${trend.lifecycle.status}.`);
   }
   if (trend.signalAging.status === "stale" || trend.signalAging.status === "cooling") {
-    blockers.push(`Signal aging is ${trend.signalAging.status}; Act Now needs active or fresh evidence.`);
+    blockers.push(`Signal aging is ${trend.signalAging.status}; Act on this needs active or fresh evidence.`);
   }
   if (trend.signalAging.status === "resurfacing") {
-    blockers.push("Signal is resurfacing; confirm renewal across another source before Act Now.");
+    blockers.push("Signal is resurfacing; confirm renewal across another source before Act on this.");
   }
   if (trend.trendValidation.decision !== "act") {
     blockers.push(`Validation state is ${trend.trendValidation.statusLabel}; decision is ${trend.trendValidation.decisionLabel}.`);
@@ -213,7 +242,7 @@ function buildActNowBlockers(
   }
   if (latestAge !== null && latestAge > 48) {
     blockers.push(
-      `Latest signal is ${Math.round(latestAge)}h old; Act Now needs freshness.`,
+      `Latest signal is ${Math.round(latestAge)}h old; Act on this needs freshness.`,
     );
   }
   if (trend.saturation >= 72) {
@@ -228,7 +257,7 @@ function buildActNowBlockers(
   }
   if (trend.researchSignal.evidenceLevel === "research_only") {
     blockers.push(
-      "Research signal is isolated; needs builder, market or community confirmation before Act Now.",
+      "Research signal is isolated; needs builder, market or community confirmation before Act on this.",
     );
   }
   if (trend.researchSignal.evidenceLevel === "overweighted") {
@@ -254,6 +283,10 @@ function buildPromotionSignals(
   watchlistItem: SavedTrendWithCurrent | null,
 ) {
   const signals: string[] = [];
+
+  if (isVisibleEnoughForAction(trend)) {
+    signals.push(`Visibility gate says ${trend.visibility.statusLabel}.`);
+  }
 
   if (trend.trendScore >= 78) {
     signals.push(`Trend strength is ${trend.trendScore}/100.`);
@@ -313,6 +346,22 @@ function buildDemotionSignals(
   watchlistItem: SavedTrendWithCurrent | null,
 ) {
   const warnings: string[] = [];
+
+  if (trend.visibility.status === "research_only") {
+    pushUnique(
+      warnings,
+      `Visibility gate says ${trend.visibility.statusLabel}; validate first.`,
+    );
+  }
+  if (trend.visibility.status === "watch") {
+    pushUnique(
+      warnings,
+      `Visibility gate says ${trend.visibility.statusLabel}; keep it below action until confirmation improves.`,
+    );
+  }
+  if (trend.visibility.isSuppressed) {
+    pushUnique(warnings, trend.visibility.primaryReason);
+  }
 
   if (trend.topicQuality.gateStatus !== "pass") {
     pushUnique(warnings, `Quality gate is ${trend.topicQuality.gateStatus}.`);
@@ -426,7 +475,7 @@ function buildCalibration(
 
   if (actNowBlockers.length > 0) {
     tuningNotes.push(
-      "Act Now is blocked until the listed evidence/quality conditions improve.",
+      "Act on this is blocked until the listed evidence/quality conditions improve.",
     );
   }
   if (band === "borderline") {
@@ -441,17 +490,17 @@ function buildCalibration(
   }
   if (trend.researchSignal.confidenceImpact === "caution") {
     tuningNotes.push(
-      "Research-only or overrepresented research signals are held below Act Now until another source class confirms them.",
+      "Research-only or overrepresented research signals are held below Act on this until another source class confirms them.",
     );
   }
   if (trend.lifecycle.status === "Peaking") {
     tuningNotes.push(
-      "Peaking topics are capped below Act Now unless a future scan shows renewed acceleration.",
+      "Peaking topics are capped below Act on this unless a future scan shows renewed acceleration.",
     );
   }
   if (trend.signalAging.decayPenalty > 0) {
     tuningNotes.push(
-      "Signal aging decay is part of the action cap; old evidence cannot carry an Act Now recommendation.",
+      "Signal aging decay is part of the action cap; old evidence cannot carry an Act on this recommendation.",
     );
   }
   if (trend.actionConsistency.status !== "clean") {
@@ -477,6 +526,18 @@ function buildPriority(
 ): TrendActionPriority {
   const quality = trend.topicQuality;
   const watchStatus = watchlistItem?.delta.watchStatus ?? null;
+
+  if (trend.visibility.status === "rejected" || trend.visibility.status === "suppressed") {
+    return "ignore";
+  }
+
+  if (trend.visibility.status === "research_only") {
+    return "review";
+  }
+
+  if (trend.visibility.status === "watch") {
+    return "monitor";
+  }
 
   if (
     quality.gateStatus === "suppress" ||
@@ -561,6 +622,10 @@ function nextStep(
   }
 
   if (priority === "review") {
+    if (trend.visibility.status === "research_only") {
+      return `Research-only, validate first: open intelligence, check source confirmation, and keep ${trend.topic} out of action language until evidence improves.`;
+    }
+
     const blocker = calibration.actNowBlockers[0];
     return blocker
       ? `Open intelligence first; resolve the main blocker before acting: ${blocker}`
@@ -577,16 +642,16 @@ function summaryForPriority(
   calibration: TrendActionCalibration,
 ) {
   if (priority === "act_now") {
-    return `${trend.topic} is actionable now: strong score, clean quality, fresh timing and enough evidence.`;
+    return `${trend.topic} is strong enough to act on: clean visibility, fresh timing and enough evidence.`;
   }
 
   if (priority === "monitor") {
-    return `${trend.topic} has signal, but the calibrated priority score ${actionScore}/100 keeps it below action level.`;
+    return `${trend.topic} has signal, but the calibrated priority score ${actionScore}/100 keeps it in Watch this, not Act on this.`;
   }
 
   if (priority === "review") {
     const blockerCount = calibration.actNowBlockers.length;
-    return `${trend.topic} has potential, but ${blockerCount || "some"} quality/evidence condition${blockerCount === 1 ? "" : "s"} block a clean Act Now call.`;
+    return `${trend.topic} has potential, but ${blockerCount || "some"} quality/evidence condition${blockerCount === 1 ? "" : "s"} block a clean Act on this call.`;
   }
 
   return `${trend.topic} should not take attention right now because the current signal is weak, stale, noisy or too crowded.`;

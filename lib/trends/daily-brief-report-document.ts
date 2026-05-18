@@ -73,6 +73,9 @@ function trendRef(
     qualityScore: trend.topicQuality.score,
     lifecycleStatus: trend.lifecycle.status,
     helper,
+    visibilityStatus: trend.visibility.status,
+    visibilityLabel: trend.visibility.statusLabel,
+    visibilityDecision: trend.visibility.decision,
   };
 }
 
@@ -138,7 +141,7 @@ function buildMarkdown(input: BuildDailyBriefReportDocumentInput) {
     "",
     "### Recommended focus",
     `- Focus today: ${input.recommendedFocus.focusToday}`,
-    `- Monitor: ${input.recommendedFocus.monitor}`,
+    `- Watch: ${input.recommendedFocus.monitor}`,
     `- Avoid: ${input.recommendedFocus.avoid}`,
   ];
 
@@ -277,13 +280,13 @@ export function buildDailyBriefReportDocument(
               "Current trend snapshots",
             ),
             metric(
-              "Act Now",
+              "Act on this",
               input.radarStats.actNow,
               "Priority queue count",
               "positive",
             ),
             metric(
-              "Monitor",
+              "Watch",
               input.radarStats.monitor,
               "Watch candidates",
               "warning",
@@ -374,7 +377,7 @@ export function buildDailyBriefReportDocument(
           type: "trend_list",
           title: "Today’s Priority Actions",
           description:
-            "Act Now / Monitor candidates from the tuned Action Queue.",
+            "Act on this / Watch this candidates from the tuned Action Queue.",
           trendRefs: trendRefsFromActions(input.topPriorityActions),
           tone: "positive",
           exportPriority: 10,
@@ -465,7 +468,7 @@ export function buildDailyBriefReportDocument(
           title: "What to do after reading the brief",
           bullets: [
             `Focus today: ${input.recommendedFocus.focusToday}`,
-            `Monitor: ${input.recommendedFocus.monitor}`,
+            `Watch: ${input.recommendedFocus.monitor}`,
             `Avoid: ${input.recommendedFocus.avoid}`,
             ...input.recommendedFocus.rationale,
           ],
