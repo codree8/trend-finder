@@ -257,9 +257,7 @@ export function DailyBriefView() {
     function syncPreferences() {
       const next = readProductPreferences();
       setPreferences(next);
-      setSelectedWindow(
-        (current) => current || parseDashboardWindow(next.defaultBriefWindow),
-      );
+      setSelectedWindow(parseDashboardWindow(next.defaultBriefWindow));
     }
 
     syncPreferences();
@@ -364,30 +362,40 @@ export function DailyBriefView() {
     () => [
       {
         label: "Open PDF",
-        href: buildDailyBriefPdfExportUrl(selectedWindow),
+        href: buildDailyBriefPdfExportUrl(selectedWindow, {
+          inline: true,
+          template: preferences.reportTemplate,
+        }),
         icon: FileText,
         primary: preferences.defaultExport === "pdf",
       },
       {
         label: "Print-ready",
-        href: buildDailyBriefPdfPrepUrl(selectedWindow),
+        href: buildDailyBriefPdfPrepUrl(selectedWindow, {
+          template: preferences.reportTemplate,
+        }),
         icon: Printer,
-        primary: preferences.defaultExport === "markdown",
+        primary: false,
       },
       {
         label: "Open HTML",
-        href: buildDailyBriefHtmlExportUrl(selectedWindow),
+        href: buildDailyBriefHtmlExportUrl(selectedWindow, {
+          template: preferences.reportTemplate,
+        }),
         icon: Eye,
         primary: preferences.defaultExport === "html",
       },
       {
         label: "Download JSON",
-        href: buildDailyBriefJsonExportUrl(selectedWindow, { download: true }),
+        href: buildDailyBriefJsonExportUrl(selectedWindow, {
+          download: true,
+          template: preferences.reportTemplate,
+        }),
         icon: FileJson,
         primary: preferences.defaultExport === "json",
       },
     ],
-    [preferences.defaultExport, selectedWindow],
+    [preferences.defaultExport, preferences.reportTemplate, selectedWindow],
   );
 
   const isMissingDatabaseConfig = isMissingDatabaseConfigError(error);
@@ -529,7 +537,7 @@ export function DailyBriefView() {
                     <Button
                       type="button"
                       size="sm"
-                      variant="ghost"
+                      variant={preferences.defaultExport === "markdown" ? "secondary" : "ghost"}
                       onClick={() => void handleCopySummary()}
                     >
                       <Clipboard className="mr-2 h-4 w-4" />

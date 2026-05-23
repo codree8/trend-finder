@@ -54,11 +54,21 @@ const qaNoteOptions = [
 type QaNote = (typeof qaNoteOptions)[number];
 type QaNotesState = Record<string, QaNote>;
 
-const sourceRows: Array<{ key: SourceWeightKey; label: string }> = [
+const sourceRows: Array<{
+  key: SourceWeightKey;
+  label: string;
+  status?: string;
+  disabled?: boolean;
+}> = [
   { key: "github", label: "GitHub" },
   { key: "hackerNews", label: "Hacker News" },
   { key: "rss", label: "RSS / Blogs" },
-  { key: "reddit", label: "Reddit" },
+  {
+    key: "reddit",
+    label: "Reddit",
+    status: "model-only / inactive scanner",
+    disabled: true,
+  },
   { key: "youtube", label: "YouTube" },
   { key: "arxiv", label: "arXiv" },
 ];
@@ -78,7 +88,7 @@ const presets: CalibrationPreset[] = [
     id: "creator",
     label: "Creator",
     detail: "Prioritize creator angles, hidden gems and high-signal communities.",
-    weights: { github: 1.05, hackerNews: 1.15, rss: 1, reddit: 1.2, youtube: 1.1, arxiv: 0.9 },
+    weights: { github: 1.05, hackerNews: 1.15, rss: 1, reddit: 1, youtube: 1.1, arxiv: 0.9 },
     includeKeywords: ["creator", "video", "workflow", "tutorial", "tool"],
     minimumTrendScore: 35,
     prioritizeHiddenGems: true,
@@ -87,7 +97,7 @@ const presets: CalibrationPreset[] = [
     id: "startup",
     label: "Startup Founder",
     detail: "Push applied product, adoption and builder signals.",
-    weights: { github: 1.2, hackerNews: 1.2, rss: 1.05, reddit: 0.95, youtube: 0.85, arxiv: 0.9 },
+    weights: { github: 1.2, hackerNews: 1.2, rss: 1.05, reddit: 1, youtube: 0.85, arxiv: 0.9 },
     includeKeywords: ["agent", "workflow", "api", "automation", "product"],
     minimumTrendScore: 40,
     prioritizeHiddenGems: true,
@@ -96,7 +106,7 @@ const presets: CalibrationPreset[] = [
     id: "researcher",
     label: "Researcher",
     detail: "Increase technical and research-source pressure.",
-    weights: { github: 1.15, hackerNews: 1, rss: 1.1, reddit: 0.8, youtube: 0.7, arxiv: 1.5 },
+    weights: { github: 1.15, hackerNews: 1, rss: 1.1, reddit: 1, youtube: 0.7, arxiv: 1.5 },
     includeKeywords: ["paper", "benchmark", "model", "evaluation", "dataset"],
     minimumTrendScore: 30,
     prioritizeHiddenGems: false,
@@ -105,7 +115,7 @@ const presets: CalibrationPreset[] = [
     id: "investor",
     label: "Investor",
     detail: "Favor cross-source momentum and market-facing signals.",
-    weights: { github: 1.05, hackerNews: 1.25, rss: 1.25, reddit: 0.9, youtube: 0.8, arxiv: 0.8 },
+    weights: { github: 1.05, hackerNews: 1.25, rss: 1.25, reddit: 1, youtube: 0.8, arxiv: 0.8 },
     includeKeywords: ["market", "startup", "platform", "adoption", "revenue"],
     minimumTrendScore: 45,
     prioritizeHiddenGems: true,
@@ -114,7 +124,7 @@ const presets: CalibrationPreset[] = [
     id: "content-strategist",
     label: "Content Strategist",
     detail: "Balance audience pull, novelty and repeatable content formats.",
-    weights: { github: 1, hackerNews: 1.1, rss: 1.05, reddit: 1.15, youtube: 1.15, arxiv: 0.8 },
+    weights: { github: 1, hackerNews: 1.1, rss: 1.05, reddit: 1, youtube: 1.15, arxiv: 0.8 },
     includeKeywords: ["guide", "comparison", "mistake", "use case", "trend"],
     minimumTrendScore: 35,
     prioritizeHiddenGems: true,
@@ -399,7 +409,7 @@ export function ScoringCalibrationLabView() {
               <div>
                 <CardTitle>Calibration controls</CardTitle>
                 <CardDescription>
-                  Normal is 1.00x, low is 0.50x, high is 1.50x. Keep it boring unless the data proves otherwise.
+                  Normal is 1.00x, low is 0.50x, high is 1.50x. Reddit is shown as model-only because this build does not scan Reddit.
                 </CardDescription>
               </div>
               <Button type="button" variant="outline" size="sm" onClick={applyRecommendedWeights}>
@@ -411,8 +421,19 @@ export function ScoringCalibrationLabView() {
             {sourceRows.map((source) => (
               <div key={source.key} className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-4">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-foreground">{source.label}</p>
-                  <Badge variant="muted">{preferences.sourceWeights[source.key].toFixed(2)}x</Badge>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{source.label}</p>
+                    {source.status ? (
+                      <p className="mt-1 text-xs text-muted-foreground/60">
+                        {source.status}
+                      </p>
+                    ) : null}
+                  </div>
+                  <Badge variant={source.disabled ? "accent" : "muted"}>
+                    {source.disabled
+                      ? "inactive"
+                      : `${preferences.sourceWeights[source.key].toFixed(2)}x`}
+                  </Badge>
                 </div>
                 <input
                   type="range"
@@ -420,8 +441,9 @@ export function ScoringCalibrationLabView() {
                   max={1.5}
                   step={0.05}
                   value={preferences.sourceWeights[source.key]}
+                  disabled={source.disabled}
                   onChange={(event) => patchSourceWeight(source.key, Number(event.target.value))}
-                  className="mt-4 w-full"
+                  className="mt-4 w-full disabled:cursor-not-allowed disabled:opacity-45"
                 />
               </div>
             ))}

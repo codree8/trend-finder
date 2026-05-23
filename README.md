@@ -126,7 +126,7 @@ npm run db:studio    # Open Drizzle Studio
 
 ```txt
 /                         Public landing page
-/demo                     Demo pitch page
+/demo                     Product explainer with PDF and HTML export
 /dashboard                Main trend radar and scan flow
 /watchlist                Saved trend movement and baseline comparison
 /action-queue             Decision radar: act, monitor, research or avoid
@@ -158,6 +158,8 @@ GET  /api/daily-brief/export/pdf-prep
 GET  /api/daily-brief/export/pdf
 GET  /api/daily-brief/export/pdf/health
 GET  /api/daily-brief/export/readiness
+GET  /api/demo-explainer/export/pdf
+GET  /api/demo-explainer/export/html
 GET  /api/export/json
 GET  /api/export/csv
 GET  /api/export/html
@@ -232,7 +234,8 @@ Then manually verify:
 - Watchlist save/remove works.
 - Action Queue groups candidates correctly.
 - Daily Brief loads for 24h, 7d and 30d windows.
-- PDF, HTML, JSON, print-ready and markdown export paths open.
+- Daily Brief PDF, HTML, JSON, print-ready and markdown export paths open.
+- Product explainer PDF and HTML exports open or download correctly from `/demo`.
 - Reports history saves local snapshots.
 - Admin pages are treated as local QA views, not protected production admin routes.
 

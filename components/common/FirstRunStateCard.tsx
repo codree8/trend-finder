@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Database, PlayCircle, RotateCcw, Settings2 } from "lucide-react";
+import { Database, PlayCircle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -37,12 +37,6 @@ export function FirstRunStateCard({
             </div>
           </div>
           <div className="grid gap-2 sm:flex sm:flex-wrap">
-            <Button asChild size="sm" variant="secondary">
-              <Link href="/settings">
-                <Settings2 className="mr-2 h-4 w-4" />
-                Open settings
-              </Link>
-            </Button>
             {onRetry ? (
               <Button
                 type="button"

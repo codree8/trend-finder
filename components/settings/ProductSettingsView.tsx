@@ -42,7 +42,6 @@ import {
   readProductPreferences,
   resetProductPreferences,
   updateProductPreferences,
-  type BriefTone,
   type DashboardSectionPreferences,
   type DefaultExportFormat,
   type ProductExperienceMode,
@@ -54,6 +53,7 @@ import {
   type WorkspaceView,
 } from "@/lib/preferences/product-preferences";
 import type { DashboardWindow } from "@/lib/trends/types";
+import { aiCategories } from "@/lib/config/ai-categories";
 import { cn } from "@/lib/utils";
 
 const workspaceOptions: Array<{ value: WorkspaceView; label: string; helper: string }> = [
@@ -103,24 +103,6 @@ const exportOptions: Array<{
   },
 ];
 
-const toneOptions: Array<{ value: BriefTone; label: string; helper: string }> = [
-  {
-    value: "executive",
-    label: "Executive",
-    helper: "Sharper decision summary, best for reports and pitch flow.",
-  },
-  {
-    value: "creator",
-    label: "Creator-focused",
-    helper: "Prioritizes angles, timing and content opportunities.",
-  },
-  {
-    value: "research",
-    label: "Research-focused",
-    helper: "More cautious framing for signal review and analysis.",
-  },
-];
-
 const reportTemplateOptions: Array<{
   value: ReportTemplateId;
   label: string;
@@ -148,21 +130,7 @@ const reportTemplateOptions: Array<{
   },
 ];
 
-const interestCategoryOptions = [
-  "Agents",
-  "Automation",
-  "Business",
-  "Coding",
-  "Education",
-  "General AI",
-  "Image",
-  "Local LLM",
-  "Marketing",
-  "Open Source",
-  "Research",
-  "Security",
-  "Video",
-];
+const interestCategoryOptions = [...aiCategories];
 
 const sourceWeightOptions: Array<{
   key: SourceWeightKey;
@@ -633,8 +601,7 @@ export function ProductSettingsView() {
             </div>
             <CardTitle>Default brief behavior</CardTitle>
             <CardDescription>
-              Used by Daily Brief and Reports when the URL does not explicitly
-              choose another window.
+              Used by Daily Brief and Reports as the starting window. Report copy is controlled by the active report template below.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -673,24 +640,6 @@ export function ProductSettingsView() {
                     helper={option.helper}
                     icon={option.icon}
                     onSelect={(value) => patch({ defaultExport: value })}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
-                Brief tone
-              </p>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {toneOptions.map((option) => (
-                  <PreferenceChoice
-                    key={option.value}
-                    value={option.value}
-                    currentValue={preferences.briefTone}
-                    label={option.label}
-                    helper={option.helper}
-                    onSelect={(value) => patch({ briefTone: value })}
                   />
                 ))}
               </div>

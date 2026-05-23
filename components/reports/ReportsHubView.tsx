@@ -82,6 +82,7 @@ type ExportCard = {
   href: string;
   icon: typeof FileText;
   format?: DefaultExportFormat;
+  actionLabel: "Open" | "Download" | "Copy";
 };
 
 function getInitialWindow() {
@@ -125,9 +126,11 @@ async function copyText(value: string) {
 function ExportCardView({
   card,
   isDefault,
+  onCopyMarkdown,
 }: {
   card: ExportCard;
   isDefault: boolean;
+  onCopyMarkdown: () => void;
 }) {
   return (
     <Card
@@ -154,11 +157,22 @@ function ExportCardView({
         </div>
       </CardHeader>
       <CardContent>
-        <Button asChild variant={isDefault ? "secondary" : "outline"} size="sm">
-          <a href={card.href} target="_blank" rel="noreferrer">
-            Open <ArrowRight className="ml-2 h-4 w-4" />
-          </a>
-        </Button>
+        {card.actionLabel === "Copy" ? (
+          <Button
+            type="button"
+            variant={isDefault ? "secondary" : "outline"}
+            size="sm"
+            onClick={onCopyMarkdown}
+          >
+            Copy <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        ) : (
+          <Button asChild variant={isDefault ? "secondary" : "outline"} size="sm">
+            <a href={card.href} target="_blank" rel="noreferrer">
+              {card.actionLabel} <ArrowRight className="ml-2 h-4 w-4" />
+            </a>
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
@@ -216,9 +230,7 @@ export function ReportsHubView() {
     function syncPreferences() {
       const next = readProductPreferences();
       setPreferences(next);
-      setSelectedWindow(
-        (current) => current || parseDashboardWindow(next.defaultBriefWindow),
-      );
+      setSelectedWindow(parseDashboardWindow(next.defaultBriefWindow));
     }
 
     syncPreferences();
@@ -299,11 +311,12 @@ export function ReportsHubView() {
         format: "pdf",
         title: "PDF report",
         description:
-          "Best for sharing, reviewing, and presenting the brief as a document.",
+          "Download a finished document for sharing, reviewing, or presenting.",
         href: buildDailyBriefPdfExportUrl(selectedWindow, {
           template: preferences.reportTemplate,
         }),
         icon: FileText,
+        actionLabel: "Download",
       },
       {
         id: "html",
@@ -315,6 +328,7 @@ export function ReportsHubView() {
           template: preferences.reportTemplate,
         }),
         icon: Eye,
+        actionLabel: "Open",
       },
       {
         id: "json",
@@ -327,17 +341,29 @@ export function ReportsHubView() {
           template: preferences.reportTemplate,
         }),
         icon: FileJson,
+        actionLabel: "Download",
+      },
+      {
+        id: "markdown",
+        format: "markdown",
+        title: "Markdown summary",
+        description:
+          "Copy the active report summary for notes, posts, briefs or manual reuse.",
+        href: "#copy-summary",
+        icon: Clipboard,
+        actionLabel: "Copy",
       },
       {
         id: "full-json",
         title: "Full JSON package",
         description:
-          "Open the complete brief envelope when you need to inspect every field before reuse.",
+          "Download the complete brief envelope when you need every field for reuse or inspection.",
         href: buildDailyBriefFullJsonExportUrl(selectedWindow, {
           download: true,
           template: preferences.reportTemplate,
         }),
         icon: FileJson,
+        actionLabel: "Download",
       },
       {
         id: "readiness",
@@ -348,6 +374,7 @@ export function ReportsHubView() {
           template: preferences.reportTemplate,
         }),
         icon: ShieldCheck,
+        actionLabel: "Open",
       },
       {
         id: "print",
@@ -358,6 +385,7 @@ export function ReportsHubView() {
           template: preferences.reportTemplate,
         }),
         icon: Printer,
+        actionLabel: "Open",
       },
     ];
 
@@ -628,6 +656,7 @@ export function ReportsHubView() {
                     key={card.id}
                     card={card}
                     isDefault={card.format === preferences.defaultExport}
+                    onCopyMarkdown={() => void handleCopy()}
                   />
                 ))}
               </CardContent>
