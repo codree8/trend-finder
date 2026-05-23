@@ -27,21 +27,21 @@ export function SourceBreakdown({ data }: { data: SourceBreakdownItem[] }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-[220px]">
+        <div className="h-[190px] sm:h-[220px]">
           {data.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={data}
-                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                margin={{ top: 10, right: 6, left: -28, bottom: 0 }}
               >
                 <XAxis
                   dataKey="source"
-                  tick={{ fill: "#f3e7e2", fontSize: 11 }}
+                  tick={{ fill: "#f3e7e2", fontSize: 10 }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fill: "#f3e7e2", fontSize: 11 }}
+                  tick={{ fill: "#f3e7e2", fontSize: 10 }}
                   axisLine={false}
                   tickLine={false}
                 />

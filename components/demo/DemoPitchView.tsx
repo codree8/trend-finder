@@ -60,13 +60,13 @@ const pitchLines = [
 export function DemoPitchView() {
   return (
     <AppShell>
-      <div className="space-y-6">
+      <div className="space-y-5 sm:space-y-6">
         <section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.32em] text-secondary">
               Product / Demo Flow
             </p>
-            <h1 className="mt-3 max-w-4xl text-balance text-4xl font-semibold tracking-[-0.04em] text-foreground md:text-5xl">
+            <h1 className="mt-3 max-w-4xl text-balance text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl md:text-5xl">
               A 60-second path through the product.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">

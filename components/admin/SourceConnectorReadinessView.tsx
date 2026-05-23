@@ -47,7 +47,7 @@ export function SourceConnectorReadinessView({ readiness }: Props) {
             <p className="text-sm font-medium uppercase tracking-[0.32em] text-secondary">
               Admin / Source Connectors
             </p>
-            <h1 className="mt-3 max-w-4xl text-balance text-4xl font-semibold tracking-[-0.04em] text-foreground md:text-5xl">
+            <h1 className="mt-3 max-w-4xl text-balance text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl md:text-5xl">
               Know which sources are actually feeding the radar.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">

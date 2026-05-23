@@ -74,13 +74,13 @@ export function ReportHistoryView() {
 
   return (
     <AppShell>
-      <div className="space-y-6">
+      <div className="space-y-5 sm:space-y-6">
         <section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.32em] text-secondary">
               Reports / History
             </p>
-            <h1 className="mt-3 max-w-4xl text-balance text-4xl font-semibold tracking-[-0.04em] text-foreground md:text-5xl">
+            <h1 className="mt-3 max-w-4xl text-balance text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl md:text-5xl">
               Saved report snapshots in this browser.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
@@ -127,7 +127,7 @@ export function ReportHistoryView() {
                         Generated {formatDate(item.generatedAt)} · Saved {formatDate(item.savedAt)} · {item.sectionCount} sections · {item.blockCount} blocks
                       </p>
                     </div>
-                    <div className="flex shrink-0 flex-wrap gap-2">
+                    <div className="grid shrink-0 gap-2 sm:flex sm:flex-wrap">
                       <Button size="sm" variant="secondary" onClick={() => void copyReport(item)}>
                         <Clipboard className="mr-2 h-4 w-4" />
                         {copiedId === item.id ? "Copied" : "Copy markdown"}

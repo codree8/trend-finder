@@ -447,7 +447,7 @@ export function ReportsHubView() {
 
   return (
     <AppShell>
-      <div className="space-y-6">
+      <div className="space-y-5 sm:space-y-6">
         <ProductExperienceBanner />
 
         <section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
@@ -455,7 +455,7 @@ export function ReportsHubView() {
             <p className="text-sm font-medium uppercase tracking-[0.32em] text-secondary">
               Product / Reports
             </p>
-            <h1 className="mt-3 max-w-4xl text-balance text-4xl font-semibold tracking-[-0.04em] text-foreground md:text-5xl">
+            <h1 className="mt-3 max-w-4xl text-balance text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl md:text-5xl">
               Turn the radar into a usable report.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
@@ -463,7 +463,7 @@ export function ReportsHubView() {
               summary, save a local snapshot, or open an export.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid gap-2 sm:flex sm:flex-wrap">
             {windowOptions.map((option) => (
               <Button
                 key={option}
@@ -540,7 +540,7 @@ export function ReportsHubView() {
                         Generated {formatDate(document.generatedAt)}
                       </Badge>
                     </div>
-                    <CardTitle className="mt-4 text-3xl tracking-[-0.045em] md:text-4xl">
+                    <CardTitle className="mt-4 text-2xl tracking-[-0.045em] sm:text-3xl md:text-4xl">
                       {template.headline}
                     </CardTitle>
                     <CardDescription className="mt-3 max-w-4xl text-base leading-7">
@@ -550,7 +550,7 @@ export function ReportsHubView() {
                       {readiness.detail}
                     </p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="grid gap-2 sm:flex sm:flex-wrap">
                     <Button
                       type="button"
                       variant="secondary"
@@ -592,7 +592,7 @@ export function ReportsHubView() {
               </CardHeader>
             </Card>
 
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {heroBlocks.map((block) => (
                 <Card
                   key={block.id}
@@ -622,7 +622,7 @@ export function ReportsHubView() {
                 <CardTitle>{template.label}</CardTitle>
                 <CardDescription>{template.bestFor}</CardDescription>
               </CardHeader>
-              <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <CardContent className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {exportCards.map((card) => (
                   <ExportCardView
                     key={card.id}
@@ -695,7 +695,7 @@ export function ReportsHubView() {
                   </div>
                   <CardDescription>{researchMemoQa.summary}</CardDescription>
                 </CardHeader>
-                <CardContent className="grid gap-3 md:grid-cols-4">
+                <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   <div className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3">
                     <p className="text-2xl font-semibold text-foreground">
                       {researchMemoQa.metrics.researchTrendReferences}

@@ -559,13 +559,13 @@ export function TrendDetailDrawer({
       <aside className="relative flex h-full w-full max-w-3xl flex-col overflow-hidden border-l border-border/10 bg-[#1b1010] shadow-[0_0_80px_rgba(0,0,0,0.55)] md:rounded-l-[2rem]">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_8%,rgba(166,13,14,0.22),transparent_32%),radial-gradient(circle_at_88%_18%,rgba(221,169,54,0.12),transparent_30%)]" />
 
-        <header className="relative border-b border-border/10 bg-card/58 p-5 backdrop-blur md:p-6">
-          <div className="flex items-start justify-between gap-4">
+        <header className="relative border-b border-border/10 bg-card/58 p-4 backdrop-blur sm:p-5 md:p-6">
+          <div className="flex items-start justify-between gap-3 sm:gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-secondary">
                 Trend Intelligence View
               </p>
-              <h2 className="mt-3 text-balance text-2xl font-semibold tracking-[-0.03em] text-foreground md:text-3xl">
+              <h2 className="mt-3 text-balance text-xl font-semibold tracking-[-0.03em] text-foreground sm:text-2xl md:text-3xl">
                 {trend?.topic ?? fallbackTrendTitle(initialTrend)}
               </h2>
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground/70">
@@ -596,9 +596,9 @@ export function TrendDetailDrawer({
           </div>
         </header>
 
-        <div className="relative flex-1 overflow-y-auto p-5 md:p-6">
+        <div className="relative flex-1 overflow-y-auto p-3 sm:p-5 md:p-6">
           {detailState.status === "loading" ? (
-            <div className="flex min-h-[360px] items-center justify-center rounded-3xl border border-border/10 bg-card/50 text-sm text-muted-foreground/75">
+            <div className="flex min-h-[260px] items-center justify-center rounded-3xl border border-border/10 bg-card/50 px-4 text-center text-sm text-muted-foreground/75 sm:min-h-[360px]">
               <Loader2 className="mr-2 h-4 w-4 animate-spin text-secondary" />
               Loading trend intelligence...
             </div>
@@ -612,7 +612,7 @@ export function TrendDetailDrawer({
 
           {detail ? (
             <div className="space-y-5">
-              <section className="grid gap-3 md:grid-cols-4">
+              <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <ScoreCard
                   label="Trend"
                   value={detail.trend.trendScore}
@@ -662,7 +662,7 @@ export function TrendDetailDrawer({
                   <Compass className="h-4 w-4" />
                   Trend lifecycle & freshness
                 </div>
-                <div className="grid gap-3 md:grid-cols-4">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   <MovementCard
                     label="Lifecycle"
                     value={detail.intelligence.lifecycle.status}
@@ -738,7 +738,7 @@ export function TrendDetailDrawer({
                   <BarChart3 className="h-4 w-4" />
                   Signal movement
                 </div>
-                <div className="grid gap-3 md:grid-cols-4">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   <MovementCard
                     label="Current"
                     value={String(
@@ -774,7 +774,7 @@ export function TrendDetailDrawer({
                 </div>
 
                 {chartData.length > 1 ? (
-                  <div className="mt-5 h-[220px] rounded-2xl border border-border/10 bg-[#160d0d]/45 p-3">
+                  <div className="mt-5 h-[180px] rounded-2xl border border-border/10 bg-[#160d0d]/45 p-2 sm:h-[220px] sm:p-3">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart
                         data={chartData}
@@ -969,7 +969,7 @@ function ActionPrioritySection({
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <MovementCard
           label="Action score"
           value={String(recommendation.actionScore)}
@@ -1109,7 +1109,7 @@ function WatchlistDeltaSection({ item }: { item: SavedTrendWithCurrent }) {
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <MovementCard
           label="Trend score"
           value={`${item.lastSeenScore} → ${item.currentScore}`}
@@ -1266,7 +1266,7 @@ function SourceEvidenceInspectorSection({
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <MovementCard
           label="Sources"
           value={String(inspector.sourceCount)}
@@ -1506,7 +1506,7 @@ function SignalAgingSection({
             {aging.summary}
           </p>
         </div>
-        <div className="grid min-w-[250px] grid-cols-3 gap-2 text-center text-xs">
+        <div className="grid w-full grid-cols-3 gap-2 text-center text-xs sm:w-auto sm:min-w-[250px]">
           <span className="rounded-2xl border border-border/10 bg-muted/35 p-3">
             <strong className="block text-lg text-secondary">{aging.overallFreshnessScore}</strong>
             Freshness
@@ -1659,7 +1659,7 @@ function ProductTrendDecisionSection({
             {intelligence.whyItMatters}
           </p>
         </div>
-        <div className="grid min-w-[220px] grid-cols-3 gap-2 text-center text-xs">
+        <div className="grid w-full grid-cols-3 gap-2 text-center text-xs sm:w-auto sm:min-w-[220px]">
           <span className="rounded-2xl border border-border/10 bg-muted/35 p-3">
             <strong className="block text-lg text-secondary">{intelligence.signalStrength}</strong>
             Signal
@@ -1758,7 +1758,7 @@ function TopicQualitySection({ quality }: { quality: TopicQuality }) {
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <MovementCard
           label="Quality"
           value={String(quality.score)}
@@ -1819,7 +1819,7 @@ function TopicQualitySection({ quality }: { quality: TopicQuality }) {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl border border-secondary/15 bg-secondary/10 p-4">
             <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-secondary">
               <CheckCircle2 className="h-4 w-4" />
@@ -1916,7 +1916,7 @@ function CreatorOpportunitySection({
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <MovementCard
           label="Creator score"
           value={String(opportunity.score)}
@@ -1968,7 +1968,7 @@ function CreatorOpportunitySection({
             <Gauge className="h-4 w-4" />
             Score ingredients
           </div>
-          <div className="grid gap-2 md:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-2">
             {metricRows.map((metric) => (
               <div
                 key={metric.label}
@@ -2168,7 +2168,7 @@ function ScoringTransparencySection({
         </Badge>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <MovementCard
           label="Confidence"
           value={String(transparency.confidenceScore)}

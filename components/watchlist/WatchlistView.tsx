@@ -207,13 +207,13 @@ export function WatchlistView() {
 
   return (
     <AppShell>
-      <div className="space-y-6">
+      <div className="space-y-5 sm:space-y-6">
         <section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.32em] text-secondary">
               Watchlist intelligence delta
             </p>
-            <h1 className="mt-3 max-w-4xl text-balance text-4xl font-semibold tracking-[-0.04em] text-foreground md:text-5xl">
+            <h1 className="mt-3 max-w-4xl text-balance text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl md:text-5xl">
               Track what changed after you saved a trend.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
@@ -223,7 +223,7 @@ export function WatchlistView() {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2 rounded-2xl border border-border/10 bg-card/70 p-2">
+          <div className="grid grid-cols-3 gap-2 rounded-2xl border border-border/10 bg-card/70 p-2 sm:flex sm:flex-wrap">
             {windowOptions.map((option) => (
               <Button
                 key={option}
@@ -238,7 +238,7 @@ export function WatchlistView() {
         </section>
 
         {items.length > 0 ? (
-          <section className="grid gap-3 md:grid-cols-5">
+          <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
             <StatusSummary label="Rising" value={statusCounts.rising} />
             <StatusSummary label="Stable" value={statusCounts.stable} />
             <StatusSummary label="Cooling" value={statusCounts.cooling} />
@@ -357,7 +357,7 @@ export function WatchlistView() {
                         </CardDescription>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-2 text-center sm:min-w-[360px]">
+                      <div className="grid w-full grid-cols-3 gap-2 text-center xl:w-auto xl:min-w-[360px]">
                         <Metric
                           label="Trend"
                           value={item.currentScore}
@@ -425,7 +425,7 @@ export function WatchlistView() {
                         </div>
 
                         {delta.drivers.length || delta.warnings.length ? (
-                          <div className="grid gap-3 md:grid-cols-2">
+                          <div className="grid gap-3 sm:grid-cols-2">
                             <SignalList
                               title="Positive movement"
                               items={delta.drivers}

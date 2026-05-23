@@ -18,9 +18,11 @@ import {
   Rocket,
   SlidersHorizontal,
   PlugZap,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   defaultProductPreferences,
   productPreferencesChangedEvent,
@@ -31,6 +33,7 @@ import {
   type WorkspaceView,
 } from "@/lib/preferences/product-preferences";
 import { cn } from "@/lib/utils";
+
 const sectionIds = [
   "dashboard-overview",
   "charts",
@@ -45,6 +48,11 @@ type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
+};
+
+type SidebarProps = {
+  isMobileOpen?: boolean;
+  onMobileClose?: () => void;
 };
 
 const dashboardSections: NavItem[] = [
@@ -115,7 +123,7 @@ function isSameRoute(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function Sidebar() {
+export function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>(() =>
     getHydrationSafeWorkspaceView(pathname),
@@ -262,6 +270,28 @@ export function Sidebar() {
     };
   }, [isAdminView, isDashboard]);
 
+  useEffect(() => {
+    if (!isMobileOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isMobileOpen]);
+
+  useEffect(() => {
+    if (!isMobileOpen) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onMobileClose?.();
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isMobileOpen, onMobileClose]);
+
   function handleWorkspaceChange(nextView: WorkspaceView) {
     setWorkspaceView(nextView);
     writePreferredWorkspaceView(nextView);
@@ -271,33 +301,42 @@ export function Sidebar() {
     event: MouseEvent<HTMLAnchorElement>,
     sectionId: DashboardSectionId,
   ) {
-    if (!isDashboard || isAdminView) return;
+    if (!isDashboard || isAdminView) {
+      onMobileClose?.();
+      return;
+    }
 
     const target = document.getElementById(sectionId);
-    if (!target) return;
+    if (!target) {
+      onMobileClose?.();
+      return;
+    }
 
     event.preventDefault();
     setActiveDashboardSection(sectionId);
     target.scrollIntoView({ behavior: "smooth", block: "start" });
     window.history.replaceState(null, "", `#${sectionId}`);
+    onMobileClose?.();
   }
 
-  return (
-    <aside className="hidden h-screen w-72 shrink-0 overflow-y-auto border-r border-border/10 bg-[#2c1a1a]/82 px-4 py-5 backdrop-blur-xl lg:sticky lg:top-0 lg:block">
-      <div className="mb-8 rounded-2xl border border-border/10 bg-[#241616]/70 p-4 signal-glow">
+  function renderBrandCard() {
+    return (
+      <div className="mb-5 rounded-2xl border border-border/10 bg-[#241616]/70 p-4 signal-glow lg:mb-8">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-radar">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-radar">
             <Radar className="h-5 w-5" />
           </div>
-          <div>
-            <p className="text-sm font-semibold tracking-wide text-foreground">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold tracking-wide text-foreground">
               Trend Finder
             </p>
-            <p className="text-xs text-muted-foreground/70">AI Signal Radar</p>
+            <p className="truncate text-xs text-muted-foreground/70">
+              AI Signal Radar
+            </p>
           </div>
         </div>
 
-        <div className="mt-4 flex items-center justify-between rounded-xl border border-border/10 bg-muted/45 px-3 py-2">
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-border/10 bg-muted/45 px-3 py-2">
           <span className="text-xs text-muted-foreground/75">Lens</span>
           <Badge variant="accent">Creator + Startup</Badge>
         </div>
@@ -316,7 +355,7 @@ export function Sidebar() {
                 type="button"
                 onClick={() => handleWorkspaceChange(view)}
                 className={cn(
-                  "rounded-lg px-2 py-1.5 text-xs font-medium transition",
+                  "rounded-lg px-2 py-2 text-xs font-medium transition",
                   workspaceView === view
                     ? "bg-primary text-primary-foreground shadow-radar"
                     : "text-muted-foreground/75 hover:bg-muted hover:text-foreground",
@@ -328,7 +367,11 @@ export function Sidebar() {
           </div>
         </div>
       </div>
+    );
+  }
 
+  function renderNavigation() {
+    return (
       <nav className="space-y-1">
         {navItems.map((item) => {
           const isDashboardSection = !isAdminView && item.id;
@@ -347,22 +390,81 @@ export function Sidebar() {
                         event,
                         item.id as DashboardSectionId,
                       )
-                  : undefined
+                  : onMobileClose
               }
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition",
+                "flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition lg:py-2.5",
                 isActive
                   ? "bg-primary text-primary-foreground shadow-radar"
                   : "text-muted-foreground/75 hover:bg-muted hover:text-foreground",
               )}
             >
-              <item.icon className="h-4 w-4" />
-              {item.label}
+              <item.icon className="h-4 w-4 shrink-0" />
+              <span className="truncate">{item.label}</span>
             </Link>
           );
         })}
       </nav>
-    </aside>
+    );
+  }
+
+  return (
+    <>
+      <aside className="hidden h-screen w-72 shrink-0 overflow-y-auto border-r border-border/10 bg-[#2c1a1a]/82 px-4 py-5 backdrop-blur-xl lg:sticky lg:top-0 lg:block">
+        {renderBrandCard()}
+        {renderNavigation()}
+      </aside>
+
+      <div
+        className={cn(
+          "fixed inset-0 z-50 lg:hidden",
+          isMobileOpen ? "pointer-events-auto" : "pointer-events-none",
+        )}
+        aria-hidden={!isMobileOpen}
+      >
+        <button
+          type="button"
+          aria-label="Close navigation overlay"
+          className={cn(
+            "absolute inset-0 bg-[#080404]/70 backdrop-blur-sm transition-opacity",
+            isMobileOpen ? "opacity-100" : "opacity-0",
+          )}
+          onClick={onMobileClose}
+        />
+
+        <aside
+          className={cn(
+            "absolute inset-y-0 left-0 flex w-[min(22rem,calc(100vw-2rem))] flex-col overflow-hidden border-r border-border/10 bg-[#2c1a1a] shadow-[0_0_60px_rgba(0,0,0,0.55)] transition-transform duration-200",
+            isMobileOpen ? "translate-x-0" : "-translate-x-full",
+          )}
+        >
+          <div className="flex items-center justify-between border-b border-border/10 px-4 py-4">
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                Navigation
+              </p>
+              <p className="text-xs text-muted-foreground/65">
+                Product and admin workspace
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              aria-label="Close navigation"
+              onClick={onMobileClose}
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+            {renderBrandCard()}
+            {renderNavigation()}
+          </div>
+        </aside>
+      </div>
+    </>
   );
 }

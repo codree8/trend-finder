@@ -557,20 +557,20 @@ export function ProductSettingsView() {
 
   return (
     <AppShell>
-      <div className="space-y-6">
+      <div className="space-y-5 sm:space-y-6">
         <section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.32em] text-secondary">
               Product Settings
             </p>
-            <h1 className="mt-3 max-w-4xl text-balance text-4xl font-semibold tracking-[-0.04em] text-foreground md:text-5xl">
+            <h1 className="mt-3 max-w-4xl text-balance text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl md:text-5xl">
               Control the product, not the machine room.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
               These preferences are browser-local UI settings. They change the product experience only; they do not add login, persistence, or background behavior.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid gap-2 sm:flex sm:flex-wrap">
             <Button
               type="button"
               variant="outline"
@@ -599,7 +599,7 @@ export function ProductSettingsView() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               {workspaceOptions.map((option) => (
                 <PreferenceChoice
                   key={option.value}
@@ -642,7 +642,7 @@ export function ProductSettingsView() {
               <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
                 Default brief window
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid gap-2 sm:flex sm:flex-wrap">
                 {briefWindowOptions.map((option) => (
                   <Button
                     key={option}
@@ -682,7 +682,7 @@ export function ProductSettingsView() {
               <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
                 Brief tone
               </p>
-              <div className="grid gap-3 md:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-3">
                 {toneOptions.map((option) => (
                   <PreferenceChoice
                     key={option.value}
@@ -787,7 +787,7 @@ export function ProductSettingsView() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-3">
               {experienceOptions.map((option) => (
                 <PreferenceChoice
                   key={option.value}
@@ -800,7 +800,7 @@ export function ProductSettingsView() {
                 />
               ))}
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid gap-2 sm:flex sm:flex-wrap">
               <Button
                 type="button"
                 variant="outline"
@@ -856,7 +856,7 @@ export function ProductSettingsView() {
               <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
                 Preferred categories
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid gap-2 sm:flex sm:flex-wrap">
                 {interestCategoryOptions.map((category) => {
                   const isSelected = preferences.interestProfile.preferredCategories.includes(category);
                   return (
@@ -874,7 +874,7 @@ export function ProductSettingsView() {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               <label className="space-y-2">
                 <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
                   Include keywords
@@ -903,7 +903,7 @@ export function ProductSettingsView() {
               </label>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               <label className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -999,7 +999,7 @@ export function ProductSettingsView() {
               This is not a preset selector. It explains which sources are real scanner input and which are optional or inactive. Full checks live in Admin / Source Connectors.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
+          <CardContent className="grid gap-4 sm:grid-cols-2">
             {sourceReferenceItems.map((source) => (
               <div
                 key={source.name}

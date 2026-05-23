@@ -423,19 +423,19 @@ export function DashboardView() {
 
   return (
     <AppShell>
-      <div className="space-y-6">
+      <div className="space-y-5 sm:space-y-6">
         <ProductOnboardingCard />
         <ProductExperienceBanner compact />
 
         <section
           id="dashboard-overview"
-          className="scroll-mt-6 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between"
+          className="scroll-mt-4 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between"
         >
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.32em] text-secondary">
               AI Trend Intelligence
             </p>
-            <h1 className="mt-3 max-w-4xl text-balance text-4xl font-semibold tracking-[-0.04em] text-foreground md:text-5xl">
+            <h1 className="mt-3 max-w-4xl text-balance text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl md:text-5xl">
               Find early AI signals before they become obvious.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
@@ -443,7 +443,7 @@ export function DashboardView() {
                 ? "A clean product radar for showing what is rising, what is worth acting on, and what should stay out of the content queue."
                 : "Trend Finder turns real source signals into simple decisions: act on this, watch it, research it first, or avoid it for now."}
             </p>
-            <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground/70">
+            <div className="mt-4 flex flex-wrap gap-2 text-xs leading-5 text-muted-foreground/70">
               <span className="rounded-full border border-border/10 bg-card/60 px-3 py-1.5">
                 Window:{" "}
                 <span className="font-semibold text-secondary">
@@ -492,7 +492,7 @@ export function DashboardView() {
                   loadingLabel="Scanning"
                   variant="secondary"
                   showMessage={false}
-                  className="shrink-0"
+                  className="w-full shrink-0 sm:w-auto"
                 />
               </div>
             ) : null}
@@ -543,21 +543,21 @@ export function DashboardView() {
                   and reports when you are ready to act or share the readout.
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2 text-sm">
+              <div className="grid gap-2 text-sm sm:flex sm:flex-wrap">
                 <a
-                  className="rounded-full border border-secondary/20 bg-secondary/10 px-4 py-2 font-medium text-secondary transition hover:bg-secondary/15"
+                  className="rounded-full border border-secondary/20 bg-secondary/10 px-4 py-2 text-center font-medium text-secondary transition hover:bg-secondary/15"
                   href="/action-queue"
                 >
                   Open Action Queue
                 </a>
                 <a
-                  className="rounded-full border border-border/10 bg-muted/35 px-4 py-2 font-medium text-foreground transition hover:bg-muted/50"
+                  className="rounded-full border border-border/10 bg-muted/35 px-4 py-2 text-center font-medium text-foreground transition hover:bg-muted/50"
                   href="/daily-brief"
                 >
                   Open Daily Brief
                 </a>
                 <a
-                  className="rounded-full border border-border/10 bg-muted/35 px-4 py-2 font-medium text-foreground transition hover:bg-muted/50"
+                  className="rounded-full border border-border/10 bg-muted/35 px-4 py-2 text-center font-medium text-foreground transition hover:bg-muted/50"
                   href="/reports"
                 >
                   Build Report
@@ -635,7 +635,7 @@ export function DashboardView() {
         {showChartsSection ? (
           <section
             id="charts"
-            className="scroll-mt-6 grid gap-5 xl:grid-cols-[1.15fr_0.85fr]"
+            className="scroll-mt-4 grid gap-5 xl:grid-cols-[1.15fr_0.85fr]"
           >
             {preferences.dashboardSections.charts ? (
               <TrendRadar data={data.radar} />
@@ -655,7 +655,7 @@ export function DashboardView() {
         ) : null}
 
         {showHiddenGems ? (
-          <section id="hidden-gems" className="scroll-mt-6">
+          <section id="hidden-gems" className="scroll-mt-4">
             <TrendCards
               trends={filteredHiddenGems}
               savedTrendKeys={savedTrendKeySet}
@@ -667,7 +667,7 @@ export function DashboardView() {
         ) : null}
 
         {showCreatorMode ? (
-          <section id="creator-mode" className="scroll-mt-6">
+          <section id="creator-mode" className="scroll-mt-4">
             <CreatorModePanel
               trend={creatorTrend}
               opportunities={creatorOpportunities}
@@ -677,7 +677,7 @@ export function DashboardView() {
         ) : null}
 
         {showSignals ? (
-          <section id="signals" className="scroll-mt-6">
+          <section id="signals" className="scroll-mt-4">
             <TrendTable
               trends={filteredTrends}
               onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}

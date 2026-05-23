@@ -25,10 +25,10 @@ const productSteps = [
 export function PublicDemoLanding() {
   return (
     <main className="min-h-screen overflow-hidden bg-background text-foreground">
-      <section className="relative px-6 py-10 md:px-10 lg:px-16">
+      <section className="relative px-3 py-6 sm:px-6 sm:py-10 md:px-10 lg:px-16">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(251,192,125,0.15),transparent_34%),radial-gradient(circle_at_85%_15%,rgba(154,40,106,0.16),transparent_38%)]" />
-        <div className="relative mx-auto flex max-w-7xl flex-col gap-16">
-          <nav className="flex items-center justify-between rounded-3xl border border-border/10 bg-[#160d0d]/60 px-4 py-3 backdrop-blur-xl">
+        <div className="relative mx-auto flex max-w-7xl flex-col gap-10 sm:gap-16">
+          <nav className="flex items-center justify-between gap-3 rounded-3xl border border-border/10 bg-[#160d0d]/60 px-4 py-3 backdrop-blur-xl">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-radar">
                 <Radar className="h-5 w-5" />
@@ -57,13 +57,13 @@ export function PublicDemoLanding() {
           <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
             <div>
               <Badge variant="accent">Public demo ready</Badge>
-              <h1 className="mt-6 max-w-4xl text-balance text-5xl font-semibold tracking-[-0.06em] md:text-7xl">
+              <h1 className="mt-6 max-w-4xl text-balance text-4xl font-semibold tracking-[-0.06em] sm:text-5xl md:text-7xl">
                 Spot AI signals before they become obvious.
               </h1>
               <p className="mt-6 max-w-2xl text-base leading-8 text-muted-foreground/82 md:text-lg">
                 Trend Finder is not a list-maker. It is a product radar for spotting emerging AI topics, hidden gems, creator opportunities and report-ready signals from real snapshots.
               </p>
-              <div className="mt-8 flex flex-wrap gap-3">
+              <div className="mt-8 grid gap-3 sm:flex sm:flex-wrap">
                 <Button asChild size="lg" variant="secondary">
                   <Link href="/dashboard">
                     Open product radar <ArrowRight className="ml-2 h-4 w-4" />
@@ -76,7 +76,7 @@ export function PublicDemoLanding() {
                   <Link href="/demo">60-second demo</Link>
                 </Button>
               </div>
-              <div className="mt-6 flex flex-wrap gap-2 text-xs text-muted-foreground/70">
+              <div className="mt-6 flex flex-wrap gap-2 text-xs leading-5 text-muted-foreground/70">
                 <span className="rounded-full border border-border/10 bg-card/60 px-3 py-1.5">No fake demo data</span>
                 <span className="rounded-full border border-border/10 bg-card/60 px-3 py-1.5">Manual exports only</span>
                 <span className="rounded-full border border-border/10 bg-card/60 px-3 py-1.5">Admin diagnostics isolated</span>
@@ -85,7 +85,7 @@ export function PublicDemoLanding() {
 
             <Card className="border-secondary/15 bg-[#160d0d]/72 shadow-radar signal-glow">
               <CardHeader>
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex items-start justify-between gap-4">
                   <div>
                     <CardTitle>Product path</CardTitle>
                     <CardDescription>What a user should understand first.</CardDescription>
@@ -114,7 +114,7 @@ export function PublicDemoLanding() {
             </Card>
           </div>
 
-          <section className="grid gap-4 md:grid-cols-3">
+          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Card className="border-border/10 bg-[#160d0d]/62">
               <CardHeader>
                 <Sparkles className="h-5 w-5 text-secondary" />

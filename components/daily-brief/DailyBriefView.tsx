@@ -179,7 +179,7 @@ function TrendMiniCard({
             {trend.sources.slice(0, 3).join(", ") || "No source label"}
           </p>
         </div>
-        <div className="flex shrink-0 flex-wrap gap-2">
+        <div className="grid shrink-0 gap-2 sm:flex sm:flex-wrap">
           <WatchlistButton
             trend={trend}
             isSaved={false}
@@ -411,7 +411,7 @@ export function DailyBriefView() {
 
   return (
     <AppShell>
-      <div className="space-y-6">
+      <div className="space-y-5 sm:space-y-6">
         <ProductExperienceBanner />
 
         <section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
@@ -419,7 +419,7 @@ export function DailyBriefView() {
             <p className="text-sm font-medium uppercase tracking-[0.32em] text-secondary">
               Product / Daily Brief
             </p>
-            <h1 className="mt-3 max-w-4xl text-balance text-4xl font-semibold tracking-[-0.04em] text-foreground md:text-5xl">
+            <h1 className="mt-3 max-w-4xl text-balance text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl md:text-5xl">
               Today&apos;s useful signals, without the system noise.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
@@ -427,7 +427,7 @@ export function DailyBriefView() {
               content, or avoid. Technical checks live in Admin.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid gap-2 sm:flex sm:flex-wrap">
             {windowOptions.map((option) => (
               <Button
                 key={option}
@@ -505,14 +505,14 @@ export function DailyBriefView() {
                         Latest scan: {formatDate(brief.radarStats.latestScanAt)}
                       </Badge>
                     </div>
-                    <CardTitle className="mt-4 text-3xl tracking-[-0.045em] md:text-4xl">
+                    <CardTitle className="mt-4 text-2xl tracking-[-0.045em] sm:text-3xl md:text-4xl">
                       {brief.executiveSummary.headline}
                     </CardTitle>
                     <CardDescription className="mt-3 max-w-4xl text-base leading-7">
                       {brief.executiveSummary.narrative}
                     </CardDescription>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="grid gap-2 sm:flex sm:flex-wrap">
                     {exportLinks.map((link) => (
                       <Button
                         key={link.label}
@@ -544,7 +544,7 @@ export function DailyBriefView() {
               </CardHeader>
             </Card>
 
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
               <MetricCard
                 label="Act on this"
                 value={brief.radarStats.actNow}
@@ -586,7 +586,7 @@ export function DailyBriefView() {
                   quality, watchlist movement and the active report template.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="grid gap-3 md:grid-cols-2">
+              <CardContent className="grid gap-3 sm:grid-cols-2">
                 {memoCards.map((item) => (
                   <div
                     key={item.label}
@@ -614,7 +614,7 @@ export function DailyBriefView() {
                   {brief.recommendedFocus.monitor}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="grid gap-3 md:grid-cols-3">
+              <CardContent className="grid gap-3 sm:grid-cols-3">
                 <div className="rounded-2xl border border-secondary/15 bg-secondary/10 p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">
                     Do now

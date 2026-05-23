@@ -273,13 +273,13 @@ export function ActionQueueView() {
 
   return (
     <AppShell>
-      <div className="space-y-6">
+      <div className="space-y-5 sm:space-y-6">
         <section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.32em] text-secondary">
               Action Queue / Decision Radar
             </p>
-            <h1 className="mt-3 max-w-4xl text-balance text-4xl font-semibold tracking-[-0.04em] text-foreground md:text-5xl">
+            <h1 className="mt-3 max-w-4xl text-balance text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl md:text-5xl">
               Decide what deserves attention now.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
@@ -289,7 +289,7 @@ export function ActionQueueView() {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2 rounded-2xl border border-border/10 bg-card/70 p-2">
+          <div className="grid grid-cols-3 gap-2 rounded-2xl border border-border/10 bg-card/70 p-2 sm:flex sm:flex-wrap">
             {windowOptions.map((option) => (
               <Button
                 key={option}
@@ -303,7 +303,7 @@ export function ActionQueueView() {
           </div>
         </section>
 
-        <section className="grid gap-3 md:grid-cols-5">
+        <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
           <SummaryCard
             label="Act on this"
             value={summary.actNow}
@@ -616,7 +616,7 @@ function ActionCard({
             <CardDescription className="mt-2">{item.summary}</CardDescription>
           </div>
 
-          <div className="grid min-w-[230px] grid-cols-3 gap-2 text-center">
+          <div className="grid w-full grid-cols-3 gap-2 text-center xl:w-auto xl:min-w-[230px]">
             <MiniMetric
               label="Action"
               value={item.actionScore}
@@ -671,7 +671,7 @@ function ActionCard({
         </div>
 
         {item.reasons.length > 0 || item.warnings.length > 0 ? (
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             <SignalList
               title="Why it is here"
               items={item.reasons}

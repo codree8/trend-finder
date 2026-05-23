@@ -56,7 +56,7 @@ export function TrendCards({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-end justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">
             Hidden Gems & Early Openings
@@ -72,12 +72,12 @@ export function TrendCards({
       </div>
 
       {visible.length > 0 ? (
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {visible.map((trend) => (
             <Card key={trend.id} className="relative overflow-hidden">
               <div className="absolute right-0 top-0 h-28 w-28 rounded-bl-full bg-primary/10 blur-2xl" />
               <CardHeader>
-                <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex flex-wrap gap-2">
                     <Badge variant={statusVariant(trend.status)}>
                       {trend.status}
@@ -112,7 +112,7 @@ export function TrendCards({
                 ) : null}
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-4 gap-2 text-center">
+                <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
                   <Score label="Gem" value={trend.hiddenGemScore} />
                   <Score label="Fresh" value={trend.lifecycle.freshnessScore} />
                   <Score

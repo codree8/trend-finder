@@ -36,7 +36,7 @@ export function FirstRunStateCard({
               </CardDescription>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid gap-2 sm:flex sm:flex-wrap">
             <Button asChild size="sm" variant="secondary">
               <Link href="/settings">
                 <Settings2 className="mr-2 h-4 w-4" />
@@ -58,7 +58,7 @@ export function FirstRunStateCard({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-3 md:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <SetupStep
             label="1"
             title="Add DATABASE_URL"
@@ -111,7 +111,7 @@ export function NoScanStateCard({
               </CardDescription>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid gap-2 sm:flex sm:flex-wrap">
             {primaryAction ?? (
               <Button asChild size="sm" variant="secondary">
                 <Link href="/dashboard">Open dashboard</Link>

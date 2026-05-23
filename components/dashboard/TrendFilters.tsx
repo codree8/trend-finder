@@ -30,33 +30,37 @@ export function TrendFilters({
 }: Props) {
   return (
     <div className="w-full rounded-2xl border border-border/10 bg-card/72 p-3 shadow-card backdrop-blur xl:max-w-xl">
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         {modes.map((item) => (
           <Button
             key={item}
             size="sm"
             variant={mode === item ? "default" : "ghost"}
             onClick={() => setMode(item)}
+            className="w-full sm:w-auto"
           >
             {item}
           </Button>
         ))}
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        {windows.map((item) => (
-          <Button
-            key={item}
-            size="sm"
-            variant={window === item ? "secondary" : "outline"}
-            onClick={() => setWindow(item)}
-          >
-            {item}
-          </Button>
-        ))}
+      <div className="mt-3 grid gap-2 sm:flex sm:flex-wrap sm:items-center">
+        <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+          {windows.map((item) => (
+            <Button
+              key={item}
+              size="sm"
+              variant={window === item ? "secondary" : "outline"}
+              onClick={() => setWindow(item)}
+              className="w-full sm:w-auto"
+            >
+              {item}
+            </Button>
+          ))}
+        </div>
         <select
           value={category}
           onChange={(event) => setCategory(event.target.value)}
-          className="h-9 rounded-xl border border-border/15 bg-muted px-3 text-sm text-foreground outline-none ring-0 focus:border-secondary/40"
+          className="h-9 w-full rounded-xl border border-border/15 bg-muted px-3 text-sm text-foreground outline-none ring-0 focus:border-secondary/40 sm:w-auto sm:min-w-[170px]"
         >
           <option>All</option>
           {aiCategories.map((item) => (

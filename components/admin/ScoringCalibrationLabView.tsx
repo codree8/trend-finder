@@ -340,7 +340,7 @@ export function ScoringCalibrationLabView() {
             <p className="text-sm font-medium uppercase tracking-[0.32em] text-secondary">
               Admin / Scoring Calibration v3
             </p>
-            <h1 className="mt-3 max-w-4xl text-balance text-4xl font-semibold tracking-[-0.04em] text-foreground md:text-5xl">
+            <h1 className="mt-3 max-w-4xl text-balance text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl md:text-5xl">
               Explain the rank before touching the model.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">

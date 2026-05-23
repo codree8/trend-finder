@@ -53,7 +53,7 @@ export function ProductStateCard({
         </div>
       </CardHeader>
       {(action || secondaryAction) ? (
-        <CardContent className="flex flex-wrap gap-2 pt-0">
+        <CardContent className="grid gap-2 pt-0 sm:flex sm:flex-wrap">
           {action}
           {secondaryAction ? <Button asChild variant="ghost" size="sm">{secondaryAction}</Button> : null}
         </CardContent>

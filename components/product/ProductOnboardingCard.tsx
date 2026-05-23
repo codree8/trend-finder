@@ -41,7 +41,7 @@ export function ProductOnboardingCard() {
   return (
     <section className="rounded-3xl border border-secondary/20 bg-[#160d0d]/78 p-5 shadow-card signal-glow">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-        <div className="flex gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-secondary/15 text-secondary">
             <Compass className="h-6 w-6" />
           </div>
@@ -60,7 +60,7 @@ export function ProductOnboardingCard() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="grid gap-2 sm:flex sm:flex-wrap">
           <Button
             type="button"
             variant="secondary"

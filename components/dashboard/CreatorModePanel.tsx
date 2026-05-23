@@ -135,9 +135,9 @@ export function CreatorModePanel({
               <Target className="h-4 w-4" />
               Current creator target
             </div>
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h3 className="text-2xl font-semibold tracking-[-0.03em] text-foreground">
+                <h3 className="text-xl font-semibold tracking-[-0.03em] text-foreground sm:text-2xl">
                   {primary.topic}
                 </h3>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -161,7 +161,7 @@ export function CreatorModePanel({
                   </Badge>
                 </div>
               </div>
-              <div className="rounded-2xl border border-secondary/20 bg-[#160d0d]/45 px-4 py-3 text-center">
+              <div className="w-full rounded-2xl border border-secondary/20 bg-[#160d0d]/45 px-4 py-3 text-center sm:w-auto">
                 <p className="text-3xl font-semibold text-secondary">
                   {primaryOpportunity.score}
                 </p>
@@ -175,14 +175,14 @@ export function CreatorModePanel({
               {primaryOpportunity.explanation}
             </p>
 
-            <div className="mt-5 grid grid-cols-3 gap-2 text-center text-xs">
+            <div className="mt-5 grid grid-cols-1 gap-2 text-center text-xs sm:grid-cols-3">
               <Metric label="Gem" value={primary.hiddenGemScore} />
               <Metric label="Quality" value={primary.topicQuality.score} />
               <Metric label="Fresh" value={primary.lifecycle.freshnessScore} />
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             {ideaCards.map((idea) => (
               <div
                 key={idea.label}
@@ -212,7 +212,7 @@ export function CreatorModePanel({
                   type="button"
                   key={item.id}
                   onClick={() => onSelectTrend?.(item)}
-                  className="group grid w-full gap-3 rounded-2xl border border-border/10 bg-muted/25 p-3 text-left transition hover:border-secondary/30 hover:bg-muted/45 md:grid-cols-[auto_1fr_auto] md:items-center"
+                  className="group grid w-full gap-3 rounded-2xl border border-border/10 bg-muted/25 p-3 text-left transition hover:border-secondary/30 hover:bg-muted/45 sm:grid-cols-[auto_1fr_auto] sm:items-center"
                 >
                   <span className="flex h-8 w-8 items-center justify-center rounded-full border border-secondary/20 bg-secondary/10 text-xs font-semibold text-secondary">
                     {index + 1}
@@ -267,7 +267,7 @@ export function CreatorModePanel({
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-secondary">
               Evidence
             </p>
-            <ul className="grid gap-2 text-xs leading-5 text-muted-foreground/78 md:grid-cols-3">
+            <ul className="grid gap-2 text-xs leading-5 text-muted-foreground/78 sm:grid-cols-3">
               {primary.topSignals.slice(0, 3).map((signal) => (
                 <li key={`${signal.source}-${signal.url}`}>
                   <span className="font-semibold text-foreground">
