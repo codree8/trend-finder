@@ -1,7 +1,6 @@
 import type {
   DashboardWindow,
   TrendDetailSignal,
-  TrendDetailSnapshot,
   TrendLifecycle,
   TrendLifecycleStatus,
   TrendMomentumDirection,

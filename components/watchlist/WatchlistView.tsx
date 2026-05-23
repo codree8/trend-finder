@@ -17,6 +17,8 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import { FirstRunStateCard } from "@/components/common/FirstRunStateCard";
+import { ProductStateCard } from "@/components/common/ProductStateCard";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +29,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { TrendDetailDrawer } from "@/components/dashboard/TrendDetailDrawer";
+import {
+  isMissingDatabaseConfigError,
+  readApiErrorMessage,
+} from "@/lib/product/api-errors";
 import type {
   DashboardTrend,
   DashboardWindow,
@@ -121,7 +127,9 @@ export function WatchlistView() {
       const payload = await response.json();
 
       if (!response.ok || !payload.ok) {
-        throw new Error(payload.message ?? "Failed to load watchlist.");
+        throw new Error(
+          readApiErrorMessage(payload, "Failed to load watchlist."),
+        );
       }
 
       setItems((payload as WatchlistResponse).items);
@@ -149,6 +157,8 @@ export function WatchlistView() {
         ?.currentTrend ?? null
     );
   }, [items, selectedTrendSlug]);
+
+  const isMissingDatabaseConfig = isMissingDatabaseConfigError(error);
 
   const statusCounts = useMemo(() => {
     return items.reduce(
@@ -208,7 +218,8 @@ export function WatchlistView() {
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
               Watchlist now compares saved baseline metrics against current
-              saved baselines, then flags rising opportunities, cooling signals, quality warnings and fresh evidence.
+              saved baselines, then flags rising opportunities, cooling signals,
+              quality warnings and fresh evidence.
             </p>
           </div>
 
@@ -236,10 +247,23 @@ export function WatchlistView() {
           </section>
         ) : null}
 
-        {error ? (
-          <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm leading-6 text-red-100">
-            {error}
-          </div>
+        {isMissingDatabaseConfig ? (
+          <FirstRunStateCard onRetry={() => void loadWatchlist()} />
+        ) : error ? (
+          <ProductStateCard
+            variant="error"
+            title="Watchlist could not be loaded"
+            description={error}
+            action={
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => void loadWatchlist()}
+              >
+                Try again
+              </Button>
+            }
+          />
         ) : null}
 
         {isLoading ? (
@@ -251,7 +275,7 @@ export function WatchlistView() {
           </Card>
         ) : null}
 
-        {!isLoading && items.length === 0 ? (
+        {!isLoading && !error && items.length === 0 ? (
           <Card className="signal-glow">
             <CardHeader>
               <div className="flex items-center gap-3">

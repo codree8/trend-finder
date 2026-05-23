@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { KpiCards } from "@/components/dashboard/KpiCards";
@@ -19,6 +20,10 @@ import {
 import { ProductExperienceBanner } from "@/components/product/ProductExperienceBanner";
 import { ProductOnboardingCard } from "@/components/product/ProductOnboardingCard";
 import { ProductStateCard } from "@/components/common/ProductStateCard";
+import {
+  FirstRunStateCard,
+  NoScanStateCard,
+} from "@/components/common/FirstRunStateCard";
 import { Button } from "@/components/ui/button";
 import { isAiCategory } from "@/lib/config/ai-categories";
 import {
@@ -29,6 +34,10 @@ import {
   type ProductPreferences,
 } from "@/lib/preferences/product-preferences";
 import { applyProductTrendPreferences } from "@/lib/product/apply-product-preferences";
+import {
+  isMissingDatabaseConfigError,
+  readApiErrorMessage,
+} from "@/lib/product/api-errors";
 import type {
   DashboardMode,
   DashboardTrend,
@@ -183,7 +192,9 @@ export function DashboardView() {
         const payload = await response.json();
 
         if (!response.ok || !payload.ok) {
-          throw new Error(payload.message ?? "Failed to load dashboard data.");
+          throw new Error(
+            readApiErrorMessage(payload, "Failed to load dashboard data."),
+          );
         }
 
         setData(payload as DashboardTrendsResponse);
@@ -243,7 +254,10 @@ export function DashboardView() {
       setPreferences(readProductPreferences());
     }
 
-    window.addEventListener(productPreferencesChangedEvent, handlePreferenceChange);
+    window.addEventListener(
+      productPreferencesChangedEvent,
+      handlePreferenceChange,
+    );
     window.addEventListener("storage", handlePreferenceChange);
 
     return () => {
@@ -278,7 +292,12 @@ export function DashboardView() {
         TREND_SCAN_COMPLETED_EVENT,
         handleScanCompleted,
       );
-  }, [hasHydratedPreferences, loadDashboardData, loadSavedTrendKeys, trendWindow]);
+  }, [
+    hasHydratedPreferences,
+    loadDashboardData,
+    loadSavedTrendKeys,
+    trendWindow,
+  ]);
 
   const filteredTrends = useMemo(() => {
     const baseTrends = data.trends.filter(
@@ -353,6 +372,9 @@ export function DashboardView() {
     preferences.dashboardSections.charts ||
     preferences.dashboardSections.sourceBreakdown ||
     preferences.dashboardSections.trendTimeline;
+  const isMissingDatabaseConfig = isMissingDatabaseConfigError(error);
+  const hasNoScanData =
+    !isLoading && !error && !data.latestScan && data.trends.length === 0;
   const showHiddenGems = preferences.dashboardSections.hiddenGems;
   const showCreatorMode = preferences.dashboardSections.creatorMode;
   const showSignals = preferences.dashboardSections.signals;
@@ -459,8 +481,8 @@ export function DashboardView() {
                     Focused category scan available
                   </p>
                   <p className="mt-1 text-xs leading-5 text-muted-foreground/76">
-                    Scan the {activeCategory} keyword pack when this filter needs
-                    more signal coverage.
+                    Scan the {activeCategory} keyword pack when this filter
+                    needs more signal coverage.
                   </p>
                 </div>
                 <ScanButton
@@ -477,12 +499,25 @@ export function DashboardView() {
           </div>
         </section>
 
-        {error ? (
+        {isMissingDatabaseConfig ? (
+          <FirstRunStateCard
+            onRetry={() => void loadDashboardData(trendWindow)}
+          />
+        ) : error ? (
           <ProductStateCard
             variant="error"
             title="Dashboard data could not be loaded"
             description={error}
-            secondaryAction={<a href="/settings">Review settings</a>}
+            action={
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => void loadDashboardData(trendWindow)}
+              >
+                Try again
+              </Button>
+            }
+            secondaryAction={<Link href="/settings">Review settings</Link>}
           />
         ) : null}
 
@@ -504,17 +539,27 @@ export function DashboardView() {
                   Recommended flow
                 </p>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground/76">
-                  Open a trend, save what matters, then move to the queue, brief and reports when you are ready to act or share the readout.
+                  Open a trend, save what matters, then move to the queue, brief
+                  and reports when you are ready to act or share the readout.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2 text-sm">
-                <a className="rounded-full border border-secondary/20 bg-secondary/10 px-4 py-2 font-medium text-secondary transition hover:bg-secondary/15" href="/action-queue">
+                <a
+                  className="rounded-full border border-secondary/20 bg-secondary/10 px-4 py-2 font-medium text-secondary transition hover:bg-secondary/15"
+                  href="/action-queue"
+                >
                   Open Action Queue
                 </a>
-                <a className="rounded-full border border-border/10 bg-muted/35 px-4 py-2 font-medium text-foreground transition hover:bg-muted/50" href="/daily-brief">
+                <a
+                  className="rounded-full border border-border/10 bg-muted/35 px-4 py-2 font-medium text-foreground transition hover:bg-muted/50"
+                  href="/daily-brief"
+                >
                   Open Daily Brief
                 </a>
-                <a className="rounded-full border border-border/10 bg-muted/35 px-4 py-2 font-medium text-foreground transition hover:bg-muted/50" href="/reports">
+                <a
+                  className="rounded-full border border-border/10 bg-muted/35 px-4 py-2 font-medium text-foreground transition hover:bg-muted/50"
+                  href="/reports"
+                >
                   Build Report
                 </a>
               </div>
@@ -522,15 +567,25 @@ export function DashboardView() {
           </section>
         ) : null}
 
-        {!isLoading && !error && data.trends.length === 0 ? (
-          <ProductStateCard
+        {hasNoScanData ? (
+          <NoScanStateCard
             title="No trends yet"
-            description="Run a scan first. Then this page will show ranked topics, hidden gems, source coverage and creator opportunities."
-            secondaryAction={<a href="/settings">Check product setup</a>}
+            description="Run your first scan from this dashboard. Then this page will show ranked topics, hidden gems, source coverage and creator opportunities."
+            primaryAction={
+              <ScanButton
+                scanMode="balanced"
+                label="Scan Trends Now"
+                loadingLabel="Scanning"
+                variant="secondary"
+              />
+            }
           />
         ) : null}
 
-        {!isLoading && !error && data.trends.length > 0 && filteredTrends.length === 0 ? (
+        {!isLoading &&
+        !error &&
+        data.trends.length > 0 &&
+        filteredTrends.length === 0 ? (
           <ProductStateCard
             title={emptyFilteredTitle}
             description={emptyFilteredDescription}
@@ -566,7 +621,7 @@ export function DashboardView() {
                 </Button>
               </div>
             }
-            secondaryAction={<a href="/settings">Open settings</a>}
+            secondaryAction={<Link href="/settings">Open settings</Link>}
           />
         ) : null}
 

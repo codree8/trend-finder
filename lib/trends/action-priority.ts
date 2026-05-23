@@ -86,11 +86,6 @@ function visibilityActionCap(trend: DashboardTrend, score: number) {
   return score;
 }
 
-function hasFreshEnoughSignal(trend: DashboardTrend) {
-  const age = trend.lifecycle.latestSignalAgeHours;
-  return age === null || age <= 48;
-}
-
 function hasReliableEvidence(
   trend: DashboardTrend,
   watchlistItem: SavedTrendWithCurrent | null,

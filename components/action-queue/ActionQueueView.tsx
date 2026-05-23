@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Activity,
   AlertTriangle,
   ArrowUpRight,
   BookmarkCheck,
@@ -19,6 +18,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import {
+  FirstRunStateCard,
+  NoScanStateCard,
+} from "@/components/common/FirstRunStateCard";
+import { ProductStateCard } from "@/components/common/ProductStateCard";
 import { TrendDetailDrawer } from "@/components/dashboard/TrendDetailDrawer";
 import { WatchlistButton } from "@/components/watchlist/WatchlistButton";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
@@ -30,6 +34,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  isMissingDatabaseConfigError,
+  readApiErrorMessage,
+} from "@/lib/product/api-errors";
 import type {
   ActionQueueItem,
   ActionQueueQaStatus,
@@ -203,7 +211,9 @@ export function ActionQueueView() {
       const payload = await response.json();
 
       if (!response.ok || !payload.ok) {
-        throw new Error(payload.message ?? "Failed to load action queue.");
+        throw new Error(
+          readApiErrorMessage(payload, "Failed to load action queue."),
+        );
       }
 
       const queuePayload = payload as ActionQueueResponse;
@@ -226,6 +236,7 @@ export function ActionQueueView() {
     void loadActionQueue();
   }, [loadActionQueue]);
 
+  const isMissingDatabaseConfig = isMissingDatabaseConfigError(error);
   const savedTrends = useMemo(() => savedTrendItems(items), [items]);
   const savedTrendKeys = useMemo(
     () => new Set(savedTrends.map((item) => item.trendKey)),
@@ -272,7 +283,9 @@ export function ActionQueueView() {
               Decide what deserves attention now.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
-              This page turns the radar into a simple decision list: act on the strongest topics, watch the promising ones, research the uncertain ones and avoid noisy signals for now.
+              This page turns the radar into a simple decision list: act on the
+              strongest topics, watch the promising ones, research the uncertain
+              ones and avoid noisy signals for now.
             </p>
           </div>
 
@@ -291,14 +304,22 @@ export function ActionQueueView() {
         </section>
 
         <section className="grid gap-3 md:grid-cols-5">
-          <SummaryCard label="Act on this" value={summary.actNow} icon={Target} />
+          <SummaryCard
+            label="Act on this"
+            value={summary.actNow}
+            icon={Target}
+          />
           <SummaryCard label="Watch this" value={summary.monitor} icon={Eye} />
           <SummaryCard
             label="Research"
             value={summary.review}
             icon={ShieldAlert}
           />
-          <SummaryCard label="Avoid this" value={summary.ignore} icon={XCircle} />
+          <SummaryCard
+            label="Avoid this"
+            value={summary.ignore}
+            icon={XCircle}
+          />
           <SummaryCard
             label="High urgency"
             value={summary.highUrgency}
@@ -308,10 +329,23 @@ export function ActionQueueView() {
 
         {qaSummary ? <DecisionSafetyPanel qa={qaSummary} /> : null}
 
-        {error ? (
-          <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm leading-6 text-red-100">
-            {error}
-          </div>
+        {isMissingDatabaseConfig ? (
+          <FirstRunStateCard onRetry={() => void loadActionQueue()} />
+        ) : error ? (
+          <ProductStateCard
+            variant="error"
+            title="Action Queue could not be loaded"
+            description={error}
+            action={
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => void loadActionQueue()}
+              >
+                Try again
+              </Button>
+            }
+          />
         ) : null}
 
         {isLoading ? (
@@ -323,23 +357,11 @@ export function ActionQueueView() {
           </Card>
         ) : null}
 
-        {!isLoading && items.length === 0 ? (
-          <Card className="signal-glow">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-secondary/15 p-3 text-secondary">
-                  <Radar className="h-6 w-6" />
-                </div>
-                <div>
-                  <CardTitle>No action candidates yet</CardTitle>
-                  <CardDescription>
-                    Run a scan or widen the time window. The queue needs enough
-                    signal before it can recommend anything useful.
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
+        {!isLoading && !error && items.length === 0 ? (
+          <NoScanStateCard
+            title="No action candidates yet"
+            description="Run a scan or widen the time window. The queue needs enough stored signal before it can recommend anything useful."
+          />
         ) : null}
 
         {!isLoading && items.length > 0 ? (
@@ -385,7 +407,9 @@ function DecisionSafetyPanel({ qa }: { qa: ActionQueueQaSummary }) {
             </div>
             <CardTitle className="mt-3 text-xl">{qa.statusLabel}</CardTitle>
             <CardDescription className="mt-2 max-w-3xl">
-              This keeps the queue conservative: bold only when evidence is strong, cautious when signal is thin, and quiet when noise is high.
+              This keeps the queue conservative: bold only when evidence is
+              strong, cautious when signal is thin, and quiet when noise is
+              high.
             </CardDescription>
           </div>
           <Badge variant={qaVariant(qa.status)}>{qa.statusLabel}</Badge>

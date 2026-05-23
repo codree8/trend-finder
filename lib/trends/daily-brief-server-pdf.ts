@@ -6,7 +6,6 @@ import type {
   DailyBriefReportBlock,
   DailyBriefReportDocument,
   DailyBriefReportMetric,
-  DailyBriefReportSection,
   DailyBriefReportTone,
   DailyBriefReportTrendReference,
 } from "@/lib/trends/types";
