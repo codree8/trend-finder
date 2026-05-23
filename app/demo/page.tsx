@@ -1,5 +1,5 @@
-import { DemoPitchView } from "@/components/demo/DemoPitchView";
+import { ProductExplainerView } from "@/components/demo/ProductExplainerView";
 
 export default function DemoPage() {
-  return <DemoPitchView />;
+  return <ProductExplainerView />;
 }
