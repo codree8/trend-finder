@@ -44,6 +44,7 @@ import {
   type ProductPreferences,
 } from "@/lib/preferences/product-preferences";
 import {
+  buildDailyBriefExportReadinessUrl,
   buildDailyBriefFullJsonExportUrl,
   buildDailyBriefHtmlExportUrl,
   buildDailyBriefJsonExportUrl,
@@ -75,7 +76,7 @@ type CopyState = "idle" | "copied" | "failed";
 type SaveState = "idle" | "saved" | "failed";
 
 type ExportCard = {
-  id: DefaultExportFormat | "print";
+  id: DefaultExportFormat | "print" | "full-json" | "readiness";
   title: string;
   description: string;
   href: string;
@@ -328,15 +329,25 @@ export function ReportsHubView() {
         icon: FileJson,
       },
       {
-        id: "markdown",
-        format: "markdown",
-        title: "Markdown copy",
+        id: "full-json",
+        title: "Full JSON package",
         description:
-          "Copy a template-aware summary for notes, docs, or community posts.",
+          "Open the complete brief envelope when you need to inspect every field before reuse.",
         href: buildDailyBriefFullJsonExportUrl(selectedWindow, {
+          download: true,
           template: preferences.reportTemplate,
         }),
-        icon: Clipboard,
+        icon: FileJson,
+      },
+      {
+        id: "readiness",
+        title: "Export readiness QA",
+        description:
+          "Inspect PDF, HTML, JSON, print layout and template readiness in one endpoint.",
+        href: buildDailyBriefExportReadinessUrl(selectedWindow, {
+          template: preferences.reportTemplate,
+        }),
+        icon: ShieldCheck,
       },
       {
         id: "print",

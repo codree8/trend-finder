@@ -1,13 +1,10 @@
-import { getActionQueue } from "@/lib/trends/action-queue";
 import { tuneDailyBriefNarratives } from "@/lib/trends/daily-brief-qa";
 import { buildDailyBriefReportDocument } from "@/lib/trends/daily-brief-report-document";
-import {
-  getDashboardTrends,
-  normalizeDashboardWindow,
-} from "@/lib/trends/get-dashboard-trends";
-import { listSavedTrends } from "@/lib/trends/watchlist";
+import { normalizeDashboardWindow } from "@/lib/trends/get-dashboard-trends";
+import { loadTrendWorkspaceData } from "@/lib/trends/workspace-data";
 import type {
   ActionQueueItem,
+  ActionQueueResponse,
   DailyBriefAvoidSeverity,
   DailyBriefExecutiveSummary,
   DailyBriefNarrative,
@@ -416,7 +413,7 @@ function buildTopicsToAvoid(
 }
 
 function buildOverallWarnings(args: {
-  actionQueue: Awaited<ReturnType<typeof getActionQueue>>;
+  actionQueue: ActionQueueResponse;
   topicsToAvoid: DailyBriefTopicToAvoid[];
   watchlistMovement: SavedTrendWithCurrent[];
   latestScanWarnings: string[];
@@ -455,7 +452,7 @@ function buildOverallWarnings(args: {
 
 function buildRadarStats(args: {
   totalTrends: number;
-  actionQueue: Awaited<ReturnType<typeof getActionQueue>>;
+  actionQueue: ActionQueueResponse;
   watchlistMovement: SavedTrendWithCurrent[];
   hiddenGems: DashboardTrend[];
   creatorOpportunities: DashboardTrend[];
@@ -1002,11 +999,8 @@ export async function getDailyBrief(
   requestedWindow: DashboardWindow = "7d",
 ): Promise<DailyBriefResponse> {
   const window = normalizeDashboardWindow(requestedWindow);
-  const [dashboardData, actionQueue, watchlistData] = await Promise.all([
-    getDashboardTrends(window),
-    getActionQueue(window),
-    listSavedTrends(window),
-  ]);
+  const { dashboardData, actionQueue, watchlistData } =
+    await loadTrendWorkspaceData(window);
 
   const topPriorityActions = buildTopPriorityActions(actionQueue.items);
   const watchlistMovement = buildWatchlistMovement(watchlistData.items);

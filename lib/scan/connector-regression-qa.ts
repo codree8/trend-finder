@@ -88,15 +88,15 @@ export function buildConnectorRegressionQa(items: ConnectorReadinessItem[]): Con
     }),
   );
 
-  const activeMissingConfig = items.filter((item) => item.active && item.enabled && item.implemented && !item.configured);
+  const activeMissingConfig = items.filter((item) => item.active && item.status === "missing-key");
   checks.push(
     check({
       id: "no_active_missing_config",
       label: "No active connector missing required config",
       status: activeMissingConfig.length ? "blocked" : "pass",
       detail: activeMissingConfig.length
-        ? `${activeMissingConfig.map((item) => item.name).join(", ")} active but missing config.`
-        : "No active connector is missing a required local secret.",
+        ? `${activeMissingConfig.map((item) => item.name).join(", ")} active but missing required config.`
+        : "No active connector is missing a required local secret. Optional tokens stay advisory.",
     }),
   );
 

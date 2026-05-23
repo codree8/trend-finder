@@ -16,7 +16,7 @@ import type {
   WatchlistStatus,
 } from "@/lib/trends/types";
 
-type SavedTrendRow = typeof savedTrends.$inferSelect;
+export type SavedTrendRow = typeof savedTrends.$inferSelect;
 
 type SaveTrendInput = {
   trendKey: string;
@@ -373,24 +373,29 @@ export function savedTrendKeyFromTrend(
   return normalizeTrendKey(trend.canonicalKey || trend.id);
 }
 
-export async function listSavedTrends(
-  requestedWindow: DashboardWindow = "7d",
-): Promise<WatchlistResponse> {
+export async function listSavedTrendRows(limit = 200): Promise<SavedTrendRow[]> {
   const db = getDb();
 
   if (!db) {
     throw new Error("DATABASE_URL is not configured.");
   }
 
-  const window = normalizeDashboardWindow(requestedWindow);
+  return db
+    .select()
+    .from(savedTrends)
+    .orderBy(desc(savedTrends.savedAt))
+    .limit(limit);
+}
 
-  const [rows, dashboardData] = await Promise.all([
-    db.select().from(savedTrends).orderBy(desc(savedTrends.savedAt)).limit(200),
-    getDashboardTrends(window),
-  ]);
-
-  const currentByKey = indexCurrentTrends(dashboardData.trends);
-  const items = rows.map((row) => {
+export function buildWatchlistResponseFromRows(args: {
+  requestedWindow?: DashboardWindow | string | null;
+  rows: SavedTrendRow[];
+  dashboardData: { trends: DashboardTrend[] };
+  generatedAt?: string;
+}): WatchlistResponse {
+  const window = normalizeDashboardWindow(args.requestedWindow ?? "7d");
+  const currentByKey = indexCurrentTrends(args.dashboardData.trends);
+  const items = args.rows.map((row) => {
     const savedTrend = mapSavedTrend(row);
     const currentTrend =
       currentByKey.get(normalizeTrendKey(savedTrend.trendKey)) ??
@@ -403,9 +408,25 @@ export async function listSavedTrends(
   return {
     ok: true,
     window,
-    generatedAt: new Date().toISOString(),
+    generatedAt: args.generatedAt ?? new Date().toISOString(),
     items,
   };
+}
+
+export async function listSavedTrends(
+  requestedWindow: DashboardWindow = "7d",
+): Promise<WatchlistResponse> {
+  const window = normalizeDashboardWindow(requestedWindow);
+  const [rows, dashboardData] = await Promise.all([
+    listSavedTrendRows(),
+    getDashboardTrends(window),
+  ]);
+
+  return buildWatchlistResponseFromRows({
+    requestedWindow: window,
+    rows,
+    dashboardData,
+  });
 }
 
 export async function saveTrendToWatchlist(

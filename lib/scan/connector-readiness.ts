@@ -202,7 +202,7 @@ export function getConnectorReadinessSummary(): ConnectorReadinessSummary {
   const implementedItems = items.filter((source) => source.implemented);
   const configuredItems = items.filter((source) => source.configured);
   const missingRequiredConfigItems = items.filter(
-    (source) => source.enabled && source.implemented && !source.configured,
+    (source) => source.status === "missing-key",
   );
   const disabledItems = items.filter((source) => !source.active);
   const warnings = [

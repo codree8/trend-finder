@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true});require('fs').rmSync('tsconfig.tsbuildinfo',{force:true})\"",
-    "build": "npm run clean && npx next build",
+    "build": "npm run clean && node -e \"process.env.NEXT_TELEMETRY_DISABLED='1'; const { spawnSync } = require('child_process'); const bin = process.platform === 'win32' ? 'npx.cmd' : 'npx'; const result = spawnSync(bin, ['next', 'build'], { stdio: 'inherit', env: process.env }); process.exit(result.status ?? 1);\"",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit --incremental false",

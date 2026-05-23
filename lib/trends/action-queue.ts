@@ -5,7 +5,8 @@ import {
 import { buildTrendActionRecommendation } from "@/lib/trends/action-priority";
 import { buildActionQueueQa } from "@/lib/trends/action-queue-qa";
 import {
-  listSavedTrends,
+  buildWatchlistResponseFromRows,
+  listSavedTrendRows,
   savedTrendKeyFromTrend,
 } from "@/lib/trends/watchlist";
 import type {
@@ -96,17 +97,16 @@ function compareQueueItems(a: ActionQueueItem, b: ActionQueueItem) {
   return b.actionScore - a.actionScore;
 }
 
-export async function getActionQueue(
-  requestedWindow: DashboardWindow = "7d",
-): Promise<ActionQueueResponse> {
-  const window = normalizeDashboardWindow(requestedWindow);
-  const [dashboardData, watchlistData] = await Promise.all([
-    getDashboardTrends(window),
-    listSavedTrends(window),
-  ]);
-  const watchlistByKey = indexWatchlist(watchlistData.items);
+export function buildActionQueueFromData(args: {
+  requestedWindow?: DashboardWindow | string | null;
+  dashboardData: { trends: DashboardTrend[] };
+  watchlistData: { items: SavedTrendWithCurrent[] };
+  generatedAt?: string;
+}): ActionQueueResponse {
+  const window = normalizeDashboardWindow(args.requestedWindow ?? "7d");
+  const watchlistByKey = indexWatchlist(args.watchlistData.items);
 
-  const items = dashboardData.trends
+  const items = args.dashboardData.trends
     .map((trend) => {
       const watchlistItem = watchlistItemForTrend(trend, watchlistByKey);
       const recommendation = buildTrendActionRecommendation({
@@ -127,9 +127,33 @@ export async function getActionQueue(
   return {
     ok: true,
     window,
-    generatedAt: new Date().toISOString(),
+    generatedAt: args.generatedAt ?? new Date().toISOString(),
     summary: buildSummary(items),
     qa: buildActionQueueQa(items),
     items,
   };
+}
+
+export async function getActionQueue(
+  requestedWindow: DashboardWindow = "7d",
+): Promise<ActionQueueResponse> {
+  const window = normalizeDashboardWindow(requestedWindow);
+  const [dashboardData, savedRows] = await Promise.all([
+    getDashboardTrends(window),
+    listSavedTrendRows(),
+  ]);
+  const generatedAt = new Date().toISOString();
+  const watchlistData = buildWatchlistResponseFromRows({
+    requestedWindow: window,
+    rows: savedRows,
+    dashboardData,
+    generatedAt,
+  });
+
+  return buildActionQueueFromData({
+    requestedWindow: window,
+    dashboardData,
+    watchlistData,
+    generatedAt,
+  });
 }

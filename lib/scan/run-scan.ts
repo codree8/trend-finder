@@ -13,6 +13,7 @@ import type { ScanMode } from "@/lib/config/scan-keyword-limits";
 import { scanModeLabel } from "@/lib/scan/scan-mode";
 import { getActiveConnectors } from "@/lib/scan/connectors";
 import { getConnectorReadinessSummary } from "@/lib/scan/connector-readiness";
+import { buildScanReliabilityQa } from "@/lib/scan/scan-reliability-qa";
 import { clusterSourceSignals } from "@/lib/clustering/cluster-topics";
 import {
   addTrendSnapshots,
@@ -90,6 +91,8 @@ type ConnectorKeywordPlan = {
   globalPlan: ScanKeywordBuildResult;
   sourcePlans: Record<string, ScanKeywordBuildResult>;
 };
+
+const CONNECTOR_SCAN_TIMEOUT_MS = 25_000;
 
 function getSinceDate(windowDays: number): Date {
   const since = new Date();
@@ -230,6 +233,20 @@ function buildScanSummary(args: {
   };
 }
 
+function withTimeout<T>(
+  task: Promise<T>,
+  timeoutMs: number,
+  message: string,
+): Promise<T> {
+  return Promise.race([
+    task,
+    new Promise<T>((_, reject) => {
+      const timeout = setTimeout(() => reject(new Error(message)), timeoutMs);
+      timeout.unref?.();
+    }),
+  ]);
+}
+
 function prepareSignalsForScan(signals: SourceSignal[], observedAt: Date) {
   return signals.map((signal) => prepareSignalForStorage(signal, observedAt));
 }
@@ -245,11 +262,15 @@ async function scanConnector(
       keywords: args.keywordPlan.sourceKeywords,
       keywordCount: args.keywordPlan.sourceKeywordCount,
       sourceKeywordCap: args.keywordPlan.sourceKeywordCap,
-      signals: await connector.scan({
-        keywords: args.keywordPlan.sourceKeywords,
-        since: args.since,
-        limitPerSource: 20,
-      }),
+      signals: await withTimeout(
+        connector.scan({
+          keywords: args.keywordPlan.sourceKeywords,
+          since: args.since,
+          limitPerSource: 20,
+        }),
+        CONNECTOR_SCAN_TIMEOUT_MS,
+        `${connector.name} scan timed out after ${Math.round(CONNECTOR_SCAN_TIMEOUT_MS / 1000)} seconds.`,
+      ),
     };
   } catch (error) {
     return {
@@ -630,6 +651,16 @@ export async function runTrendScan(options: RunScanOptions) {
     sourceCounts,
     failedSources: failed.length,
   });
+  let scanReliabilityQa = buildScanReliabilityQa({
+    connectorReadiness,
+    connectorResults,
+    sourceCoverage,
+    fetchedSignals: fetchedSignals.length,
+    insertedSignals: 0,
+    duplicateRate: 0,
+    keywordCount: keywordPlan.globalPlan.keywordCount,
+    timeoutMs: CONNECTOR_SCAN_TIMEOUT_MS,
+  });
 
   const scanLabel = scanModeLabel(keywordPlan.globalPlan.mode, category);
   const metadata = {
@@ -710,6 +741,17 @@ export async function runTrendScan(options: RunScanOptions) {
           sourceCoverage,
         });
 
+  scanReliabilityQa = buildScanReliabilityQa({
+    connectorReadiness,
+    connectorResults,
+    sourceCoverage,
+    fetchedSignals: persistenceResult.scanSummary.fetchedSignals,
+    insertedSignals: persistenceResult.scanSummary.insertedSignals,
+    duplicateRate: persistenceResult.scanSummary.duplicateRate,
+    keywordCount: keywordPlan.globalPlan.keywordCount,
+    timeoutMs: CONNECTOR_SCAN_TIMEOUT_MS,
+  });
+
   const clusteredTopics = addTrendSnapshots(
     clusterSourceSignals(persistenceResult.historicalSignals),
     observedAt,
@@ -741,6 +783,7 @@ export async function runTrendScan(options: RunScanOptions) {
     sourceCounts,
     sourceCoverage,
     connectorReadiness,
+    scanReliabilityQa,
     failedSources: failed.length,
     scanSummary: {
       ...persistenceResult.scanSummary,
