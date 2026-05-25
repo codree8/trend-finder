@@ -37,8 +37,14 @@ const valueCards = [
   {
     title: "Actionable outputs",
     description:
-      "Turn signals into a Daily Brief, Action Queue, Watchlist and template-ready reports without losing manual review.",
+      "Turn scheduled and manual scans into a Daily Brief, Action Queue, Watchlist and template-ready reports without losing human review.",
     icon: FileText,
+  },
+  {
+    title: "Production-safe cadence",
+    description:
+      "Protected cron endpoints, GitHub Actions triggers and retention cleanup keep the radar fresh without flooding a small Neon database.",
+    icon: ListChecks,
   },
 ];
 
@@ -47,7 +53,7 @@ const workflowCards = [
     label: "Scan",
     title: "Collect source movement",
     description:
-      "GitHub, Hacker News, RSS and optional connectors feed normalized signal candidates into the system.",
+      "GitHub, Hacker News, RSS and optional connectors feed normalized signal candidates through manual scans or protected scheduled refreshes.",
   },
   {
     label: "Cluster",
@@ -158,7 +164,7 @@ export function PublicDemoLanding() {
                   Real source snapshots
                 </span>
                 <span className="rounded-full border border-border/10 bg-card/60 px-3 py-1.5">
-                  Manual review workflow
+                  Protected scheduled refresh
                 </span>
                 <span className="rounded-full border border-border/10 bg-card/60 px-3 py-1.5">
                   Export-ready intelligence

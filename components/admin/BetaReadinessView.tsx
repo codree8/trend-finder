@@ -90,9 +90,9 @@ const checks: ReadinessCheck[] = [
   },
   {
     group: "Boundary",
-    title: "No background workflow",
+    title: "Controlled scheduler boundary",
     status: "Ready",
-    detail: "No product route exposes background delivery controls. Reports and scans remain user-triggered.",
+    detail: "Scheduled scan and cleanup run only through protected cron endpoints. Reports remain user-triggered and reviewable.",
     route: "/admin/system-boundaries",
   },
   {
@@ -143,7 +143,7 @@ export function BetaReadinessView() {
               Make it feel like a product before calling it beta.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
-              This is the real QA pass: navigation, simplified pages, useful data, safe preferences, empty states, API handling and manual export paths.
+              This is the real QA pass: navigation, simplified pages, useful data, safe preferences, empty states, API handling, protected cron and manual export paths.
             </p>
           </div>
           <div className="rounded-2xl border border-secondary/20 bg-secondary/10 p-4 text-center">
@@ -171,7 +171,7 @@ export function BetaReadinessView() {
             <CardHeader>
               <ClipboardCheck className="h-5 w-5 text-secondary" />
               <CardTitle>Local release</CardTitle>
-              <CardDescription>Manual-first, no auth layer, no background surprises.</CardDescription>
+              <CardDescription>Protected cron, no auth layer, no background delivery surprises.</CardDescription>
             </CardHeader>
           </Card>
         </section>

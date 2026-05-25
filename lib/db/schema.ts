@@ -158,6 +158,23 @@ export const scanRuns = pgTable("scan_runs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const cronJobLocks = pgTable(
+  "cron_job_locks",
+  {
+    lockKey: varchar("lock_key", { length: 120 }).primaryKey(),
+    owner: varchar("owner", { length: 220 }).notNull(),
+    lockedAt: timestamp("locked_at").defaultNow().notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    metadata: jsonb("metadata"),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    cronJobLocksExpiresAtIdx: index("cron_job_locks_expires_at_idx").on(
+      table.expiresAt,
+    ),
+  }),
+);
+
 export const reports = pgTable("reports", {
   id: serial("id").primaryKey(),
   title: varchar("title", { length: 180 }).notNull(),

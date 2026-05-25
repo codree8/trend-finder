@@ -1,0 +1,35 @@
+name: Trend Finder daily cleanup
+
+on:
+  schedule:
+    - cron: "43 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Trigger protected retention cleanup
+        env:
+          TREND_FINDER_APP_URL: ${{ secrets.TREND_FINDER_APP_URL }}
+          TREND_FINDER_CRON_SECRET: ${{ secrets.TREND_FINDER_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${TREND_FINDER_APP_URL}" ]; then
+            echo "Missing GitHub secret: TREND_FINDER_APP_URL"
+            exit 1
+          fi
+
+          if [ -z "${TREND_FINDER_CRON_SECRET}" ]; then
+            echo "Missing GitHub secret: TREND_FINDER_CRON_SECRET"
+            exit 1
+          fi
+
+          curl --fail --show-error --silent \
+            --request POST \
+            --header "Authorization: Bearer ${TREND_FINDER_CRON_SECRET}" \
+            --header "Content-Type: application/json" \
+            --data '{"retentionDays":30}' \
+            "${TREND_FINDER_APP_URL%/}/api/internal/cron/cleanup"

@@ -535,7 +535,7 @@ export function ProductSettingsView() {
               Control the product, not the machine room.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
-              These preferences are browser-local UI settings. They change the product experience only; they do not add login, persistence, or background behavior.
+              These preferences are browser-local UI settings. They change the product experience only; they do not add login, database persistence, or scheduled jobs.
             </p>
           </div>
           <div className="grid gap-2 sm:flex sm:flex-wrap">
@@ -732,7 +732,7 @@ export function ProductSettingsView() {
             <CardTitle>Presentation behavior</CardTitle>
             <CardDescription>
               These modes change framing and defaults. They do not create fake
-              trends or enable hidden background behavior.
+              trends or enable hidden report delivery.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">

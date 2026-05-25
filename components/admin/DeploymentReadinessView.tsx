@@ -32,10 +32,10 @@ type DeploymentCheck = {
 
 const checks: DeploymentCheck[] = [
   {
-    title: "No email or cron leftovers",
+    title: "Cron surface is protected",
     status: "Ready",
     detail:
-      "No email delivery, recipients, send/test-send controls, provider setup or scheduled delivery surface is part of the product flow.",
+      "Scheduled scan and cleanup routes are internal endpoints guarded by CRON_SECRET, with database locks to prevent overlapping jobs.",
   },
   {
     title: "No auth requirement",
@@ -47,7 +47,7 @@ const checks: DeploymentCheck[] = [
     title: "No fake automation UI",
     status: "Ready",
     detail:
-      "The former automation concept is reframed as System Boundaries and documents what is intentionally not enabled.",
+      "System Boundaries now separates real protected cron from features that are still intentionally not enabled, such as email delivery.",
   },
   {
     title: "No real recipients or outbound targets",
@@ -110,10 +110,10 @@ const checks: DeploymentCheck[] = [
       "Open PDF, HTML, JSON and print-prep links from Reports Hub and Daily Brief.",
   },
   {
-    title: "Scan endpoint visible but safe",
+    title: "Scan endpoints separated",
     status: "Ready",
     detail:
-      "Manual scan remains a visible product action. It is not triggered silently by this build.",
+      "Manual scan remains a visible product action. Scheduled scan uses the protected internal cron endpoint.",
   },
   {
     title: "YouTube disabled state safe",
@@ -193,8 +193,8 @@ export function DeploymentReadinessView() {
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
               This board checks the local production boundary, user-facing
-              polish, API health and export reliability. It does not enable any
-              hidden background behavior.
+              polish, API health, cron guardrails and export reliability. It does
+              not enable hidden delivery behavior.
             </p>
           </div>
           <div className="rounded-2xl border border-secondary/20 bg-secondary/10 p-4 text-center">
@@ -218,10 +218,10 @@ export function DeploymentReadinessView() {
           <Card className="border-secondary/15 bg-[#160d0d]/66">
             <CardHeader>
               <ShieldCheck className="h-5 w-5 text-secondary" />
-              <CardTitle>Manual product</CardTitle>
+              <CardTitle>Controlled scheduler</CardTitle>
               <CardDescription>
-                Reports and scans stay user-triggered. No hidden delivery feature
-                is part of this build.
+                Scheduled scans and cleanup are guarded by CRON_SECRET. Reports
+                still stay manual and reviewable.
               </CardDescription>
             </CardHeader>
           </Card>

@@ -217,13 +217,13 @@ export function buildExportSystemReadiness({
       recommendedAction: researchMemoQa?.recommendedAction ?? "Run export readiness with the selected report template.",
     }),
     gate({
-      id: "manual-only-boundary",
-      label: "Manual-only boundary",
+      id: "controlled-scheduler-boundary",
+      label: "Controlled scheduler boundary",
       category: "local_boundary",
       status: "pass",
       severity: "success",
-      detail: "Exports are opened by the user. No background delivery is part of this local build.",
-      recommendedAction: "Keep this boundary until auth, ownership and delivery responsibility are intentionally designed.",
+      detail: "Scheduled scan and cleanup may run through protected cron endpoints, while exports remain manually opened by the user.",
+      recommendedAction: "Keep CRON_SECRET guarded and do not add report delivery until auth, ownership and responsibility are intentionally designed.",
     }),
     gate({
       id: "no-background-delivery",
@@ -231,7 +231,7 @@ export function buildExportSystemReadiness({
       category: "local_boundary",
       status: "pass",
       severity: "success",
-      detail: "No live delivery controls or outbound target configuration are required for local production mode.",
+      detail: "No live delivery controls or outbound target configuration are required for controlled production mode.",
       recommendedAction: "Do not add delivery UI to product pages.",
     }),
   ];

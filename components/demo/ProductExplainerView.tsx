@@ -77,7 +77,7 @@ const adminRouteCards = [
   },
   {
     title: "Boundaries",
-    description: "Keep local/manual product limits explicit: no auth, cron or email automation.",
+    description: "Review production limits: protected cron is active, email/auth are still intentionally out of scope.",
     href: "/admin/system-boundaries",
     icon: Layers3,
   },

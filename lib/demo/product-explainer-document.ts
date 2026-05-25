@@ -38,6 +38,7 @@ const steps: ExplainerStep[] = [
       "GitHub surfaces repository momentum and implementation activity.",
       "Hacker News captures builder discussion and technical curiosity.",
       "RSS sources add editorial, product and research context.",
+      "Manual scans and protected scheduled scans use the same normalized pipeline.",
       "Optional connectors can expand the scan without changing the core product flow.",
     ],
     output: "Raw source items become normalized signal candidates.",
@@ -102,8 +103,8 @@ const steps: ExplainerStep[] = [
     bullets: [
       "Scoring Lab explains why a topic ranked the way it did.",
       "Source Connector QA shows which integrations are active, optional or missing.",
-      "Readiness screens keep manual-only boundaries explicit.",
-      "System boundaries make it clear that there is no auth, cron or email automation in this local version.",
+      "Readiness screens keep production boundaries explicit.",
+      "System boundaries make it clear that protected cron exists, while auth and email automation remain out of scope.",
     ],
     output: "A maintainable separation between product UX and diagnostic tooling.",
   },
@@ -140,7 +141,7 @@ const productSide: ExplainerSection[] = [
     items: [
       "Watchlist tracks topics worth monitoring across scans.",
       "Action Queue prioritizes what deserves action, monitoring or avoidance.",
-      "The app keeps manual review in the loop instead of auto-publishing recommendations.",
+      "Scheduled scans refresh the data layer, while manual review stays in the decision and publishing loop.",
     ],
   },
   {
@@ -185,9 +186,9 @@ const adminSide: ExplainerSection[] = [
       "Clarifies what the current product is and what it deliberately does not include.",
     tone: "warning",
     items: [
-      "No public auth layer is included in this local/manual version.",
-      "No cron or email automation is active.",
-      "Public deployment requires access protection for scan/admin routes before real users are invited.",
+      "No public auth layer is included in this controlled deployment version.",
+      "Protected cron endpoints can refresh scans and clean old data, but email automation is not active.",
+      "Public deployment still requires access protection for manual scan/admin routes before real users are invited.",
     ],
   },
 ];
@@ -232,10 +233,11 @@ const boundaries: ExplainerSection[] = [
   {
     title: "What the app does well now",
     description:
-      "Trend Finder is strongest as a manual intelligence radar for early AI topics and reviewable reporting.",
+      "Trend Finder is strongest as a controlled intelligence radar for early AI topics, scheduled refreshes and reviewable reporting.",
     tone: "positive",
     items: [
       "Real source snapshots drive the product workflow.",
+      "Protected cron can keep the source base fresh without replacing human review.",
       "The user path is separated from admin diagnostics.",
       "Export flow is manual, visible and reviewable.",
     ],
@@ -243,11 +245,12 @@ const boundaries: ExplainerSection[] = [
   {
     title: "What should not be oversold",
     description:
-      "The product should not be presented as a magic prediction engine or fully automated SaaS platform in its current local form.",
+      "The product should not be presented as a magic prediction engine or fully automated SaaS platform just because scheduled scans are available.",
     tone: "warning",
     items: [
       "It detects and ranks signals; it does not guarantee future market outcomes.",
-      "It has no active auth, billing, team accounts, cron jobs or email automation.",
+      "It has no active auth, billing, team accounts or email automation.",
+      "Cron is limited to protected scan refresh and retention cleanup; it does not send reports or act on behalf of users.",
       "Any public launch needs access-control hardening first.",
     ],
   },
@@ -260,9 +263,9 @@ export function buildProductExplainerDocument(): ExplainerDocument {
       "How the AI signal radar collects source movement, filters noise, ranks opportunities and turns trends into usable briefs and reports.",
     generatedAt: new Date().toISOString(),
     summary:
-      "Trend Finder is a manual AI trend intelligence radar for creators, builders and analysts who need to spot meaningful movement before it becomes mainstream noise.",
+      "Trend Finder is an AI trend intelligence radar for creators, builders and analysts who need scheduled source refresh, manual review and exportable signal reports.",
     corePromise:
-      "The product does not try to predict the future with fake certainty. It scans real source signals, groups them into topics, evaluates evidence quality, and gives the user a practical decision layer: act, watch or avoid.",
+      "The product does not try to predict the future with fake certainty. It scans real source signals manually or on a protected schedule, groups them into topics, evaluates evidence quality, and gives the user a practical decision layer: act, watch or avoid.",
     steps,
     productSide,
     adminSide,

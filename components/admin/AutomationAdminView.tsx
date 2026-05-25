@@ -1,5 +1,13 @@
 import Link from "next/link";
-import { Ban, CheckCircle2, FileText, ShieldCheck, Trash2 } from "lucide-react";
+import {
+  Ban,
+  CalendarClock,
+  CheckCircle2,
+  DatabaseZap,
+  FileText,
+  LockKeyhole,
+  ShieldCheck,
+} from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,32 +22,49 @@ import {
 const boundaryItems = [
   {
     title: "No email delivery",
-    detail: "There are no send, test-send, recipients, provider settings or outbound delivery controls.",
+    detail:
+      "There are no send, test-send, recipients, provider settings or outbound delivery controls.",
   },
   {
-    title: "No cron",
-    detail: "There is no scheduled job surface. Scans and exports stay user-initiated.",
+    title: "Protected cron only",
+    detail:
+      "Cron is limited to scheduled scan refresh and retention cleanup through internal endpoints guarded by CRON_SECRET.",
   },
   {
-    title: "No auth",
-    detail: "The product does not require login, registration, middleware or protected routes.",
+    title: "No auth layer yet",
+    detail:
+      "The app still has no login, registration, middleware or per-user workspace protection.",
   },
   {
-    title: "No background automation",
-    detail: "Nothing runs silently after approval. The user opens, copies or exports reports manually.",
+    title: "No background report delivery",
+    detail:
+      "Scheduled jobs do not email, publish, forward or deliver reports. Users still open, copy or export reports manually.",
   },
   {
-    title: "Local-first mode",
-    detail: "Preferences, watchlist state and report history stay in the browser for now.",
+    title: "Local-first preferences",
+    detail:
+      "Preferences and report history stay in the browser for now. Watchlist and scan data use the database.",
   },
   {
-    title: "Manual scan/report workflow",
-    detail: "The supported flow is scan, review, save, brief, export and present.",
+    title: "Manual review remains mandatory",
+    detail:
+      "Cron keeps source data fresh, but the supported product flow is still scan, review, save, brief, export and present.",
   },
+];
+
+const cronItems = [
+  "POST /api/internal/cron/scan with CRON_SECRET",
+  "POST /api/internal/cron/cleanup with CRON_SECRET",
+  "GitHub Actions hourly scan workflow",
+  "GitHub Actions daily cleanup workflow",
+  "Database locks prevent overlapping scheduled jobs",
+  "Retention cleanup preserves watchlist and reports",
 ];
 
 const keptItems = [
   "Manual scan button and /api/scan",
+  "Protected scheduled scan endpoint",
+  "Protected scheduled retention cleanup endpoint",
   "Manual report exports",
   "PDF, HTML, JSON and print-ready views",
   "Browser-local report history",
@@ -56,51 +81,71 @@ export function AutomationAdminView() {
               Admin / System Boundaries
             </p>
             <h1 className="mt-3 max-w-4xl text-balance text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl md:text-5xl">
-              Trend Finder is local-first and manual-only.
+              Trend Finder has controlled scheduled scans, not hidden automation.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
-              This page documents what the product intentionally does not do, so
-              the local workflow stays honest and easy to explain.
+              This page documents what runs automatically, what remains manual,
+              and which production boundaries are still intentionally enforced.
             </p>
           </div>
-          <Badge variant="danger">Boundary enforced</Badge>
+          <Badge variant="secondary">Cron guarded</Badge>
         </section>
 
         <section className="grid gap-4 lg:grid-cols-3">
-          <Card className="border-primary/20 bg-primary/10">
+          <Card className="border-secondary/20 bg-secondary/10 signal-glow">
             <CardHeader>
-              <Ban className="h-5 w-5 text-primary" />
-              <CardTitle>No email delivery</CardTitle>
+              <CalendarClock className="h-5 w-5 text-secondary" />
+              <CardTitle>Scheduled scan refresh</CardTitle>
               <CardDescription>
-                No send buttons, no recipients and no provider setup screens are
-                part of this build.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-          <Card className="border-primary/20 bg-primary/10">
-            <CardHeader>
-              <Trash2 className="h-5 w-5 text-primary" />
-              <CardTitle>No cron or background jobs</CardTitle>
-              <CardDescription>
-                The app does not schedule scans, reports or follow-up delivery in
-                the background.
+                GitHub Actions can trigger the protected scan endpoint on a safe
+                cadence so the database stays fresh without user clicks.
               </CardDescription>
             </CardHeader>
           </Card>
           <Card className="border-secondary/20 bg-secondary/10">
             <CardHeader>
-              <ShieldCheck className="h-5 w-5 text-secondary" />
-              <CardTitle>Manual-first workflow</CardTitle>
+              <DatabaseZap className="h-5 w-5 text-secondary" />
+              <CardTitle>Daily retention cleanup</CardTitle>
               <CardDescription>
-                Users scan, inspect, save, brief and export through visible
-                product screens.
+                Old raw signals, mentions, snapshots and scan logs can be
+                deleted after the configured retention window.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+          <Card className="border-primary/20 bg-primary/10">
+            <CardHeader>
+              <Ban className="h-5 w-5 text-primary" />
+              <CardTitle>No email or user automation</CardTitle>
+              <CardDescription>
+                Cron does not send reports, notify recipients, publish content or
+                make decisions on behalf of users.
               </CardDescription>
             </CardHeader>
           </Card>
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-2">
-          <Card className="border-border/10 bg-[#160d0d]/62">
+        <section className="grid gap-4 lg:grid-cols-3">
+          <Card className="border-border/10 bg-[#160d0d]/62 lg:col-span-1">
+            <CardHeader>
+              <CardTitle>Cron surface</CardTitle>
+              <CardDescription>
+                These scheduled pieces are now intentionally part of the product.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {cronItems.map((item) => (
+                <div
+                  key={item}
+                  className="flex items-center gap-3 rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3 text-sm text-muted-foreground/78"
+                >
+                  <LockKeyhole className="h-4 w-4 text-secondary" />
+                  {item}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/10 bg-[#160d0d]/62 lg:col-span-1">
             <CardHeader>
               <CardTitle>Current boundaries</CardTitle>
               <CardDescription>
@@ -114,7 +159,7 @@ export function AutomationAdminView() {
                   className="rounded-2xl border border-border/10 bg-[#0f0808]/35 p-3"
                 >
                   <div className="flex items-center gap-3 text-sm font-semibold text-foreground">
-                    <Ban className="h-4 w-4 text-primary" />
+                    <ShieldCheck className="h-4 w-4 text-secondary" />
                     {item.title}
                   </div>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground/72">
@@ -125,11 +170,11 @@ export function AutomationAdminView() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/10 bg-[#160d0d]/62">
+          <Card className="border-border/10 bg-[#160d0d]/62 lg:col-span-1">
             <CardHeader>
               <CardTitle>Still available</CardTitle>
               <CardDescription>
-                These parts remain safe for a local/manual product flow.
+                These parts remain safe for a controlled production/demo flow.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -155,8 +200,8 @@ export function AutomationAdminView() {
             <CardTitle>Keep Product simple, keep Admin diagnostic.</CardTitle>
             <CardDescription>
               Product pages answer what matters, what to do next and what can be
-              exported. Admin pages explain how the system was calibrated and
-              which boundaries are enforced.
+              exported. Admin pages explain how the system was calibrated, how
+              cron is guarded and which boundaries are enforced.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
@@ -164,7 +209,7 @@ export function AutomationAdminView() {
               <Link href="/daily-brief">Open Daily Brief</Link>
             </Button>
             <Button asChild variant="outline">
-              <Link href="/admin/scoring-lab">Open Scoring Lab</Link>
+              <Link href="/admin/source-connectors">Open Source Connectors</Link>
             </Button>
             <Button asChild variant="ghost">
               <Link href="/admin/deployment-readiness">Open Deployment Readiness</Link>
