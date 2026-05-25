@@ -7,11 +7,13 @@ The project is built for a public landing/demo presentation plus a protected liv
 ## What is implemented
 
 - Public landing page for product positioning.
+- Browser tab favicon/logo through `app/favicon.ico`.
+- Public landing visit counter backed by a single aggregate database row.
 - Public `/demo` product explainer with PDF and HTML export.
 - Demo/admin access gate for the live product experience.
 - Real source scanning through GitHub, Hacker News, RSS and arXiv.
 - Optional YouTube connector behind `ENABLE_YOUTUBE_CONNECTOR` and `YOUTUBE_API_KEY`.
-- PostgreSQL/Drizzle persistence for raw signals, scan runs, topic clusters, snapshots, cron locks and saved watchlist trends.
+- PostgreSQL/Drizzle persistence for raw signals, scan runs, topic clusters, snapshots, cron locks, saved watchlist trends and the public visit counter.
 - Admin-only manual scan through `POST /api/scan`.
 - Protected scheduled scan through `POST /api/internal/cron/scan`.
 - Protected scheduled retention cleanup through `POST /api/internal/cron/cleanup`.
@@ -46,6 +48,8 @@ Public routes:
 /demo
 /api/demo-explainer/export/pdf
 /api/demo-explainer/export/html
+GET /api/visits
+POST /api/visits
 ```
 
 Demo code access:
@@ -141,6 +145,8 @@ Run database migrations after `DATABASE_URL` is set:
 ```bash
 npm run db:migrate
 ```
+
+The landing page visit counter uses the `site_counters` table. It stores one aggregate row for landing sessions, so it does not fill the database with one row per visitor.
 
 Search v4 adds a semantic search migration that creates the `vector` extension and the `semantic_search_documents` / `semantic_search_index_state` tables. Neon is the intended database target. If you use a different local PostgreSQL server, make sure pgvector is available before running migrations.
 
@@ -256,6 +262,8 @@ POST /api/scan
 GET  /api/trends?window=24h|7d|30d
 GET  /api/trends/[slug]?window=24h|7d|30d
 GET  /api/search?q=agents&scope=all&window=7d   # semantic/vector search
+GET  /api/visits                              # read public landing visit count
+POST /api/visits                              # increment public landing visit count
 GET  /api/watchlist?window=24h|7d|30d
 POST /api/watchlist?window=24h|7d|30d
 DELETE /api/watchlist/[trendKey]
@@ -373,6 +381,7 @@ browser-local report history
 cron_job_locks
 semantic_search_documents
 semantic_search_index_state
+site_counters
 ```
 
 This keeps Neon storage under control while preserving watchlist decisions, reports and the canonical topic layer. PostgreSQL may not show storage dropping instantly after deletes because normal vacuum behavior reuses freed table space over time.
@@ -410,7 +419,7 @@ npm run build
 
 Then manually verify:
 
-- `/` opens publicly.
+- `/` opens publicly and shows the landing visit counter.
 - `/demo` opens publicly.
 - `/dashboard` redirects to `/access` without a code.
 - Demo code opens product pages.

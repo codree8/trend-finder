@@ -221,3 +221,10 @@ export const savedTrends = pgTable(
     savedTrendSavedAtIdx: index("saved_trends_saved_at_idx").on(table.savedAt),
   }),
 );
+
+export const siteCounters = pgTable("site_counters", {
+  counterKey: varchar("counter_key", { length: 120 }).primaryKey(),
+  totalCount: integer("total_count").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});

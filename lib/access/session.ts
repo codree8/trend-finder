@@ -94,6 +94,7 @@ function isPublicPath(pathname: string) {
     matchesPath(pathname, "/demo") ||
     matchesPath(pathname, "/access") ||
     matchesPath(pathname, "/api/access") ||
+    matchesPath(pathname, "/api/visits") ||
     matchesPath(pathname, "/api/demo-explainer/export") ||
     matchesPath(pathname, "/api/internal/cron") ||
     pathname.startsWith("/_next") ||

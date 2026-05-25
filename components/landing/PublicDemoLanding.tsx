@@ -142,7 +142,7 @@ export function PublicDemoLanding() {
       <div className="pointer-events-none absolute inset-0 radar-grid opacity-70" />
 
       <div className="relative">
-        <PublicSiteHeader />
+        <PublicSiteHeader showVisitCounter />
 
         <section className="px-3 pb-8 pt-6 sm:px-6 sm:pb-12 sm:pt-10 lg:px-10 lg:pb-16">
           <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-stretch lg:gap-8">
