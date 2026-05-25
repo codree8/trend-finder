@@ -116,6 +116,7 @@ export function getRequiredRoleForRequest(pathname: string, method: string) {
 
   if (
     matchesPath(pathname, "/api/trends") ||
+    matchesPath(pathname, "/api/search") ||
     matchesPath(pathname, "/api/action-queue") ||
     matchesPath(pathname, "/api/daily-brief") ||
     matchesPath(pathname, "/api/export")

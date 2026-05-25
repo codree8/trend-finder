@@ -194,6 +194,27 @@ npm run db:push      # Push schema directly, useful only during local iteration
 npm run db:studio    # Open Drizzle Studio
 ```
 
+## Search
+
+The top search bar is backed by a protected server-side radar search endpoint.
+It searches the current stored dashboard window and returns ranked results across:
+
+- trend names, canonical keys and aliases
+- categories and source names
+- evidence titles and source URLs
+- creator angles, report-ready hooks and action recommendations
+
+Keyboard shortcuts:
+
+```txt
+Ctrl/Cmd + K  Open search
+/             Open search when not typing
+Enter         Open the best result
+Esc           Close search
+```
+
+`/api/search` requires demo access, because it reads the live stored radar index.
+
 ## Main pages
 
 ```txt
@@ -224,6 +245,7 @@ DELETE /api/access
 POST /api/scan
 GET  /api/trends?window=24h|7d|30d
 GET  /api/trends/[slug]?window=24h|7d|30d
+GET  /api/search?q=agents&scope=all&window=7d
 GET  /api/watchlist?window=24h|7d|30d
 POST /api/watchlist?window=24h|7d|30d
 DELETE /api/watchlist/[trendKey]

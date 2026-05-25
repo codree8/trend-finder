@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Clock3,
+  Database,
   FileText,
   Layers3,
   Link2,
@@ -18,25 +19,20 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  getDashboardSearchResults,
-  getDashboardSearchSuggestions,
+  clearRecentDashboardSearches,
+  dispatchTrendSearchSubmitted,
   getDashboardSearchUrl,
   normalizeTrendSearchQuery,
   readRecentDashboardSearches,
   recordRecentDashboardSearch,
-  clearRecentDashboardSearches,
-  dispatchTrendSearchSubmitted,
-  summarizeDashboardSearchResults,
-  type DashboardSearchResult,
+  type DashboardSearchApiResult,
+  type DashboardSearchApiSummary,
+  type DashboardSearchResponse,
   type DashboardSearchResultKind,
   type DashboardSearchScope,
 } from "@/lib/search/dashboard-search";
 import { readProductPreferences } from "@/lib/preferences/product-preferences";
-import type {
-  DashboardTrend,
-  DashboardTrendsResponse,
-  DashboardWindow,
-} from "@/lib/trends/types";
+import type { DashboardWindow } from "@/lib/trends/types";
 
 const scopeOptions: Array<{ value: DashboardSearchScope; label: string }> = [
   { value: "all", label: "All" },
@@ -56,6 +52,13 @@ const resultKindConfig: Record<
   evidence: { label: "Evidence", icon: FileText },
 };
 
+const emptySummary: DashboardSearchApiSummary = {
+  total: 0,
+  topCategory: null,
+  topSource: null,
+  bestMatch: null,
+};
+
 export function SearchCommandPalette({
   open,
   initialQuery,
@@ -71,7 +74,9 @@ export function SearchCommandPalette({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [query, setQuery] = useState(initialQuery ?? "");
   const [scope, setScope] = useState<DashboardSearchScope>("all");
-  const [trends, setTrends] = useState<DashboardTrend[]>([]);
+  const [results, setResults] = useState<DashboardSearchApiResult[]>([]);
+  const [summary, setSummary] = useState<DashboardSearchApiSummary>(emptySummary);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -84,84 +89,95 @@ export function SearchCommandPalette({
     window.setTimeout(() => inputRef.current?.focus(), 0);
   }, [initialQuery, open]);
 
+  const normalizedQuery = normalizeTrendSearchQuery(query);
+
   useEffect(() => {
-    if (!open || trends.length > 0) return;
+    if (!open) return;
 
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 15000);
+    let didTimeout = false;
+    const timeoutId = window.setTimeout(() => {
+      didTimeout = true;
+      controller.abort();
+    }, 15000);
+    const debounceId = window.setTimeout(
+      () => {
+        async function loadServerSearch() {
+          setIsLoading(true);
+          setError(null);
 
-    async function loadSearchData() {
-      setIsLoading(true);
-      setError(null);
+          try {
+            const preferredWindow = readProductPreferences().defaultBriefWindow;
+            const windowValue: DashboardWindow = preferredWindow ?? "7d";
+            const params = new URLSearchParams({
+              window: windowValue,
+              scope,
+              limit: "18",
+            });
 
-      try {
-        const preferredWindow = readProductPreferences().defaultBriefWindow;
-        const windowValue: DashboardWindow = preferredWindow ?? "7d";
-        const response = await fetch(`/api/trends?window=${windowValue}`, {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        const contentType = response.headers.get("content-type") ?? "";
-        const payload = contentType.includes("application/json")
-          ? await response.json()
-          : null;
+            if (normalizedQuery) {
+              params.set("q", normalizedQuery);
+            }
 
-        if (!response.ok || !payload?.ok) {
-          if (response.status === 401 || response.status === 403) {
-            throw new Error(
-              "Search needs demo access. Refresh the app or enter the access code again.",
+            const response = await fetch(`/api/search?${params.toString()}`, {
+              cache: "no-store",
+              signal: controller.signal,
+            });
+            const contentType = response.headers.get("content-type") ?? "";
+            const payload = contentType.includes("application/json")
+              ? await response.json()
+              : null;
+
+            if (!response.ok || !payload?.ok) {
+              if (response.status === 401 || response.status === 403) {
+                throw new Error(
+                  "Search needs demo access. Refresh the app or enter the access code again.",
+                );
+              }
+
+              throw new Error(
+                payload?.message ?? "Search database is not available yet.",
+              );
+            }
+
+            const searchPayload = payload as DashboardSearchResponse;
+            setResults(searchPayload.results);
+            setSummary(searchPayload.summary);
+            setSuggestions(searchPayload.suggestions);
+          } catch (loadError) {
+            if (controller.signal.aborted) {
+              if (didTimeout) {
+                setError(
+                  "Search database took too long to respond. Close search and try again.",
+                );
+              }
+              return;
+            }
+
+            setResults([]);
+            setSummary(emptySummary);
+            setError(
+              loadError instanceof Error
+                ? loadError.message
+                : "Search database is not available yet.",
             );
+          } finally {
+            window.clearTimeout(timeoutId);
+            setIsLoading(false);
           }
-
-          throw new Error("Search data is not available yet.");
         }
 
-        const dashboardPayload = payload as DashboardTrendsResponse;
-        const uniqueTrendMap = new Map<string, DashboardTrend>();
-
-        for (const trend of [
-          ...dashboardPayload.trends,
-          ...dashboardPayload.hiddenGems,
-          ...dashboardPayload.signalTable,
-          ...dashboardPayload.creatorMode.opportunities,
-        ]) {
-          uniqueTrendMap.set(trend.slug, trend);
-        }
-
-        if (dashboardPayload.creatorMode.trend) {
-          uniqueTrendMap.set(
-            dashboardPayload.creatorMode.trend.slug,
-            dashboardPayload.creatorMode.trend,
-          );
-        }
-
-        setTrends(Array.from(uniqueTrendMap.values()));
-      } catch (loadError) {
-        if (controller.signal.aborted) {
-          setError(
-            "Search index took too long to load. Close search and try again.",
-          );
-          return;
-        }
-
-        setError(
-          loadError instanceof Error
-            ? loadError.message
-            : "Search data is not available yet.",
-        );
-      } finally {
-        window.clearTimeout(timeoutId);
-        setIsLoading(false);
-      }
-    }
-
-    void loadSearchData();
+        void loadServerSearch();
+      },
+      normalizedQuery ? 260 : 0,
+    );
 
     return () => {
       window.clearTimeout(timeoutId);
+      window.clearTimeout(debounceId);
       controller.abort();
     };
-  }, [open, trends.length]);
+  }, [normalizedQuery, open, scope]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -193,19 +209,6 @@ export function SearchCommandPalette({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onOpenChange, open]);
 
-  const normalizedQuery = normalizeTrendSearchQuery(query);
-  const results = useMemo(
-    () => getDashboardSearchResults(trends, normalizedQuery, scope),
-    [normalizedQuery, scope, trends],
-  );
-  const summary = useMemo(
-    () => summarizeDashboardSearchResults(results),
-    [results],
-  );
-  const suggestions = useMemo(
-    () => getDashboardSearchSuggestions(trends),
-    [trends],
-  );
   const groupedResults = useMemo(() => groupResultsByKind(results), [results]);
 
   const updateQuery = useCallback(
@@ -263,6 +266,9 @@ export function SearchCommandPalette({
               placeholder="Search trends, sources, evidence, angles..."
               aria-label="Search Trend Finder"
             />
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin text-secondary" />
+            ) : null}
             {query ? (
               <button
                 type="button"
@@ -298,30 +304,23 @@ export function SearchCommandPalette({
                 {option.label}
               </button>
             ))}
-            <span className="ml-auto hidden rounded-full border border-border/10 bg-card/40 px-3 py-1.5 text-xs text-muted-foreground/65 sm:inline-flex">
-              Ctrl K · / · Enter
+            <span className="ml-auto hidden items-center gap-1.5 rounded-full border border-border/10 bg-card/40 px-3 py-1.5 text-xs text-muted-foreground/65 sm:inline-flex">
+              <Database className="h-3.5 w-3.5 text-secondary" />
+              Server search · Ctrl K · /
             </span>
           </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
-          {isLoading ? (
-            <div className="flex min-h-56 flex-col items-center justify-center gap-3 text-center text-sm text-muted-foreground/70">
-              <Loader2 className="h-6 w-6 animate-spin text-secondary" />
-              Loading the current radar index...
-            </div>
-          ) : error ? (
+          {error ? (
             <SearchEmptyState
-              title="Search index is not ready"
+              title="Search database is not ready"
               description={error}
             />
           ) : normalizedQuery ? (
             results.length > 0 ? (
               <div className="space-y-5">
-                <SearchInsightSummary
-                  summary={summary}
-                  query={normalizedQuery}
-                />
+                <SearchInsightSummary summary={summary} query={normalizedQuery} />
                 {groupedResults.map((group) => (
                   <section key={group.kind} className="space-y-2">
                     <div className="flex items-center justify-between gap-3">
@@ -350,12 +349,16 @@ export function SearchCommandPalette({
                   </section>
                 ))}
               </div>
+            ) : isLoading ? (
+              <SearchLoadingState message="Searching the radar database..." />
             ) : (
               <SearchEmptyState
                 title={`No results for “${normalizedQuery}”`}
                 description="Try a category, source name, repo keyword, content angle or a shorter phrase."
               />
             )
+          ) : isLoading && suggestions.length === 0 ? (
+            <SearchLoadingState message="Loading server-side radar suggestions..." />
           ) : (
             <SearchStartState
               recentSearches={recentSearches}
@@ -379,22 +382,22 @@ function SearchInsightSummary({
   summary,
 }: {
   query: string;
-  summary: ReturnType<typeof summarizeDashboardSearchResults>;
+  summary: DashboardSearchApiSummary;
 }) {
   return (
     <div className="rounded-3xl border border-secondary/15 bg-secondary/10 p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-secondary">
-            Search active
+            Database search active
           </p>
           <h3 className="mt-2 text-lg font-semibold tracking-[-0.03em] text-foreground">
             {summary.total} ranked result{summary.total === 1 ? "" : "s"} for “
             {query}”
           </h3>
           <p className="mt-1 text-sm leading-6 text-muted-foreground/76">
-            Ranked across trend names, aliases, sources, evidence titles and
-            content angles.
+            Ranked on the server from the current radar window across trend names,
+            aliases, sources, evidence titles and content angles.
           </p>
         </div>
         <div className="grid gap-2 text-xs text-muted-foreground/72 sm:min-w-56">
@@ -424,7 +427,7 @@ function SearchResultButton({
   query,
   onSelect,
 }: {
-  result: DashboardSearchResult;
+  result: DashboardSearchApiResult;
   query: string;
   onSelect: () => void;
 }) {
@@ -491,9 +494,9 @@ function SearchStartState({
     <div className="space-y-5">
       <div className="grid gap-3 md:grid-cols-3">
         <QuickSearchCard
-          icon={Target}
-          title="Jump to a trend"
-          description="Find a topic and open its intelligence drawer from anywhere."
+          icon={Database}
+          title="Server-side search"
+          description="Query the current radar database instead of relying only on the browser index."
         />
         <QuickSearchCard
           icon={Link2}
@@ -587,6 +590,15 @@ function QuickSearchCard({
   );
 }
 
+function SearchLoadingState({ message }: { message: string }) {
+  return (
+    <div className="flex min-h-56 flex-col items-center justify-center gap-3 text-center text-sm text-muted-foreground/70">
+      <Loader2 className="h-6 w-6 animate-spin text-secondary" />
+      {message}
+    </div>
+  );
+}
+
 function SearchEmptyState({
   title,
   description,
@@ -644,10 +656,10 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
   );
 }
 
-function groupResultsByKind(results: DashboardSearchResult[]) {
+function groupResultsByKind(results: DashboardSearchApiResult[]) {
   const groups: Array<{
     kind: DashboardSearchResultKind;
-    items: DashboardSearchResult[];
+    items: DashboardSearchApiResult[];
   }> = [];
 
   for (const kind of ["trend", "source", "angle", "evidence"] as const) {

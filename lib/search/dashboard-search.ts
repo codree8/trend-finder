@@ -25,6 +25,16 @@ export type DashboardSearchResultKind =
   | "angle"
   | "evidence";
 
+export type DashboardSearchTrendPreview = {
+  slug: string;
+  topic: string;
+  category: string;
+  sources: string[];
+  trendScore: number;
+  hiddenGemScore: number;
+  sourceCount: number;
+};
+
 export type DashboardSearchResult = {
   id: string;
   kind: DashboardSearchResultKind;
@@ -38,11 +48,33 @@ export type DashboardSearchResult = {
   metadata: string;
 };
 
+export type DashboardSearchApiResult = Omit<DashboardSearchResult, "trend"> & {
+  trend: DashboardSearchTrendPreview;
+};
+
 export type DashboardSearchSummary = {
   total: number;
   topCategory: string | null;
   topSource: string | null;
   bestMatch: DashboardSearchResult | null;
+};
+
+export type DashboardSearchApiSummary = Omit<
+  DashboardSearchSummary,
+  "bestMatch"
+> & {
+  bestMatch: DashboardSearchApiResult | null;
+};
+
+export type DashboardSearchResponse = {
+  ok: true;
+  query: string;
+  scope: DashboardSearchScope;
+  window: string;
+  generatedAt: string;
+  results: DashboardSearchApiResult[];
+  summary: DashboardSearchApiSummary;
+  suggestions: string[];
 };
 
 export function normalizeTrendSearchQuery(value: string) {
@@ -255,6 +287,35 @@ export function summarizeDashboardSearchResults(
     topCategory: getTopMapKey(categoryCounts),
     topSource: getTopMapKey(sourceCounts),
     bestMatch: results[0] ?? null,
+  };
+}
+
+
+export function toDashboardSearchApiResult(
+  result: DashboardSearchResult,
+): DashboardSearchApiResult {
+  return {
+    ...result,
+    trend: {
+      slug: result.trend.slug,
+      topic: result.trend.topic,
+      category: result.trend.category,
+      sources: result.trend.sources,
+      trendScore: result.trend.trendScore,
+      hiddenGemScore: result.trend.hiddenGemScore,
+      sourceCount: result.trend.sourceCount,
+    },
+  };
+}
+
+export function toDashboardSearchApiSummary(
+  summary: DashboardSearchSummary,
+): DashboardSearchApiSummary {
+  return {
+    ...summary,
+    bestMatch: summary.bestMatch
+      ? toDashboardSearchApiResult(summary.bestMatch)
+      : null,
   };
 }
 
