@@ -25,6 +25,7 @@ import {
   NoScanStateCard,
 } from "@/components/common/FirstRunStateCard";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { isAiCategory } from "@/lib/config/ai-categories";
 import {
   defaultProductPreferences,
@@ -34,6 +35,14 @@ import {
   type ProductPreferences,
 } from "@/lib/preferences/product-preferences";
 import { applyProductTrendPreferences } from "@/lib/product/apply-product-preferences";
+import {
+  dispatchTrendSearchSubmitted,
+  filterDashboardTrendsBySearch,
+  getDashboardSearchUrl,
+  readDashboardSearchQueryFromUrl,
+  TREND_SEARCH_SUBMITTED_EVENT,
+  type TrendSearchSubmittedDetail,
+} from "@/lib/search/dashboard-search";
 import {
   isMissingDatabaseConfigError,
   readApiErrorMessage,
@@ -170,6 +179,7 @@ export function DashboardView() {
   );
   const [hasHydratedPreferences, setHasHydratedPreferences] = useState(false);
   const [category, setCategory] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
   const [data, setData] = useState<DashboardTrendsResponse>(() =>
     emptyDashboardData("7d"),
   );
@@ -270,6 +280,31 @@ export function DashboardView() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    function syncSearchFromUrl() {
+      setSearchQuery(readDashboardSearchQueryFromUrl(window.location.search));
+    }
+
+    function handleSearchSubmitted(event: Event) {
+      const customEvent = event as CustomEvent<TrendSearchSubmittedDetail>;
+      setSearchQuery(customEvent.detail.query);
+    }
+
+    syncSearchFromUrl();
+    window.addEventListener("popstate", syncSearchFromUrl);
+    window.addEventListener(TREND_SEARCH_SUBMITTED_EVENT, handleSearchSubmitted);
+
+    return () => {
+      window.removeEventListener("popstate", syncSearchFromUrl);
+      window.removeEventListener(
+        TREND_SEARCH_SUBMITTED_EVENT,
+        handleSearchSubmitted,
+      );
+    };
+  }, []);
+
+  useEffect(() => {
     if (!hasHydratedPreferences) return;
     void loadDashboardData(trendWindow);
   }, [hasHydratedPreferences, loadDashboardData, trendWindow]);
@@ -319,6 +354,16 @@ export function DashboardView() {
     return applyProductTrendPreferences(baseTrends, preferences);
   }, [category, data.hiddenGems, mode, preferences]);
 
+  const searchFilteredTrends = useMemo(
+    () => filterDashboardTrendsBySearch(filteredTrends, searchQuery),
+    [filteredTrends, searchQuery],
+  );
+
+  const searchFilteredHiddenGems = useMemo(
+    () => filterDashboardTrendsBySearch(filteredHiddenGems, searchQuery),
+    [filteredHiddenGems, searchQuery],
+  );
+
   const creatorOpportunities = useMemo(() => {
     const ranked = data.creatorMode.opportunities.length
       ? data.creatorMode.opportunities
@@ -337,20 +382,35 @@ export function DashboardView() {
     );
   }, [category, data.creatorMode.opportunities, filteredTrends, mode]);
 
+  const searchFilteredCreatorOpportunities = useMemo(
+    () => filterDashboardTrendsBySearch(creatorOpportunities, searchQuery),
+    [creatorOpportunities, searchQuery],
+  );
+
   const creatorTrend = useMemo(() => {
+    const visibleCreatorOpportunities = searchQuery
+      ? searchFilteredCreatorOpportunities
+      : creatorOpportunities;
+
     return (
-      creatorOpportunities[0] ??
-      filteredTrends.find(
+      visibleCreatorOpportunities[0] ??
+      searchFilteredTrends.find(
         (trend) =>
           trend.topicQuality.gateStatus !== "suppress" &&
           trend.creatorOpportunity.score >= 65,
       ) ??
-      filteredTrends.find(
+      searchFilteredTrends.find(
         (trend) => trend.topicQuality.gateStatus !== "suppress",
       ) ??
-      data.creatorMode.trend
+      (searchQuery ? null : data.creatorMode.trend)
     );
-  }, [creatorOpportunities, data.creatorMode.trend, filteredTrends]);
+  }, [
+    creatorOpportunities,
+    data.creatorMode.trend,
+    searchFilteredCreatorOpportunities,
+    searchFilteredTrends,
+    searchQuery,
+  ]);
 
   const selectedTrend = useMemo(() => {
     if (!selectedTrendSlug) return null;
@@ -385,12 +445,25 @@ export function DashboardView() {
     preferences.interestProfile.minimumTrendScore > 0 ||
     preferences.interestProfile.excludeKeywords.length > 0;
   const hasActiveViewFilter = mode !== "All" || category !== "All";
+  const hasActiveSearch = searchQuery.length > 0;
+  const activeSearchResultCount = searchFilteredTrends.length;
   const activeCategory = isAiCategory(category) ? category : null;
+
+  function clearSearch() {
+    setSearchQuery("");
+
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", getDashboardSearchUrl(""));
+    }
+
+    dispatchTrendSearchSubmitted("");
+  }
   const hasCategoryFilter = activeCategory !== null;
 
   function resetVisibleTrendFilters() {
     setMode("All");
     setCategory("All");
+    clearSearch();
 
     if (hasActiveProfileFilter) {
       setPreferences(
@@ -406,20 +479,23 @@ export function DashboardView() {
     }
   }
 
-  const emptyFilteredTitle =
-    category !== "All"
+  const emptyFilteredTitle = hasActiveSearch
+    ? `No results for “${searchQuery}”`
+    : category !== "All"
       ? `No ${category} signals in this scan`
       : mode !== "All"
         ? `No ${mode.toLowerCase()} signals in this view`
         : "No trends visible with the current settings";
 
-  const emptyFilteredDescription = hasCategoryFilter
-    ? `This scan did not find enough reliable ${activeCategory} signals for the current view. Run a focused category scan or switch back to All trends.`
-    : hasActiveViewFilter
-      ? "The radar has trends, but this view is too narrow for the current scan. Switch back to All to see the full signal set."
-      : hasActiveProfileFilter
-        ? "Your score threshold or excluded keywords are hiding the current signal set. Show all trends resets only the local filters, not the saved data."
-        : "The radar has data, but the current view is hiding it. Show all trends returns to the default product view.";
+  const emptyFilteredDescription = hasActiveSearch
+    ? "The radar has data, but no trend matches this search across topics, aliases, source names, summaries, evidence titles or content angles."
+    : hasCategoryFilter
+      ? `This scan did not find enough reliable ${activeCategory} signals for the current view. Run a focused category scan or switch back to All trends.`
+      : hasActiveViewFilter
+        ? "The radar has trends, but this view is too narrow for the current scan. Switch back to All to see the full signal set."
+        : hasActiveProfileFilter
+          ? "Your score threshold or excluded keywords are hiding the current signal set. Show all trends resets only the local filters, not the saved data."
+          : "The radar has data, but the current view is hiding it. Show all trends returns to the default product view.";
 
   return (
     <AppShell>
@@ -498,6 +574,34 @@ export function DashboardView() {
             ) : null}
           </div>
         </section>
+
+        {hasActiveSearch && !isLoading && !error ? (
+          <section className="rounded-3xl border border-secondary/15 bg-secondary/10 p-4 shadow-card backdrop-blur sm:p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <Badge variant="secondary" className="mb-2 w-fit">
+                  Search active
+                </Badge>
+                <h2 className="text-lg font-semibold tracking-[-0.03em] text-foreground">
+                  {activeSearchResultCount} result
+                  {activeSearchResultCount === 1 ? "" : "s"} for “{searchQuery}”
+                </h2>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground/76">
+                  Searching topics, aliases, source names, summaries, evidence titles and content angles inside the current dashboard window and filters.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={clearSearch}
+                className="w-full sm:w-auto"
+              >
+                Clear search
+              </Button>
+            </div>
+          </section>
+        ) : null}
 
         {isMissingDatabaseConfig ? (
           <FirstRunStateCard
@@ -585,7 +689,7 @@ export function DashboardView() {
         {!isLoading &&
         !error &&
         data.trends.length > 0 &&
-        filteredTrends.length === 0 ? (
+        searchFilteredTrends.length === 0 ? (
           <ProductStateCard
             title={emptyFilteredTitle}
             description={emptyFilteredDescription}
@@ -657,7 +761,7 @@ export function DashboardView() {
         {showHiddenGems ? (
           <section id="hidden-gems" className="scroll-mt-4">
             <TrendCards
-              trends={filteredHiddenGems}
+              trends={searchFilteredHiddenGems}
               savedTrendKeys={savedTrendKeySet}
               selectedWindow={trendWindow}
               onSavedChange={handleSavedTrendChange}
@@ -670,7 +774,7 @@ export function DashboardView() {
           <section id="creator-mode" className="scroll-mt-4">
             <CreatorModePanel
               trend={creatorTrend}
-              opportunities={creatorOpportunities}
+              opportunities={searchFilteredCreatorOpportunities}
               onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}
             />
           </section>
@@ -679,7 +783,7 @@ export function DashboardView() {
         {showSignals ? (
           <section id="signals" className="scroll-mt-4">
             <TrendTable
-              trends={filteredTrends}
+              trends={searchFilteredTrends}
               onSelectTrend={(trend) => setSelectedTrendSlug(trend.slug)}
             />
           </section>
