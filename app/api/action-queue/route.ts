@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { normalizeDashboardWindow } from "@/lib/trends/get-dashboard-trends";
 import { getActionQueue } from "@/lib/trends/action-queue";
 import type { ActionQueueErrorResponse } from "@/lib/trends/types";
+import { buildApiErrorBody } from "@/lib/security/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -17,11 +18,10 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    const body: ActionQueueErrorResponse = {
-      ok: false,
-      message: "Failed to load action queue.",
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
+    const body: ActionQueueErrorResponse = buildApiErrorBody(
+      "Failed to load action queue.",
+      error,
+    );
 
     return NextResponse.json(body, { status: 500 });
   }

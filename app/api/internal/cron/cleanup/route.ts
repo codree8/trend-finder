@@ -17,7 +17,6 @@ function asRequestBody(value: unknown): Record<string, unknown> {
 }
 
 async function readBody(request: Request) {
-  if (request.method === "GET") return {};
   return asRequestBody(await request.json().catch(() => ({})));
 }
 
@@ -62,7 +61,6 @@ async function handleCronCleanup(request: Request) {
         scheduled: true,
         lock,
         message: "Scheduled retention cleanup failed.",
-        error: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 },
     );
@@ -75,6 +73,3 @@ export async function POST(request: Request) {
   return handleCronCleanup(request);
 }
 
-export async function GET(request: Request) {
-  return handleCronCleanup(request);
-}

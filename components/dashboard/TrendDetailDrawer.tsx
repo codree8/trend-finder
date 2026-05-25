@@ -73,6 +73,7 @@ import type {
   TrendSourceEvidenceVerdict,
   WatchlistStatus,
 } from "@/lib/trends/types";
+import { getSafeExternalUrl } from "@/lib/security/safe-url";
 
 type Props = {
   slug: string | null;
@@ -337,7 +338,7 @@ function fallbackTrendTitle(initialTrend: DashboardTrend | null | undefined) {
 function SignalLink({ signal }: { signal: TrendDetailSignal }) {
   return (
     <a
-      href={signal.url}
+      href={getSafeExternalUrl(signal.url) ?? "#"}
       target="_blank"
       rel="noreferrer"
       className="group block rounded-2xl border border-border/10 bg-muted/35 p-4 transition hover:border-secondary/35 hover:bg-muted/55"
@@ -1433,7 +1434,7 @@ function SourceEvidenceSignalRow({
 }) {
   return (
     <a
-      href={signal.url}
+      href={getSafeExternalUrl(signal.url) ?? "#"}
       target="_blank"
       rel="noreferrer"
       className="group block rounded-2xl border border-border/10 bg-muted/25 p-3 transition hover:border-secondary/30 hover:bg-muted/40"
@@ -2445,7 +2446,7 @@ function EvidenceCard({ item }: { item: TrendEvidenceItem }) {
           {item.supportingSignals.slice(0, 3).map((signal) => (
             <a
               key={`${item.id}-${signal.source}-${signal.url}`}
-              href={signal.url}
+              href={getSafeExternalUrl(signal.url) ?? "#"}
               target="_blank"
               rel="noreferrer"
               className="group flex items-start justify-between gap-3 rounded-2xl border border-border/10 bg-muted/25 p-3 transition hover:border-secondary/25 hover:bg-muted/40"

@@ -1,11 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, ClipboardCheck, ExternalLink, Gauge, LayoutDashboard, TriangleAlert, XCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  ClipboardCheck,
+  ExternalLink,
+  Gauge,
+  LayoutDashboard,
+  TriangleAlert,
+  XCircle,
+} from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 type CheckStatus = "Ready" | "Review" | "Blocked";
 
@@ -22,91 +36,104 @@ const checks: ReadinessCheck[] = [
     group: "Navigation",
     title: "Product/Admin separation",
     status: "Ready",
-    detail: "Product pages focus on decisions and exports. Admin pages hold diagnostics and system boundaries.",
+    detail:
+      "Product pages focus on decisions and exports. Admin pages hold diagnostics and system boundaries.",
     route: "/admin/system-boundaries",
   },
   {
     group: "Navigation",
     title: "Product links",
-    status: "Review",
-    detail: "Click through dashboard, watchlist, action queue, daily brief, reports, history and settings locally.",
+    status: "Ready",
+    detail:
+      "Click through dashboard, watchlist, action queue, daily brief, reports, history and settings locally.",
     route: "/dashboard",
   },
   {
     group: "Navigation",
     title: "Admin links",
-    status: "Review",
-    detail: "Check scoring lab, beta readiness, deployment readiness and boundaries routes from the sidebar.",
+    status: "Ready",
+    detail:
+      "Check scoring lab, beta readiness, deployment readiness and boundaries routes from the sidebar.",
     route: "/admin/scoring-lab",
   },
   {
     group: "Product",
     title: "Daily Brief memo",
     status: "Ready",
-    detail: "The brief presents best move, act/watch/avoid guidance, confidence and caveat without diagnostic overload.",
+    detail:
+      "The brief presents best move, act/watch/avoid guidance, confidence and caveat without diagnostic overload.",
     route: "/daily-brief",
   },
   {
     group: "Product",
     title: "Reports templates",
     status: "Ready",
-    detail: "Reports change structure for executive, creator, research and pitch views while keeping manual export links.",
+    detail:
+      "Reports change structure for executive, creator, research and pitch views while keeping manual export links.",
     route: "/reports",
   },
   {
     group: "Data",
     title: "Real data usefulness",
     status: "Review",
-    detail: "Run a fresh scan and inspect whether hidden gems, action queue and creator opportunities are useful, not merely valid.",
+    detail:
+      "Run a fresh scan and inspect whether hidden gems, action queue and creator opportunities are useful, not merely valid.",
     route: "/dashboard",
   },
   {
     group: "Data",
     title: "Category keyword coverage",
     status: "Ready",
-    detail: "All product categories are backed by keyword packs and visible from Admin Source Connectors.",
+    detail:
+      "All product categories are backed by keyword packs and visible from Admin Source Connectors.",
     route: "/admin/source-connectors",
   },
   {
     group: "Data",
     title: "Noise suppression",
     status: "Ready",
-    detail: "Suppressed and rejected trends are hidden from product routes while remaining inspectable in Admin Scoring Lab.",
+    detail:
+      "Suppressed and rejected trends are hidden from product routes while remaining inspectable in Admin Scoring Lab.",
     route: "/admin/scoring-lab",
   },
   {
     group: "Preferences",
     title: "Hydration-safe local preferences",
     status: "Ready",
-    detail: "Preferences are read after mount or through safe fallbacks, so refresh should not change the initial server/client shape.",
+    detail:
+      "Preferences are read after mount or through safe fallbacks, so refresh should not change the initial server/client shape.",
     route: "/settings",
   },
   {
     group: "Reports",
     title: "Local report history",
     status: "Ready",
-    detail: "Saved reports remain browser-local for now. Database-backed ownership is intentionally deferred.",
+    detail:
+      "Saved reports remain browser-local for now. Database-backed ownership is intentionally deferred.",
     route: "/reports/history",
   },
   {
     group: "Boundary",
     title: "Controlled scheduler boundary",
     status: "Ready",
-    detail: "Scheduled scan and cleanup run only through protected cron endpoints. Reports remain user-triggered and reviewable.",
+    detail:
+      "Scheduled scan and cleanup run only through protected cron endpoints. Reports remain user-triggered and reviewable.",
     route: "/admin/system-boundaries",
   },
   {
     group: "Boundary",
-    title: "No auth requirement",
+    title: "Demo/admin access boundary",
     status: "Ready",
-    detail: "The project remains a local tool with UI-only Product/Admin separation.",
+    detail:
+      "The public landing/explainer stay open, demo users can review product pages, and admin-only areas are protected.",
     route: "/settings",
   },
   {
     group: "Release",
     title: "API and build checks",
-    status: "Review",
-    detail: "Verify /api/trends, export routes, lint, TypeScript and build before calling this beta-ready.",
+    status: "Ready",
+    detail:
+      "Verify /api/trends, export routes, lint, TypeScript and build before calling this beta-ready.",
     route: "/admin/deployment-readiness",
   },
 ];
@@ -118,8 +145,10 @@ function statusVariant(status: CheckStatus) {
 }
 
 function StatusIcon({ status }: { status: CheckStatus }) {
-  if (status === "Ready") return <CheckCircle2 className="mt-0.5 h-5 w-5 text-secondary" />;
-  if (status === "Blocked") return <XCircle className="mt-0.5 h-5 w-5 text-primary" />;
+  if (status === "Ready")
+    return <CheckCircle2 className="mt-0.5 h-5 w-5 text-secondary" />;
+  if (status === "Blocked")
+    return <XCircle className="mt-0.5 h-5 w-5 text-primary" />;
   return <TriangleAlert className="mt-0.5 h-5 w-5 text-accent" />;
 }
 
@@ -143,12 +172,18 @@ export function BetaReadinessView() {
               Make it feel like a product before calling it beta.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
-              This is the real QA pass: navigation, simplified pages, useful data, safe preferences, empty states, API handling, protected cron and manual export paths.
+              This is the real QA pass: navigation, simplified pages, useful
+              data, safe preferences, empty states, API handling, protected cron
+              and manual export paths.
             </p>
           </div>
           <div className="rounded-2xl border border-secondary/20 bg-secondary/10 p-4 text-center">
-            <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground/60">Readiness</p>
-            <p className="mt-1 text-3xl font-semibold text-secondary">{readinessScore}%</p>
+            <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground/60">
+              Readiness
+            </p>
+            <p className="mt-1 text-3xl font-semibold text-secondary">
+              {readinessScore}%
+            </p>
           </div>
         </section>
 
@@ -157,21 +192,29 @@ export function BetaReadinessView() {
             <CardHeader>
               <LayoutDashboard className="h-5 w-5 text-secondary" />
               <CardTitle>Product UX</CardTitle>
-              <CardDescription>Simplified user pages, clear exports and no diagnostic overload.</CardDescription>
+              <CardDescription>
+                Simplified user pages, clear exports and no diagnostic overload.
+              </CardDescription>
             </CardHeader>
           </Card>
           <Card className="border-secondary/15 bg-[#160d0d]/66">
             <CardHeader>
               <Gauge className="h-5 w-5 text-secondary" />
               <CardTitle>Real signal quality</CardTitle>
-              <CardDescription>The next judgement is usefulness, not only whether the code compiles.</CardDescription>
+              <CardDescription>
+                The next judgement is usefulness, not only whether the code
+                compiles.
+              </CardDescription>
             </CardHeader>
           </Card>
           <Card className="border-secondary/15 bg-[#160d0d]/66">
             <CardHeader>
               <ClipboardCheck className="h-5 w-5 text-secondary" />
               <CardTitle>Local release</CardTitle>
-              <CardDescription>Protected cron, no auth layer, no background delivery surprises.</CardDescription>
+              <CardDescription>
+                Protected cron, demo/admin access, no background delivery
+                surprises.
+              </CardDescription>
             </CardHeader>
           </Card>
         </section>
@@ -179,26 +222,40 @@ export function BetaReadinessView() {
         <Card className="border-border/10 bg-[#160d0d]/62">
           <CardHeader>
             <CardTitle>QA checklist</CardTitle>
-            <CardDescription>Use this as your click-through order before demo recording or local production use.</CardDescription>
+            <CardDescription>
+              Use this as your click-through order before demo recording or
+              local production use.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {checks.map((check) => (
-              <div key={`${check.group}-${check.title}`} className="flex flex-col gap-3 rounded-2xl border border-border/10 bg-[#0f0808]/35 p-4 xl:flex-row xl:items-start xl:justify-between">
+              <div
+                key={`${check.group}-${check.title}`}
+                className="flex flex-col gap-3 rounded-2xl border border-border/10 bg-[#0f0808]/35 p-4 xl:flex-row xl:items-start xl:justify-between"
+              >
                 <div className="flex gap-3">
                   <StatusIcon status={check.status} />
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="muted">{check.group}</Badge>
-                      <p className="text-sm font-semibold text-foreground">{check.title}</p>
+                      <p className="text-sm font-semibold text-foreground">
+                        {check.title}
+                      </p>
                     </div>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground/76">{check.detail}</p>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground/76">
+                      {check.detail}
+                    </p>
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <Badge variant={statusVariant(check.status)}>{check.status}</Badge>
+                  <Badge variant={statusVariant(check.status)}>
+                    {check.status}
+                  </Badge>
                   {check.route ? (
                     <Button asChild size="sm" variant="ghost">
-                      <Link href={check.route}>Open <ExternalLink className="ml-2 h-4 w-4" /></Link>
+                      <Link href={check.route}>
+                        Open <ExternalLink className="ml-2 h-4 w-4" />
+                      </Link>
                     </Button>
                   ) : null}
                 </div>

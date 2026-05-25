@@ -1,7 +1,15 @@
 import { getDashboardTrends, normalizeDashboardWindow } from "@/lib/trends/get-dashboard-trends";
+import { buildApiErrorBody } from "@/lib/security/api-error";
+
+function neutralizeSpreadsheetFormula(value: string) {
+  const trimmed = value.trimStart();
+  if (/^[=+\-@]/.test(trimmed)) return `'${value}`;
+  return value;
+}
 
 function csvCell(value: string | number | null | undefined) {
-  return `"${String(value ?? "").replaceAll('"', '""')}"`;
+  const safeValue = neutralizeSpreadsheetFormula(String(value ?? ""));
+  return `"${safeValue.replaceAll('"', '""')}"`;
 }
 
 export const dynamic = "force-dynamic";
@@ -47,11 +55,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     return Response.json(
-      {
-        ok: false,
-        message: "CSV export could not be generated from current trend data.",
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
+      buildApiErrorBody("CSV export could not be generated from current trend data.", error),
       { status: 500 },
     );
   }

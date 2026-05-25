@@ -133,9 +133,11 @@ export function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps) {
   const [preferences, setPreferences] = useState<ProductPreferences>(
     defaultProductPreferences,
   );
+  const [accessRole, setAccessRole] = useState<"demo" | "admin" | null>(null);
 
   const isDashboard = pathname === "/dashboard" || pathname === "/";
-  const isAdminView = workspaceView === "admin";
+  const canUseAdminView = accessRole === "admin";
+  const isAdminView = workspaceView === "admin" && canUseAdminView;
 
   const navItems = useMemo(() => {
     if (isAdminView) return adminRouteItems;
@@ -292,7 +294,35 @@ export function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isMobileOpen, onMobileClose]);
 
+  useEffect(() => {
+    let active = true;
+
+    async function loadAccessRole() {
+      try {
+        const response = await fetch("/api/access", { cache: "no-store" });
+        const data = (await response.json()) as { role?: "demo" | "admin" | null };
+        if (active) setAccessRole(data.role ?? null);
+      } catch {
+        if (active) setAccessRole(null);
+      }
+    }
+
+    loadAccessRole();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (workspaceView === "admin" && !canUseAdminView) {
+      setWorkspaceView("product");
+      writePreferredWorkspaceView("product");
+    }
+  }, [canUseAdminView, workspaceView]);
+
   function handleWorkspaceChange(nextView: WorkspaceView) {
+    if (nextView === "admin" && !canUseAdminView) return;
     setWorkspaceView(nextView);
     writePreferredWorkspaceView(nextView);
   }
@@ -349,21 +379,27 @@ export function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps) {
             </Badge>
           </div>
           <div className="grid grid-cols-2 gap-1">
-            {(["product", "admin"] as const).map((view) => (
-              <button
-                key={view}
-                type="button"
-                onClick={() => handleWorkspaceChange(view)}
-                className={cn(
-                  "rounded-lg px-2 py-2 text-xs font-medium transition",
-                  workspaceView === view
-                    ? "bg-primary text-primary-foreground shadow-radar"
-                    : "text-muted-foreground/75 hover:bg-muted hover:text-foreground",
-                )}
-              >
-                {view === "product" ? "Product" : "Admin"}
-              </button>
-            ))}
+            {(["product", "admin"] as const).map((view) => {
+              const isLockedAdmin = view === "admin" && !canUseAdminView;
+
+              return (
+                <button
+                  key={view}
+                  type="button"
+                  onClick={() => handleWorkspaceChange(view)}
+                  disabled={isLockedAdmin}
+                  title={isLockedAdmin ? "Admin password required" : undefined}
+                  className={cn(
+                    "rounded-lg px-2 py-2 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-45",
+                    workspaceView === view && !isLockedAdmin
+                      ? "bg-primary text-primary-foreground shadow-radar"
+                      : "text-muted-foreground/75 hover:bg-muted hover:text-foreground disabled:hover:bg-transparent disabled:hover:text-muted-foreground/75",
+                  )}
+                >
+                  {view === "product" ? "Product" : "Admin"}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>

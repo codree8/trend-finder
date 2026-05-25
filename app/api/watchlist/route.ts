@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { normalizeDashboardWindow } from "@/lib/trends/get-dashboard-trends";
 import { listSavedTrends, saveTrendToWatchlist } from "@/lib/trends/watchlist";
+import { buildApiErrorBody } from "@/lib/security/api-error";
 import type {
   WatchlistErrorResponse,
   WatchlistMutationResponse,
@@ -42,11 +43,10 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    const body: WatchlistErrorResponse = {
-      ok: false,
-      message: "Failed to load watchlist.",
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
+    const body: WatchlistErrorResponse = buildApiErrorBody(
+      "Failed to load watchlist.",
+      error,
+    );
 
     return NextResponse.json(body, { status: 500 });
   }
@@ -88,11 +88,10 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    const body: WatchlistErrorResponse = {
-      ok: false,
-      message: "Failed to save trend to watchlist.",
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
+    const body: WatchlistErrorResponse = buildApiErrorBody(
+      "Failed to save trend to watchlist.",
+      error,
+    );
 
     return NextResponse.json(body, { status: 400 });
   }

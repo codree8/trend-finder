@@ -9,6 +9,7 @@ import {
 } from "@/lib/trends/daily-brief-json-export";
 import { normalizeDashboardWindow } from "@/lib/trends/get-dashboard-trends";
 import type { DailyBriefErrorResponse } from "@/lib/trends/types";
+import { buildApiErrorBody } from "@/lib/security/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -39,11 +40,10 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    const body: DailyBriefErrorResponse = {
-      ok: false,
-      message: "Failed to export daily intelligence brief as JSON.",
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
+    const body: DailyBriefErrorResponse = buildApiErrorBody(
+      "Failed to export daily intelligence brief as JSON.",
+      error,
+    );
 
     return NextResponse.json(body, { status: 500 });
   }

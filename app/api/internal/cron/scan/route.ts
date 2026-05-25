@@ -16,7 +16,6 @@ function asRequestBody(value: unknown): Record<string, unknown> {
 }
 
 async function readBody(request: Request) {
-  if (request.method === "GET") return {};
   return asRequestBody(await request.json().catch(() => ({})));
 }
 
@@ -94,7 +93,6 @@ async function handleCronScan(request: Request) {
         scheduled: true,
         lock,
         message: "Scheduled trend scan failed.",
-        error: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 },
     );
@@ -107,6 +105,3 @@ export async function POST(request: Request) {
   return handleCronScan(request);
 }
 
-export async function GET(request: Request) {
-  return handleCronScan(request);
-}

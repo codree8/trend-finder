@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, Radar } from "lucide-react";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -8,6 +8,7 @@ import type { AiCategory } from "@/lib/config/ai-categories";
 import type { ScanMode } from "@/lib/config/scan-keyword-limits";
 
 type ScanState = "idle" | "loading" | "success" | "error";
+type AccessRole = "demo" | "admin" | null;
 
 type ScanApiResponse = {
   ok?: boolean;
@@ -89,8 +90,40 @@ export function ScanButton({
 }: ScanButtonProps = {}) {
   const [state, setState] = useState<ScanState>("idle");
   const [message, setMessage] = useState<string>("");
+  const [accessRole, setAccessRole] = useState<AccessRole>(null);
+  const [accessLoaded, setAccessLoaded] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadAccessRole() {
+      try {
+        const response = await fetch("/api/access", { cache: "no-store" });
+        const data = (await response.json()) as { role?: AccessRole };
+        if (active) setAccessRole(data.role ?? null);
+      } catch {
+        if (active) setAccessRole(null);
+      } finally {
+        if (active) setAccessLoaded(true);
+      }
+    }
+
+    loadAccessRole();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const canRunScan = accessRole === "admin";
 
   async function handleScan() {
+    if (!canRunScan) {
+      setState("error");
+      setMessage("Admin access is required to run manual scans.");
+      return;
+    }
+
     setState("loading");
     setMessage("");
 
@@ -186,7 +219,13 @@ export function ScanButton({
           {message}
         </span>
       ) : null}
-      <Button size={size} variant={variant} onClick={handleScan} disabled={state === "loading"}>
+      <Button
+        size={size}
+        variant={variant}
+        onClick={handleScan}
+        disabled={state === "loading" || !accessLoaded || !canRunScan}
+        title={!accessLoaded ? "Checking access" : canRunScan ? undefined : "Admin access is required to run scans"}
+      >
         {state === "loading" ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (

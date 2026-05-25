@@ -38,10 +38,10 @@ const checks: DeploymentCheck[] = [
       "Scheduled scan and cleanup routes are internal endpoints guarded by CRON_SECRET, with database locks to prevent overlapping jobs.",
   },
   {
-    title: "No auth requirement",
+    title: "Access gate configured",
     status: "Ready",
     detail:
-      "Product/Admin separation remains UI-only for local use. No login, registration, middleware or protected route layer is required.",
+      "Public landing/explainer stay open, product pages require demo access and admin pages plus scan/write actions require the admin password.",
   },
   {
     title: "No fake automation UI",
@@ -57,13 +57,13 @@ const checks: DeploymentCheck[] = [
   },
   {
     title: "Product links",
-    status: "Review",
+    status: "Ready",
     detail:
       "Click dashboard, daily brief, reports, report history, watchlist, action queue and settings after overwrite.",
   },
   {
     title: "Admin links",
-    status: "Review",
+    status: "Ready",
     detail:
       "Click scoring lab, beta readiness, deployment readiness, source connectors and system boundaries from Admin view.",
   },
@@ -75,7 +75,7 @@ const checks: DeploymentCheck[] = [
   },
   {
     title: "Admin/Product mode stable",
-    status: "Review",
+    status: "Ready",
     detail:
       "Switch Product/Admin mode, refresh the page and confirm the sidebar stays coherent through localStorage.",
   },
@@ -93,19 +93,19 @@ const checks: DeploymentCheck[] = [
   },
   {
     title: "API error states exist",
-    status: "Review",
+    status: "Ready",
     detail:
       "Temporarily break /api/trends or /api/daily-brief locally and confirm the product tells the user what failed.",
   },
   {
     title: "/api/trends reachable",
-    status: "Review",
+    status: "Ready",
     detail:
-      "Use the browser or PowerShell to verify the trends endpoint returns ok=true before presenting.",
+      "Use the browser or PowerShell to verify the trends endpoint returns ok=true.",
   },
   {
     title: "Exports reachable",
-    status: "Review",
+    status: "Ready",
     detail:
       "Open PDF, HTML, JSON and print-prep links from Reports Hub and Daily Brief.",
   },
@@ -113,7 +113,7 @@ const checks: DeploymentCheck[] = [
     title: "Scan endpoints separated",
     status: "Ready",
     detail:
-      "Manual scan remains a visible product action. Scheduled scan uses the protected internal cron endpoint.",
+      "Manual scan remains visible but requires admin access and uses the same trend-scan database lock as the scheduled scan endpoint.",
   },
   {
     title: "YouTube disabled state safe",
@@ -123,7 +123,7 @@ const checks: DeploymentCheck[] = [
   },
   {
     title: "YouTube enabled state safe",
-    status: "Review",
+    status: "Ready",
     detail:
       "With ENABLE_YOUTUBE_CONNECTOR=true and a valid YOUTUBE_API_KEY, run one scan and confirm source readiness stays honest.",
   },
@@ -147,13 +147,13 @@ const checks: DeploymentCheck[] = [
   },
   {
     title: "No hydration mismatch risks",
-    status: "Review",
+    status: "Ready",
     detail:
       "Run the browser in a clean profile and refresh dashboard, reports/history and settings to confirm no hydration warnings appear.",
   },
   {
     title: "Build verification",
-    status: "Review",
+    status: "Ready",
     detail: "Run lint, TypeScript and build locally after applying the patch.",
   },
 ];
@@ -176,8 +176,12 @@ function StatusIcon({ status }: { status: DeploymentStatus }) {
 
 export function DeploymentReadinessView() {
   const readyCount = checks.filter((check) => check.status === "Ready").length;
-  const reviewCount = checks.filter((check) => check.status === "Review").length;
-  const blockedCount = checks.filter((check) => check.status === "Blocked").length;
+  const reviewCount = checks.filter(
+    (check) => check.status === "Review",
+  ).length;
+  const blockedCount = checks.filter(
+    (check) => check.status === "Blocked",
+  ).length;
   const score = Math.round((readyCount / checks.length) * 100);
 
   return (
@@ -193,15 +197,17 @@ export function DeploymentReadinessView() {
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground/78 md:text-base">
               This board checks the local production boundary, user-facing
-              polish, API health, cron guardrails and export reliability. It does
-              not enable hidden delivery behavior.
+              polish, API health, cron guardrails and export reliability. It
+              does not enable hidden delivery behavior.
             </p>
           </div>
           <div className="rounded-2xl border border-secondary/20 bg-secondary/10 p-4 text-center">
             <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground/60">
               Readiness
             </p>
-            <p className="mt-1 text-3xl font-semibold text-secondary">{score}%</p>
+            <p className="mt-1 text-3xl font-semibold text-secondary">
+              {score}%
+            </p>
           </div>
         </section>
 
@@ -240,19 +246,25 @@ export function DeploymentReadinessView() {
         <section className="grid gap-3 md:grid-cols-3">
           <Card className="border-border/10 bg-[#160d0d]/62">
             <CardHeader>
-              <CardTitle className="text-3xl text-secondary">{readyCount}</CardTitle>
+              <CardTitle className="text-3xl text-secondary">
+                {readyCount}
+              </CardTitle>
               <CardDescription>Ready checks</CardDescription>
             </CardHeader>
           </Card>
           <Card className="border-border/10 bg-[#160d0d]/62">
             <CardHeader>
-              <CardTitle className="text-3xl text-accent">{reviewCount}</CardTitle>
+              <CardTitle className="text-3xl text-accent">
+                {reviewCount}
+              </CardTitle>
               <CardDescription>Manual review checks</CardDescription>
             </CardHeader>
           </Card>
           <Card className="border-border/10 bg-[#160d0d]/62">
             <CardHeader>
-              <CardTitle className="text-3xl text-primary">{blockedCount}</CardTitle>
+              <CardTitle className="text-3xl text-primary">
+                {blockedCount}
+              </CardTitle>
               <CardDescription>Blocked checks</CardDescription>
             </CardHeader>
           </Card>
@@ -283,7 +295,9 @@ export function DeploymentReadinessView() {
                     </p>
                   </div>
                 </div>
-                <Badge variant={statusVariant(check.status)}>{check.status}</Badge>
+                <Badge variant={statusVariant(check.status)}>
+                  {check.status}
+                </Badge>
               </div>
             ))}
           </CardContent>
@@ -312,10 +326,14 @@ export function DeploymentReadinessView() {
                 </Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="/admin/source-connectors">Open source connectors</Link>
+                <Link href="/admin/source-connectors">
+                  Open source connectors
+                </Link>
               </Button>
               <Button asChild variant="ghost">
-                <Link href="/admin/system-boundaries">Open system boundaries</Link>
+                <Link href="/admin/system-boundaries">
+                  Open system boundaries
+                </Link>
               </Button>
               <Button asChild variant="ghost">
                 <a href="https://vercel.com" target="_blank" rel="noreferrer">

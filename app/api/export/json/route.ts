@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDashboardTrends, normalizeDashboardWindow } from "@/lib/trends/get-dashboard-trends";
+import { buildApiErrorBody } from "@/lib/security/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -27,11 +28,7 @@ export async function GET(request: Request) {
     );
   } catch (error) {
     return NextResponse.json(
-      {
-        ok: false,
-        message: "JSON export could not be generated from current trend data.",
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
+      buildApiErrorBody("JSON export could not be generated from current trend data.", error),
       { status: 500 },
     );
   }

@@ -8,6 +8,7 @@ import { buildDailyBriefServerPdf } from "@/lib/trends/daily-brief-server-pdf";
 import { buildDailyBriefServerPdfReliabilityQa } from "@/lib/trends/daily-brief-server-pdf-qa";
 import { normalizeDashboardWindow } from "@/lib/trends/get-dashboard-trends";
 import type { DailyBriefErrorResponse } from "@/lib/trends/types";
+import { buildApiErrorBody } from "@/lib/security/api-error";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -61,11 +62,10 @@ export async function GET(request: Request) {
       },
     );
   } catch (error) {
-    const body: DailyBriefErrorResponse = {
-      ok: false,
-      message: "Failed to inspect Daily Intelligence Brief PDF health.",
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
+    const body: DailyBriefErrorResponse = buildApiErrorBody(
+      "Failed to inspect Daily Intelligence Brief PDF health.",
+      error,
+    );
 
     return NextResponse.json(body, { status: 500 });
   }

@@ -4,6 +4,7 @@ import {
   normalizeDashboardWindow,
 } from "@/lib/trends/get-dashboard-trends";
 import type { DashboardTrendsErrorResponse } from "@/lib/trends/types";
+import { buildApiErrorBody } from "@/lib/security/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -22,11 +23,10 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    const body: DashboardTrendsErrorResponse = {
-      ok: false,
-      message: "Failed to load dashboard trends.",
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
+    const body: DashboardTrendsErrorResponse = buildApiErrorBody(
+      "Failed to load dashboard trends.",
+      error,
+    );
 
     return NextResponse.json(body, { status: 500 });
   }

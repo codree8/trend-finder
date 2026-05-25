@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getTrendDetail } from "@/lib/trends/get-trend-detail";
 import { normalizeDashboardWindow } from "@/lib/trends/get-dashboard-trends";
 import type { TrendDetailErrorResponse } from "@/lib/trends/types";
+import { buildApiErrorBody } from "@/lib/security/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -21,11 +22,10 @@ export async function GET(
       },
     });
   } catch (error) {
-    const body: TrendDetailErrorResponse = {
-      ok: false,
-      message: "Failed to load trend detail.",
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
+    const body: TrendDetailErrorResponse = buildApiErrorBody(
+      "Failed to load trend detail.",
+      error,
+    );
 
     return NextResponse.json(body, { status: 500 });
   }

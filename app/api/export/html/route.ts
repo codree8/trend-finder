@@ -1,5 +1,6 @@
 import { generateHtmlReport } from "@/lib/reports/generate-html-report";
 import { normalizeDashboardWindow } from "@/lib/trends/get-dashboard-trends";
+import { buildApiErrorBody } from "@/lib/security/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -18,11 +19,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     return Response.json(
-      {
-        ok: false,
-        message: "HTML export could not be generated from current trend data.",
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
+      buildApiErrorBody("HTML export could not be generated from current trend data.", error),
       { status: 500 },
     );
   }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { removeTrendFromWatchlist } from "@/lib/trends/watchlist";
+import { buildApiErrorBody } from "@/lib/security/api-error";
 import type {
   WatchlistErrorResponse,
   WatchlistMutationResponse,
@@ -25,11 +26,10 @@ export async function DELETE(
       },
     });
   } catch (error) {
-    const body: WatchlistErrorResponse = {
-      ok: false,
-      message: "Failed to remove trend from watchlist.",
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
+    const body: WatchlistErrorResponse = buildApiErrorBody(
+      "Failed to remove trend from watchlist.",
+      error,
+    );
 
     return NextResponse.json(body, { status: 400 });
   }

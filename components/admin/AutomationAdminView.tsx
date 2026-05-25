@@ -31,9 +31,9 @@ const boundaryItems = [
       "Cron is limited to scheduled scan refresh and retention cleanup through internal endpoints guarded by CRON_SECRET.",
   },
   {
-    title: "No auth layer yet",
+    title: "Lightweight access gate",
     detail:
-      "The app still has no login, registration, middleware or per-user workspace protection.",
+      "The app uses demo/admin access codes instead of a full user-account system. Demo users can review the product; admin-only routes control scan and QA operations.",
   },
   {
     title: "No background report delivery",

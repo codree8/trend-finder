@@ -6,14 +6,7 @@ type CronAuthResult =
 
 function getPresentedSecret(request: Request) {
   const authHeader = request.headers.get("authorization");
-  const bearer = authHeader?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
-
-  return (
-    bearer ||
-    request.headers.get("x-cron-secret")?.trim() ||
-    new URL(request.url).searchParams.get("secret")?.trim() ||
-    ""
-  );
+  return authHeader?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim() ?? "";
 }
 
 export function requireCronSecret(request: Request): CronAuthResult {
