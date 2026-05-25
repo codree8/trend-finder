@@ -38,8 +38,11 @@ import { applyProductTrendPreferences } from "@/lib/product/apply-product-prefer
 import {
   dispatchTrendSearchSubmitted,
   filterDashboardTrendsBySearch,
+  getDashboardSearchResults,
   getDashboardSearchUrl,
   readDashboardSearchQueryFromUrl,
+  readDashboardSearchTrendFromUrl,
+  summarizeDashboardSearchResults,
   TREND_SEARCH_SUBMITTED_EVENT,
   type TrendSearchSubmittedDetail,
 } from "@/lib/search/dashboard-search";
@@ -284,11 +287,18 @@ export function DashboardView() {
 
     function syncSearchFromUrl() {
       setSearchQuery(readDashboardSearchQueryFromUrl(window.location.search));
+
+      const trendSlug = readDashboardSearchTrendFromUrl(window.location.search);
+      if (trendSlug) setSelectedTrendSlug(trendSlug);
     }
 
     function handleSearchSubmitted(event: Event) {
       const customEvent = event as CustomEvent<TrendSearchSubmittedDetail>;
       setSearchQuery(customEvent.detail.query);
+
+      if (customEvent.detail.trendSlug) {
+        setSelectedTrendSlug(customEvent.detail.trendSlug);
+      }
     }
 
     syncSearchFromUrl();
@@ -362,6 +372,16 @@ export function DashboardView() {
   const searchFilteredHiddenGems = useMemo(
     () => filterDashboardTrendsBySearch(filteredHiddenGems, searchQuery),
     [filteredHiddenGems, searchQuery],
+  );
+
+  const dashboardSearchResults = useMemo(
+    () => getDashboardSearchResults(filteredTrends, searchQuery),
+    [filteredTrends, searchQuery],
+  );
+
+  const dashboardSearchSummary = useMemo(
+    () => summarizeDashboardSearchResults(dashboardSearchResults),
+    [dashboardSearchResults],
   );
 
   const creatorOpportunities = useMemo(() => {
@@ -577,28 +597,47 @@ export function DashboardView() {
 
         {hasActiveSearch && !isLoading && !error ? (
           <section className="rounded-3xl border border-secondary/15 bg-secondary/10 p-4 shadow-card backdrop-blur sm:p-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <Badge variant="secondary" className="mb-2 w-fit">
                   Search active
                 </Badge>
                 <h2 className="text-lg font-semibold tracking-[-0.03em] text-foreground">
-                  {activeSearchResultCount} result
+                  {activeSearchResultCount} visible trend
                   {activeSearchResultCount === 1 ? "" : "s"} for “{searchQuery}”
                 </h2>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground/76">
-                  Searching topics, aliases, source names, summaries, evidence titles and content angles inside the current dashboard window and filters.
+                  Ranked across topics, aliases, source names, summaries, evidence titles and content angles inside the current dashboard window and filters.
                 </p>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={clearSearch}
-                className="w-full sm:w-auto"
-              >
-                Clear search
-              </Button>
+              <div className="flex flex-col gap-3 lg:items-end">
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground/72 lg:justify-end">
+                  {dashboardSearchSummary.bestMatch ? (
+                    <span className="rounded-full border border-border/10 bg-card/45 px-3 py-1.5">
+                      Best: {dashboardSearchSummary.bestMatch.title}
+                    </span>
+                  ) : null}
+                  {dashboardSearchSummary.topCategory ? (
+                    <span className="rounded-full border border-border/10 bg-card/45 px-3 py-1.5">
+                      Category: {dashboardSearchSummary.topCategory}
+                    </span>
+                  ) : null}
+                  {dashboardSearchSummary.topSource ? (
+                    <span className="rounded-full border border-border/10 bg-card/45 px-3 py-1.5">
+                      Source: {dashboardSearchSummary.topSource}
+                    </span>
+                  ) : null}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={clearSearch}
+                  className="w-full sm:w-auto"
+                >
+                  Clear search
+                </Button>
+              </div>
             </div>
           </section>
         ) : null}
