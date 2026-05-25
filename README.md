@@ -19,6 +19,7 @@ The project is built for a public landing/demo presentation plus a protected liv
 - Database lock guard so manual/cron scans and cleanup jobs do not overlap.
 - 30-day default retention cleanup for transient scan data.
 - Dashboard with KPI cards, radar/timeline/source breakdown, hidden gems, signal table, Creator Mode and scan health.
+- Semantic/vector search backed by a protected server-side `/api/search` endpoint and a pgvector search index.
 - Category keyword packs and scan modes: balanced, category and deep.
 - Noise suppression, trend quality gates, lifecycle scoring and evidence/action consistency checks.
 - Watchlist intelligence delta.
@@ -98,6 +99,7 @@ Do not pass secrets through query strings.
 - Recharts
 - Drizzle ORM
 - Neon/PostgreSQL
+- pgvector extension for semantic search documents
 - ESLint with Next core web vitals and TypeScript rules
 - GitHub Actions for scheduled production triggers
 
@@ -139,6 +141,8 @@ Run database migrations after `DATABASE_URL` is set:
 ```bash
 npm run db:migrate
 ```
+
+Search v4 adds a semantic search migration that creates the `vector` extension and the `semantic_search_documents` / `semantic_search_index_state` tables. Neon is the intended database target. If you use a different local PostgreSQL server, make sure pgvector is available before running migrations.
 
 Start the app:
 
@@ -196,8 +200,14 @@ npm run db:studio    # Open Drizzle Studio
 
 ## Search
 
-The top search bar is backed by a protected server-side radar search endpoint.
-It searches the current stored dashboard window and returns ranked results across:
+The top search bar is backed by Search v4: a protected server-side semantic/vector search endpoint. It builds a compact pgvector-powered search index from the current radar window and ranks results with a hybrid score:
+
+- semantic vector similarity across trend context, aliases, sources, evidence and angles
+- PostgreSQL full-text ranking over stored search documents
+- exact/partial title boosts for obvious matches
+- trend score, hidden-gem score and source-count boosts for product relevance
+
+It searches across:
 
 - trend names, canonical keys and aliases
 - categories and source names
@@ -213,7 +223,7 @@ Enter         Open the best result
 Esc           Close search
 ```
 
-`/api/search` requires demo access, because it reads the live stored radar index.
+`/api/search` requires demo access, because it reads the live stored radar index. If the semantic index table is missing or pgvector is unavailable, the endpoint falls back to the ranked lexical search so the UI does not break during local setup.
 
 ## Main pages
 
@@ -245,7 +255,7 @@ DELETE /api/access
 POST /api/scan
 GET  /api/trends?window=24h|7d|30d
 GET  /api/trends/[slug]?window=24h|7d|30d
-GET  /api/search?q=agents&scope=all&window=7d
+GET  /api/search?q=agents&scope=all&window=7d   # semantic/vector search
 GET  /api/watchlist?window=24h|7d|30d
 POST /api/watchlist?window=24h|7d|30d
 DELETE /api/watchlist/[trendKey]
@@ -361,6 +371,8 @@ reports
 browser-local preferences
 browser-local report history
 cron_job_locks
+semantic_search_documents
+semantic_search_index_state
 ```
 
 This keeps Neon storage under control while preserving watchlist decisions, reports and the canonical topic layer. PostgreSQL may not show storage dropping instantly after deletes because normal vacuum behavior reuses freed table space over time.

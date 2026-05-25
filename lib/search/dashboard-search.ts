@@ -66,15 +66,27 @@ export type DashboardSearchApiSummary = Omit<
   bestMatch: DashboardSearchApiResult | null;
 };
 
+export type DashboardSearchMode =
+  | "semantic-vector"
+  | "ranked-lexical-fallback";
+
+export type DashboardSearchIndexMetadata = {
+  mode: DashboardSearchMode;
+  documentCount: number;
+  indexUpdatedAt: string | null;
+};
+
 export type DashboardSearchResponse = {
   ok: true;
   query: string;
   scope: DashboardSearchScope;
   window: string;
+  mode: DashboardSearchMode;
   generatedAt: string;
   results: DashboardSearchApiResult[];
   summary: DashboardSearchApiSummary;
   suggestions: string[];
+  searchIndex: DashboardSearchIndexMetadata;
 };
 
 export function normalizeTrendSearchQuery(value: string) {

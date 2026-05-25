@@ -27,6 +27,7 @@ import {
   recordRecentDashboardSearch,
   type DashboardSearchApiResult,
   type DashboardSearchApiSummary,
+  type DashboardSearchIndexMetadata,
   type DashboardSearchResponse,
   type DashboardSearchResultKind,
   type DashboardSearchScope,
@@ -59,6 +60,12 @@ const emptySummary: DashboardSearchApiSummary = {
   bestMatch: null,
 };
 
+const emptySearchIndex: DashboardSearchIndexMetadata = {
+  mode: "semantic-vector",
+  documentCount: 0,
+  indexUpdatedAt: null,
+};
+
 export function SearchCommandPalette({
   open,
   initialQuery,
@@ -76,6 +83,8 @@ export function SearchCommandPalette({
   const [scope, setScope] = useState<DashboardSearchScope>("all");
   const [results, setResults] = useState<DashboardSearchApiResult[]>([]);
   const [summary, setSummary] = useState<DashboardSearchApiSummary>(emptySummary);
+  const [searchIndex, setSearchIndex] =
+    useState<DashboardSearchIndexMetadata>(emptySearchIndex);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,7 +108,7 @@ export function SearchCommandPalette({
     const timeoutId = window.setTimeout(() => {
       didTimeout = true;
       controller.abort();
-    }, 15000);
+    }, 30000);
     const debounceId = window.setTimeout(
       () => {
         async function loadServerSearch() {
@@ -144,11 +153,12 @@ export function SearchCommandPalette({
             setResults(searchPayload.results);
             setSummary(searchPayload.summary);
             setSuggestions(searchPayload.suggestions);
+            setSearchIndex(searchPayload.searchIndex);
           } catch (loadError) {
             if (controller.signal.aborted) {
               if (didTimeout) {
                 setError(
-                  "Search database took too long to respond. Close search and try again.",
+                  "Search database took too long to respond. If this is the first semantic search after a migration, wait a moment and try again.",
                 );
               }
               return;
@@ -156,6 +166,7 @@ export function SearchCommandPalette({
 
             setResults([]);
             setSummary(emptySummary);
+            setSearchIndex(emptySearchIndex);
             setError(
               loadError instanceof Error
                 ? loadError.message
@@ -306,7 +317,9 @@ export function SearchCommandPalette({
             ))}
             <span className="ml-auto hidden items-center gap-1.5 rounded-full border border-border/10 bg-card/40 px-3 py-1.5 text-xs text-muted-foreground/65 sm:inline-flex">
               <Database className="h-3.5 w-3.5 text-secondary" />
-              Server search · Ctrl K · /
+              {searchIndex.mode === "semantic-vector"
+                ? "Semantic vector · Ctrl K · /"
+                : "Ranked fallback · Ctrl K · /"}
             </span>
           </div>
         </div>
@@ -320,7 +333,11 @@ export function SearchCommandPalette({
           ) : normalizedQuery ? (
             results.length > 0 ? (
               <div className="space-y-5">
-                <SearchInsightSummary summary={summary} query={normalizedQuery} />
+                <SearchInsightSummary
+                  summary={summary}
+                  query={normalizedQuery}
+                  searchIndex={searchIndex}
+                />
                 {groupedResults.map((group) => (
                   <section key={group.kind} className="space-y-2">
                     <div className="flex items-center justify-between gap-3">
@@ -380,27 +397,35 @@ export function SearchCommandPalette({
 function SearchInsightSummary({
   query,
   summary,
+  searchIndex,
 }: {
   query: string;
   summary: DashboardSearchApiSummary;
+  searchIndex: DashboardSearchIndexMetadata;
 }) {
   return (
     <div className="rounded-3xl border border-secondary/15 bg-secondary/10 p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-secondary">
-            Database search active
+            {searchIndex.mode === "semantic-vector"
+              ? "Semantic vector search active"
+              : "Ranked fallback search active"}
           </p>
           <h3 className="mt-2 text-lg font-semibold tracking-[-0.03em] text-foreground">
             {summary.total} ranked result{summary.total === 1 ? "" : "s"} for “
             {query}”
           </h3>
           <p className="mt-1 text-sm leading-6 text-muted-foreground/76">
-            Ranked on the server from the current radar window across trend names,
-            aliases, sources, evidence titles and content angles.
+            {searchIndex.mode === "semantic-vector"
+              ? "Ranked with a server-side vector index plus lexical evidence matching across the current radar window."
+              : "Ranked on the server from the current radar window across trend names, aliases, sources, evidence titles and content angles."}
           </p>
         </div>
         <div className="grid gap-2 text-xs text-muted-foreground/72 sm:min-w-56">
+          <span className="rounded-full border border-border/10 bg-card/45 px-3 py-1.5">
+            Index: {searchIndex.documentCount} docs
+          </span>
           {summary.bestMatch ? (
             <span className="rounded-full border border-border/10 bg-card/45 px-3 py-1.5">
               Best: {summary.bestMatch.title}
@@ -496,7 +521,7 @@ function SearchStartState({
         <QuickSearchCard
           icon={Database}
           title="Server-side search"
-          description="Query the current radar database instead of relying only on the browser index."
+          description="Use a server-side vector index to find related trends, sources, evidence and angles."
         />
         <QuickSearchCard
           icon={Link2}
